@@ -81,8 +81,8 @@ header.top .sub{
   font-size:19px;
   font-weight:600;
   margin-top:2px;
+  color:var(--coral-deep); 
 }
-.stat.warn .val{ color:var(--coral-deep); }
 
 nav.tabs{
   display:flex;

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Meu Estoque</title>
+<meta name="description" content="Controle de estoque e vendas simples para pequenos comerciantes.">
+<meta name="theme-color" content="#1B3A2F">
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <p class="eyebrow" id="dateLabel">—</p>
+    <h1>Meu estoque</h1>
+    <p class="sub">Controle o que você tem e cobre em segundos.</p>
+    <div class="stats">
+      <div class="stat">
+        <div class="lbl">Itens</div>
+        <div class="val" id="statItems">0</div>
+      </div>
+      <div class="stat">
+        <div class="lbl">Valor em estoque</div>
+        <div class="val" id="statValue">R$ 0</div>
+      </div>
+      <div class="stat warn">
+        <div class="lbl">Estoque baixo</div>
+        <div class="val" id="statLow">0</div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="active" data-tab="estoque">Estoque</button>
+    <button data-tab="vendas">Vendas</button>
+  </nav>
+
+  <main id="main"></main>
+
+  <div class="fab" id="fabWrap">
+    <button id="btnAddProduct" aria-label="Adicionar produto">+</button>
+  </div>
+
+  <div class="cartbar" id="cartbar">
+    <div>
+      <div class="left" id="cartCount">0 itens no carrinho</div>
+      <div class="total" id="cartTotal">R$ 0,00</div>
+    </div>
+    <button id="btnCobrar">Cobrar</button>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/produtos.js"></script>
+<script src="js/vendas.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

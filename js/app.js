@@ -13,6 +13,7 @@ let formaPagamentoEscolhida = 'dinheiro';
 
 let filtroEstoque = { busca: '', categoria: '', situacao: 'todos' };
 let filtroVendas = { periodo: 'todas', status: 'todas' };
+let buscaVenda = '';
 let imagemPendente = null; // base64 da foto escolhida/tirada, ainda não salva
 let streamScannerAtivo = null;
 
@@ -47,23 +48,6 @@ async function recarregarDados() {
   vendasCache = await Vendas.listarVendas();
 }
 
-async function buscarEmailUsuario() {
-  try {
-    const res = await fetch('/me');
-    const data = await res.json();
-    return data.email;
-  } catch (e) {
-    return null;
-  }
-}
-async function atualizarEmailConta() {
-  const email = await buscarEmailUsuario();
-  const el = document.getElementById('emailUsuario');
-
-  if (el) {
-    el.textContent = email || 'Não logado';
-  }
-}
 // --- Foto do produto ---
 
 /**
@@ -212,7 +196,7 @@ function abrirScannerParaVender() {
       alert(`${produto.nome} está sem estoque.`);
       return;
     }
-    abaAtual = 'estoque';
+    abaAtual = 'venda';
     alterarCarrinho(produto.id, 1);
     renderizarTudo();
   });
@@ -247,6 +231,7 @@ function renderizarAbas() {
     botao.classList.toggle('active', botao.dataset.tab === abaAtual);
   });
   document.getElementById('toolbarEstoque').style.display = abaAtual === 'estoque' ? 'flex' : 'none';
+  document.getElementById('toolbarVenda').style.display = abaAtual === 'venda' ? 'flex' : 'none';
 }
 
 // --- Aba Estoque ---
@@ -293,15 +278,14 @@ function atualizarListaProdutos() {
   } else if (filtrados.length === 0) {
     container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado com esse filtro.</div>';
   } else {
-    const dica = `<p class="dica-venda">Toque em <strong>Vender</strong> no produto para montar a cobrança</p>`;
-    container.innerHTML = dica + filtrados.map(cartaoProduto).join('');
+    container.innerHTML = filtrados.map(cartaoProdutoEstoque).join('');
   }
 }
 
 function telaVaziaEstoque() {
   return `<div class="empty">
     <p class="titulo">Nenhum produto ainda</p>
-    <p class="hint">Toque no + para cadastrar seu primeiro item.</p>
+    <p class="hint">Toque em "Adicionar produto" para cadastrar seu primeiro item.</p>
   </div>`;
 }
 
@@ -312,18 +296,17 @@ function telaVaziaVendas() {
   </div>`;
 }
 
-function cartaoProduto(produto) {
+/** Card de gestão (aba Estoque): mostra quantidade, sem botão de vender — toque para editar. */
+function cartaoProdutoEstoque(produto) {
   const estoqueBaixo = produto.estoque <= (produto.estoqueMinimo || 0);
-  const qtdNoCarrinho = carrinho[produto.id] || 0;
-  const semEstoqueParaAdicionar = qtdNoCarrinho >= produto.estoque;
   const categoria = produto.categoria || Produtos.CATEGORIA_PADRAO;
   const miniatura = produto.imagem
     ? `<img src="${produto.imagem}" alt="" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
 
-  return `<div class="product-card">
+  return `<div class="product-card" onclick="abrirEdicao('${produto.id}')">
     ${miniatura}
-    <div class="info" onclick="abrirEdicao('${produto.id}')">
+    <div class="info">
       <div class="name">${escaparHtml(produto.nome)}</div>
       <div class="meta">
         <span class="price">${formatarMoeda(produto.preco)}</span>
@@ -331,18 +314,98 @@ function cartaoProduto(produto) {
         <span class="cat">${escaparHtml(categoria)}</span>
       </div>
     </div>
-    <div class="actions">
-      ${qtdNoCarrinho > 0 ? `
-        <button class="qtybtn" onclick="alterarCarrinho('${produto.id}', -1)" aria-label="Remover um">–</button>
-        <span class="qtd">${qtdNoCarrinho}</span>
-        <button class="qtybtn add" onclick="alterarCarrinho('${produto.id}', 1)"
-          ${semEstoqueParaAdicionar ? 'disabled' : ''} aria-label="Adicionar mais um">+</button>
-      ` : `
-        <button class="sellbtn" onclick="alterarCarrinho('${produto.id}', 1)"
-          ${produto.estoque <= 0 ? 'disabled' : ''}>Vender</button>
-      `}
-    </div>
+    <span class="edit-hint" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+    </span>
   </div>`;
+}
+
+// --- Aba Venda (cardápio, por categoria, sem número de estoque) ---
+
+function aplicarFiltroVenda() {
+  const campo = document.getElementById('campoBuscaVenda');
+  buscaVenda = campo ? campo.value : '';
+  atualizarListaVenda();
+}
+
+function atualizarListaVenda() {
+  const container = document.getElementById('listaVenda');
+  if (!container) return;
+
+  const termo = (buscaVenda || '').trim().toLowerCase();
+
+  const filtrados = termo
+    ? produtosCache.filter(p => p.nome.toLowerCase().includes(termo))
+    : produtosCache;
+
+  if (filtrados.length === 0) {
+    container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado.</div>';
+    return;
+  }
+
+  const agrupado = {};
+
+  filtrados.forEach(p => {
+    const cat = p.categoria || Produtos.CATEGORIA_PADRAO;
+    if (!agrupado[cat]) agrupado[cat] = [];
+    agrupado[cat].push(p);
+  });
+
+  const categorias = Object.keys(agrupado).sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  );
+
+  container.innerHTML = categorias.map(cat => `
+    <div class="venda-categoria">
+      <h3 class="categoria-titulo">${escaparHtml(cat)}</h3>
+      <div class="categoria-grid">
+        ${agrupado[cat].map(cartaoProdutoVenda).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+/** Card de venda (aba Venda): estilo cardápio — sem número de estoque, só nome, foto, preço e botão de vender. */
+function cartaoProdutoVenda(produto) {
+  const qtd = carrinho[produto.id] || 0;
+  const estoqueZerado = produto.estoque <= 0;
+  const semMaisAdicionar = qtd >= produto.estoque;
+
+  const img = produto.imagem
+    ? `<img src="${produto.imagem}" class="thumb">`
+    : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
+
+  return `
+    <div class="product-card venda-card">
+      ${img}
+
+      <div class="info">
+        <div class="name">${escaparHtml(produto.nome)}</div>
+        <div class="meta">
+          <span class="price">${formatarMoeda(produto.preco)}</span>
+          ${estoqueZerado ? `<span class="stock low">Esgotado</span>` : ''}
+        </div>
+      </div>
+
+      <div class="actions">
+        ${qtd > 0 ? `
+          <button onclick="alterarCarrinho('${produto.id}', -1)">−</button>
+          <span>${qtd}</span>
+          <button 
+            onclick="alterarCarrinho('${produto.id}', 1)"
+            ${semMaisAdicionar ? 'disabled' : ''}
+          >+</button>
+        ` : `
+<button 
+  class="sellbtn"
+  onclick="alterarCarrinho('${produto.id}', 1)"
+  ${estoqueZerado ? 'disabled' : ''}
+>
+  Vender
+</button>
+        `}
+      </div>
+    </div>
+  `;
 }
 
 // --- Aba Vendas ---
@@ -446,46 +509,72 @@ function renderizarConteudo() {
     atualizarListaProdutos();
   }
 
-  else if (abaAtual === 'vendas') {
+else if (abaAtual === 'venda') {
+  main.innerHTML = `
+    <div class="page-venda">
+      <div class="venda-topbar">
+        <input 
+          id="campoBuscaVenda"
+          type="text"
+          placeholder="Buscar produto..."
+          oninput="aplicarFiltroVenda()"
+          class="campo-busca"
+        />
+      </div>
+
+      <div id="listaVenda"></div>
+    </div>
+  `;
+
+  atualizarListaVenda();
+}
+
+  else if (abaAtual === 'historico') {
     main.innerHTML = barraFiltrosVendas();
     atualizarListaVendas();
   }
 
-  else if (abaAtual === 'contato') {
+  else if (abaAtual === 'conta') {
     main.innerHTML = `
-      <div class="pagina">
-        <h2>Contato</h2>
-        <p>Se precisar de ajuda, fale com o suporte.</p>
+      <div class="page">
+        <h2>👤 Minha Conta</h2>
 
-        <div class="card">
-          <p><strong>Email:</strong> suporte@estoqueapp.com</p>
-          <p><strong>WhatsApp:</strong> (51) 99999-9999</p>
+        <div class="card-info">
+          <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
+          <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
+          <p><strong>Status:</strong> Sistema ativo</p>
+        </div>
+
+        <div class="card-info">
+          <h3>Resumo rápido</h3>
+          <p>Total em vendas hoje: ${formatarMoeda(Vendas.calcularVendasDoDia(vendasCache))}</p>
+          <p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>
         </div>
       </div>
     `;
   }
 
-else if (abaAtual === 'conta') {
-  main.innerHTML = `
-    <div class="pagina">
-      <h2>Conta</h2>
+  else if (abaAtual === 'contato') {
+    main.innerHTML = `
+      <div class="page">
+        <h2>📞 Contato e Suporte</h2>
 
-      <div class="card">
-        <p><strong>Status:</strong> Usuário conectado</p>
-        <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
-        <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
+        <div class="card-info">
+          <p>Suporte do sistema</p>
+          <p><strong>Email:</strong> gabriel.salvasantos@gmail.com</p>
+          <p><strong>WhatsApp:</strong> (51) 99445-9862</p>
+        </div>
+
+        <div class="card-info">
+          <h3>Ajuda rápida</h3>
+          <p>• Adicionar produtos → botão “Adicionar produto”</p>
+          <p>• Fazer vendas → aba “Venda”</p>
+          <p>• Exportar dados → botão Exportar</p>
+        </div>
       </div>
-
-      <button class="btn primary" onclick="abrirMenuExportar()">
-        Exportar dados
-      </button>
-    </div>
-  `;
+    `;
+  }
 }
-}
-
-  setTimeout(atualizarEmailConta, 0);
-
 
 function renderizarCarrinho() {
   const ids = Object.keys(carrinho);
@@ -528,7 +617,7 @@ function alterarCarrinho(produtoId, delta) {
     carrinho[produtoId] = novo;
   }
 
-  atualizarListaProdutos();
+  atualizarListaVenda();
   renderizarCarrinho();
 }
 
@@ -563,16 +652,26 @@ function abrirModalProduto(produto) {
         <label for="fNome">Nome do produto</label>
         <input id="fNome" type="text" placeholder="Ex: Brigadeiro" value="${produto ? escaparHtml(produto.nome) : ''}">
       </div>
+
+      <div class="field">
+        <label>Vendido por</label>
+        <div class="unidade-toggle" id="unidadeToggle">
+          <button type="button" class="unidade-opt ${(!produto || produto.unidade !== 'kg') ? 'selected' : ''}" data-unidade="un">Unidade</button>
+          <button type="button" class="unidade-opt ${(produto && produto.unidade === 'kg') ? 'selected' : ''}" data-unidade="kg">Peso (kg)</button>
+        </div>
+      </div>
+
       <div class="row2">
         <div class="field">
-          <label for="fPreco">Preço (R$)</label>
+          <label id="lblPreco" for="fPreco">Preço (R$)</label>
           <input id="fPreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" value="${produto ? produto.preco : ''}">
         </div>
         <div class="field">
-          <label for="fEstoque">Quantidade</label>
-          <input id="fEstoque" type="number" inputmode="numeric" min="0" placeholder="0" value="${produto ? produto.estoque : ''}">
+          <label id="lblEstoque" for="fEstoque">Quantidade</label>
+          <input id="fEstoque" type="number" inputmode="decimal" step="${produto && produto.unidade === 'kg' ? '0.001' : '1'}" min="0" placeholder="0" value="${produto ? produto.estoque : ''}">
         </div>
       </div>
+      <p class="hint-unidade" id="hintUnidade" style="display:${produto && produto.unidade === 'kg' ? 'block' : 'none'};">Preço por kg. Quantidade em estoque também em kg (ex: 12.5).</p>
 
       <button type="button" class="link-mais-opcoes" id="btnMaisOpcoes">+ Mais opções (categoria, código de barras, aviso de estoque)</button>
 
@@ -831,7 +930,7 @@ function abrirMenuExportar() {
       <p class="hint">Escolha o que você quer baixar em planilha (CSV).</p>
       <button class="opt" id="expEstoque">Estoque atual<span class="d">Produto, categoria, quantidade e histórico de entradas/saídas</span></button>
       <button class="opt" id="expMovimentos">Movimentações<span class="d">Todo histórico de entradas e saídas, com data e motivo</span></button>
-      <button class="opt" id="expVendas">Vendas do período<span class="d">Respeita o filtro de período aberto na aba Vendas</span></button>
+      <button class="opt" id="expVendas">Vendas do período<span class="d">Respeita o filtro de período aberto na aba Histórico</span></button>
       <button class="opt" id="expClientes">Clientes<span class="d">Total de compras e valor gasto por cliente</span></button>
       <button class="btn ghost" id="btnFecharExport">Fechar</button>
     </div>`;
@@ -855,7 +954,7 @@ function abrirMenuExportar() {
 
   document.getElementById('expVendas').addEventListener('click', () => {
     const vendasDoPeriodo = Vendas.filtrarVendas(vendasCache, filtroVendas);
-    if (vendasDoPeriodo.length === 0) { alert('Nenhuma venda no período selecionado na aba Vendas.'); return; }
+    if (vendasDoPeriodo.length === 0) { alert('Nenhuma venda no período selecionado na aba Histórico.'); return; }
     baixarCsv(`vendas-${dataArquivo}.csv`, Vendas.gerarCsvVendas(vendasDoPeriodo));
     wrap.remove();
   });

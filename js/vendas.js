@@ -93,8 +93,8 @@ function inicioDoMes(data = new Date()) {
   return d;
 }
 
-/** Filtra vendas por período (hoje/semana/mês/todas) e por status. */
-function filtrarVendas(vendas, { periodo = 'todas', status = 'todas' } = {}) {
+/** Filtra vendas por período (hoje/semana/mês/todas), status, produto e vendedor. */
+function filtrarVendas(vendas, { periodo = 'todas', status = 'todas', produto = '', vendedor = '' } = {}) {
   let limite = null;
   if (periodo === 'hoje') limite = inicioDoDia();
   else if (periodo === 'semana') limite = inicioDaSemana();
@@ -104,8 +104,24 @@ function filtrarVendas(vendas, { periodo = 'todas', status = 'todas' } = {}) {
     if (limite && new Date(v.data) < limite) return false;
     if (status === 'ativas' && v.status === 'cancelada') return false;
     if (status === 'canceladas' && v.status !== 'cancelada') return false;
+    if (produto && !v.itens.some(i => i.nome === produto)) return false;
+    if (vendedor && (v.vendedor || '') !== vendedor) return false;
     return true;
   });
+}
+
+/** Nomes distintos de produtos que já apareceram em alguma venda, para o filtro do histórico. */
+function listarProdutosVendidos(vendas) {
+  const set = new Set();
+  vendas.forEach(v => v.itens.forEach(i => set.add(i.nome)));
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+/** Vendedores distintos já registrados em vendas, para o filtro do histórico. */
+function listarVendedores(vendas) {
+  const set = new Set();
+  vendas.forEach(v => { if (v.vendedor) set.add(v.vendedor); });
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
 function calcularTotalVendido(vendas) {
@@ -141,7 +157,7 @@ function calcularResumoFinanceiro(vendas) {
   return {
     totalVendido,
     porFormaPagamento,
-    totalFiadoEmAberto: porFormaPagamento.fiado
+    totalfiadoEmAberto: porFormaPagamento.fiado
   };
 }
 
@@ -162,13 +178,14 @@ function calcularHistoricoClientes(vendas) {
 
 function gerarCsvVendas(vendas) {
   const linhas = [
-    ['Data', 'Cliente', 'Itens', 'Forma de pagamento', 'Status', 'Total'].join(';')
+    ['Data', 'Cliente', 'Vendedor', 'Itens', 'Forma de pagamento', 'Status', 'Total'].join(';')
   ];
   vendas.forEach(v => {
     const data = new Date(v.data).toLocaleString('pt-BR');
     const cliente = String(v.cliente || '').replace(/;/g, ',');
-    const itens = v.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ').replace(/;/g, ',');
-    linhas.push([data, cliente, itens, v.formaPagamento, v.status === 'cancelada' ? 'Cancelada' : 'Concluída', v.total.toFixed(2).replace('.', ',')].join(';'));
+    const vendedor = String(v.vendedor || '').replace(/;/g, ',');
+    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ').replace(/;/g, ',');
+    linhas.push([data, cliente, vendedor, itens, v.formaPagamento, v.status === 'cancelada' ? 'Cancelada' : 'Concluída', v.total.toFixed(2).replace('.', ',')].join(';'));
   });
   return linhas.join('\r\n');
 }

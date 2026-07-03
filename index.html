@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+
 <title>Meu Estoque</title>
 
 <meta name="description" content="Controle de estoque e vendas simples para pequenos comerciantes.">
@@ -20,10 +21,7 @@
 
 <body>
 
-
-
-<!-- 📦 APP -->
-<div id="shell" style="display:felx;">
+<div id="shell" style="display:flex;">
 
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
@@ -33,25 +31,13 @@
       <span class="brand-name">Estoque Fácil</span>
     </div>
 
-    <button type="button" class="side-item tabs active" data-tab="estoque">
-      📦 Estoque
-    </button>
+    <button type="button" class="side-item tabs active" data-tab="estoque">📦 Estoque</button>
+    <button type="button" class="side-item tabs active" data-tab="venda">🛒 Venda</button>
+    <button type="button" class="side-item tabs active" data-tab="historico">📊 Histórico</button>
+    <button type="button" class="side-item tabs active" data-tab="conta">👤 Conta</button>
+    <button type="button" class="side-item tabs active" data-tab="contato">📞 Contato</button>
 
-    <button type="button" class="side-item tabs" data-tab="vendas">
-      🛒 Vendas
-    </button>
-
-    <button type="button" class="side-item tabs" data-tab="conta">
-      👤 Conta
-    </button>
-
-    <button type="button" class="side-item tabs" data-tab="contato">
-      📞 Contato
-    </button>
-
-    <button type="button" class="side-item" id="btnExportarSidebar">
-      ⬇ Exportar
-    </button>
+    <button type="button" class="side-item" id="btnExportarSidebar">⬇ Exportar</button>
 
   </nav>
 
@@ -61,7 +47,7 @@
     <header class="top">
       <p class="eyebrow" id="dateLabel">—</p>
       <h1>Meu estoque</h1>
-      <p class="sub">Controle o que você tem e cobre em segundos.</p>
+      <p class="sub">Controle o que você tem e vende em segundos.</p>
 
       <div class="stats">
         <div class="stat">
@@ -74,45 +60,33 @@
           <div class="val" id="statMes">R$ 0</div>
         </div>
 
-        <div class="stat warn" id="statLowWrap" onclick="irParaEstoqueBaixo()">
+        <div class="stat warn" id="statLowWrap">
           <div class="lbl">Estoque baixo</div>
           <div class="val" id="statLow">0</div>
         </div>
       </div>
 
-      <p class="topsellers" id="topSellers" style="display:none;"></p>
+      <p class="topsellers" id="topSellers"></p>
     </header>
 
-    <!-- TABS SUPERIOR -->
+    <!-- TABS -->
     <nav class="tabs">
-
-      <button type="button" class="active" data-tab="estoque">
-        Estoque
-      </button>
-
-      <button type="button" data-tab="vendas">
-        Vendas
-      </button>
-
-      <button type="button" id="btnExportar">
-        Exportar
-      </button>
-
+      <button type="button" data-tab="estoque">Estoque</button>
+      <button type="button" data-tab="venda">Venda</button>
+      <button type="button" data-tab="historico">Histórico</button>
+      <button type="button" id="btnExportar">Exportar</button>
     </nav>
 
-    <!-- TOOLBAR -->
+    <!-- TOOLBAR ESTOQUE -->
     <div class="toolbar" id="toolbarEstoque">
-
-      <button type="button" class="btn-destaque" id="btnAddProduct">
-        Adicionar produto
-      </button>
-
-      <button type="button" class="btn-scan-toolbar" id="btnEscanearVender">
-        📷
-      </button>
-
+      <button type="button" class="btn-destaque" id="btnAddProduct">Adicionar produto</button>
+      <button type="button" class="btn-scan-toolbar" id="btnEscanearVender">📷</button>
     </div>
 
+    <!-- TOOLBAR VENDA (IMPORTANTE PRO TEU JS) -->
+    <div class="toolbar" id="toolbarVenda" style="display:none;"></div>
+
+    <!-- MAIN -->
     <main id="main"></main>
 
     <!-- CARRINHO -->
@@ -121,21 +95,17 @@
         <div class="left" id="cartCount">0 itens no carrinho</div>
         <div class="total" id="cartTotal">R$ 0,00</div>
       </div>
-
-      <button type="button" id="btnCobrar">Cobrar</button>
+      <button id="btnCobrar">Cobrar</button>
     </div>
 
   </div>
 </div>
 
-<!-- SCRIPTS -->
+<!-- JS -->
 <script src="js/db.js"></script>
 <script src="js/produtos.js"></script>
 <script src="js/vendas.js"></script>
 <script src="js/app.js"></script>
-
-
-</script>
 
 </body>
 </html>

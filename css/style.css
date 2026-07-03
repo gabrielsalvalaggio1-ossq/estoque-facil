@@ -674,7 +674,7 @@ main{
   border-top:1px solid rgba(255,255,255,0.12);
 }
 .resumo .forma span:last-child{ color:var(--paper); font-weight:600; }
-.resumo .forma.fiado span:last-child{ color:var(--amber); }
+.resumo .forma.cortesia span:last-child{ color:var(--amber); }
 
 /* --- Menu de exportação --- */
 .export-menu{
@@ -714,10 +714,58 @@ main{
    Acima disso, ganha barra lateral fixa e o conteúdo usa a largura
    útil da tela, como Stripe/Notion — sem moldura de app flutuando
    numa tela escura vazia. */
-@media (min-width: 900px){
-  body{ background:var(--paper-dim); }
-  #shell{ align-items:stretch; }
+@media (min-width: 1000px){
+  body{
+    background:var(--paper-dim);
+  }
 
+  #shell{
+    display:flex;
+    width:100%;
+    max-width:none;   /* remove o limite de 1400px */
+    min-height:100vh;
+    margin:0;         /* deixa de centralizar */
+    align-items:stretch;
+  }
+
+  #app{
+    flex:1;
+    width:auto;
+    max-width:none;
+  }
+/* ===== Venda Desktop ===== */
+
+.categoria-coluna{
+    min-width:0;
+}
+
+.categoria-grupo{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.categoria-grupo .product-card{
+    width:100%;
+}
+
+.categoria-titulo{
+    margin:0;
+    padding-bottom:8px;
+    border-bottom:2px solid var(--line);
+    font-family:'Fraunces',serif;
+    font-size:28px;
+}
+
+.categoria-grupo{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.categoria-coluna{
+    min-width: 0;
+}
   .sidebar{
     display:flex;
     flex-direction:column;
@@ -777,14 +825,25 @@ main{
   .btn-destaque{ width:auto; padding:12px 22px; }
 
   main{ padding:16px 32px 32px; }
+  #listaVenda{
+    width:100%;
+}
+
+#listaVenda .categoria-grid{
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    width: 100%;
+    align-items: start;
+}
   .dica-venda{ grid-column:1 / -1; text-align:left; margin-bottom:4px; }
 
-  #listaProdutos:has(.product-card){
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
-    gap:12px;
-    align-content:start;
-  }
+#listaProdutos:has(.product-card){
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
   .product-card{ margin-bottom:0; }
 
   .cartbar{ position:sticky; }

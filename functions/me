@@ -1,7 +1,14 @@
 export async function onRequestGet({ request }) {
-  const email = request.headers.get("Cf-Access-Authenticated-User-Email");
+  const email =
+    request.cf?.access?.identity?.email ||
+    request.headers.get("Cf-Access-Authenticated-User-Email");
 
-  return new Response(JSON.stringify({ email }), {
-    headers: { "Content-Type": "application/json" }
-  });
+  return new Response(
+    JSON.stringify({
+      email: email || null
+    }),
+    {
+      headers: { "Content-Type": "application/json" }
+    }
+  );
 }

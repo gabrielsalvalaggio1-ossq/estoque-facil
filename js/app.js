@@ -4,8 +4,6 @@
  * Toda regra de negócio vive em produtos.js e vendas.js — aqui só chamamos.
  */
 
-
-
 let produtosCache = [];
 let vendasCache = [];
 let usuarioLogado = null;

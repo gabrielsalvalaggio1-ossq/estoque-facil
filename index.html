@@ -21,8 +21,9 @@
 <body>
 
 
+
 <!-- 📦 APP -->
-<div id="shell" style="display:none;">
+<div id="shell" style="display:felx;">
 
   <!-- SIDEBAR -->
   <nav class="sidebar" id="sidebar">
@@ -133,38 +134,7 @@
 <script src="js/vendas.js"></script>
 <script src="js/app.js"></script>
 
-<!-- LOGIN SCRIPT -->
-<script>
-const USERS = [{ user: "admin", pass: "1234" }];
 
-function login() {
-  const user = document.getElementById("login-user").value;
-  const pass = document.getElementById("login-pass").value;
-
-  const found = USERS.find(u => u.user === user && u.pass === pass);
-
-  if (found) {
-    localStorage.setItem("logged", "true");
-
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("shell").style.display = "flex";
-  } else {
-    document.getElementById("login-error").innerText =
-      "Usuário ou senha inválidos";
-  }
-}
-
-window.onload = function () {
-  const logged = localStorage.getItem("logged");
-
-  if (logged === "true") {
-    document.getElementById("login-screen").style.display = "none";
-    document.getElementById("shell").style.display = "flex";
-  } else {
-    document.getElementById("login-screen").style.display = "flex";
-    document.getElementById("shell").style.display = "none";
-  }
-};
 </script>
 
 </body>

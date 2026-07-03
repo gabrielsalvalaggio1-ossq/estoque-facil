@@ -7,11 +7,12 @@
  */
 
 const DB_NAME = 'estoqueAppDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   PRODUTOS: 'produtos',
-  VENDAS: 'vendas'
+  VENDAS: 'vendas',
+  MOVIMENTOS: 'movimentos'
 };
 
 let dbInstance = null;
@@ -33,6 +34,12 @@ function abrirBanco() {
       if (!db.objectStoreNames.contains(STORES.VENDAS)) {
         const vendasStore = db.createObjectStore(STORES.VENDAS, { keyPath: 'id' });
         vendasStore.createIndex('data', 'data', { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(STORES.MOVIMENTOS)) {
+        const movStore = db.createObjectStore(STORES.MOVIMENTOS, { keyPath: 'id' });
+        movStore.createIndex('data', 'data', { unique: false });
+        movStore.createIndex('produtoId', 'produtoId', { unique: false });
       }
     };
 

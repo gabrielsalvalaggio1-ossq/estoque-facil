@@ -5,7 +5,7 @@
  * este arquivo só garante que a INTERFACE carregue offline.
  */
 
-const CACHE_NAME = 'meu-estoque-v2';
+const CACHE_NAME = 'meu-estoque-v6';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',

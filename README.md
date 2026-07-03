@@ -64,9 +64,16 @@ Depois abra `http://localhost:8000` no navegador.
 - Os dados ficam **só no aparelho**. Se o comerciante trocar de celular ou desinstalar o navegador, perde os dados. Isso é aceitável na V1 porque backup é funcionalidade Premium — mas deve ficar claro para o usuário (ver "Próximos passos").
 - Um usuário só, um dispositivo só. Sem login.
 
+## Foto do produto e leitor de código de barras
+
+Ambos gratuitos, sem serviço externo:
+
+- **Foto**: usa `<input type="file">` do próprio navegador (câmera ou galeria). A imagem é redimensionada e comprimida no dispositivo antes de salvar (máx. 480px, JPEG ~70%), para o IndexedDB não crescer demais.
+- **Código de barras**: usa a API nativa `BarcodeDetector` do navegador — sem biblioteca externa, sem custo. Funciona no **Chrome (Android e desktop)**. **Não funciona no Safari/iPhone**, pois a Apple não implementa essa API no WebKit. Por isso o campo de código de barras sempre aceita digitação manual como alternativa garantida, em qualquer navegador.
+
 ## Roadmap
 
-**V1 (atual, gratuita):** cadastro de produtos, registro de vendas, histórico, estoque automático, instalável, offline.
+**V1 (atual, gratuita):** cadastro de produtos, registro de vendas com forma de pagamento (dinheiro, pix, cartão, fiado) e nome do cliente, cancelamento de venda com devolução automática ao estoque, histórico de entradas/saídas por produto, exportação do estoque em CSV, onboarding com dados de exemplo na primeira abertura, estoque automático, instalável, offline.
 
 **V1.1 (ainda gratuita, sugerido):** aviso visível na tela ("seus dados estão salvos só neste aparelho") + botão de exportar/importar um arquivo `.json` de backup manual — resolve parte da dor de perder dados, sem precisar de Supabase ainda.
 

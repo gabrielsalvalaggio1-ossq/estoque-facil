@@ -11,9 +11,20 @@ async function listarVendas() {
 }
 
 /**
+ * Formata a quantidade de um item de venda de acordo com a unidade do
+ * produto no momento da venda: "3x" para unidade, "0,500 kg" para peso.
+ */
+function formatarQuantidadeItem(item) {
+  if (item.unidade === 'kg') {
+    return Number(item.quantidade).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' kg';
+  }
+  return item.quantidade + 'x';
+}
+
+/**
  * Registra uma venda e já dá baixa no estoque dos produtos envolvidos.
- * carrinho: [{ produtoId, nome, quantidade, precoUnitario }]
- * opcoes: { formaPagamento, cliente }
+ * carrinho: [{ produtoId, nome, quantidade, precoUnitario, unidade }]
+ * opcoes: { formaPagamento, cliente, vendedor }
  */
 async function registrarVenda(carrinho, opcoes = {}) {
   if (!carrinho || carrinho.length === 0) {
@@ -22,6 +33,7 @@ async function registrarVenda(carrinho, opcoes = {}) {
 
   const formaPagamento = FORMAS_PAGAMENTO.includes(opcoes.formaPagamento) ? opcoes.formaPagamento : 'dinheiro';
   const cliente = (opcoes.cliente || '').trim();
+  const vendedor = (opcoes.vendedor || '').trim();
 
   const total = carrinho.reduce((soma, item) => soma + item.precoUnitario * item.quantidade, 0);
 
@@ -32,6 +44,7 @@ async function registrarVenda(carrinho, opcoes = {}) {
     total,
     formaPagamento,
     cliente,
+    vendedor,
     status: 'concluida'
   };
 

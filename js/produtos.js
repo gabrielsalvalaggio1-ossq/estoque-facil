@@ -48,7 +48,7 @@ async function listarMovimentos() {
   return movimentos.sort((a, b) => new Date(b.data) - new Date(a.data));
 }
 
-async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras }) {
+async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade }) {
   const erros = validarProduto({ nome, preco, estoque });
   if (erros.length) throw new Error(erros[0]);
 
@@ -58,6 +58,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
     id: DB.gerarId(),
     nome: nome.trim(),
     categoria: (categoria && categoria.trim()) ? categoria.trim() : CATEGORIA_PADRAO,
+    unidade: unidade === 'kg' ? 'kg' : 'un',
     preco: Number(preco),
     estoque: estoqueInicial,
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
@@ -79,7 +80,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
   return produto;
 }
 
-async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras }) {
+async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade }) {
   const erros = validarProduto({ nome, preco, estoque });
   if (erros.length) throw new Error(erros[0]);
 
@@ -95,6 +96,7 @@ async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categori
     ...existente,
     nome: nome.trim(),
     categoria: (categoria && categoria.trim()) ? categoria.trim() : CATEGORIA_PADRAO,
+    unidade: unidade === 'kg' ? 'kg' : 'un',
     preco: Number(preco),
     estoque: novoEstoque,
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
@@ -208,13 +210,14 @@ function calcularMaisVendidos(vendas, limite = 3) {
  */
 function gerarCsvEstoque(produtos) {
   const linhas = [
-    ['Produto', 'Categoria', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas'].join(';')
+    ['Produto', 'Categoria', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas'].join(';')
   ];
   produtos.forEach(p => {
     const nome = String(p.nome || '').replace(/;/g, ',');
     const categoria = String(p.categoria || CATEGORIA_PADRAO).replace(/;/g, ',');
     const codigo = String(p.codigoBarras || '').replace(/;/g, ',');
-    linhas.push([nome, categoria, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0].join(';'));
+    const unidade = p.unidade === 'kg' ? 'kg' : 'un';
+    linhas.push([nome, categoria, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0].join(';'));
   });
   return linhas.join('\r\n');
 }

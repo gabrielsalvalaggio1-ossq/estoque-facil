@@ -4,8 +4,11 @@
  * Toda regra de negócio vive em produtos.js e vendas.js — aqui só chamamos.
  */
 
+
+
 let produtosCache = [];
 let vendasCache = [];
+let usuarioLogado = null;
 let carrinho = {}; // { produtoId: quantidade }
 let abaAtual = 'estoque';
 let idEmEdicao = null;
@@ -423,12 +426,47 @@ async function cancelarVendaComConfirmacao(id) {
 
 function renderizarConteudo() {
   const main = document.getElementById('main');
+
   if (abaAtual === 'estoque') {
     main.innerHTML = barraFiltrosEstoque();
     atualizarListaProdutos();
-  } else {
+  }
+
+  else if (abaAtual === 'vendas') {
     main.innerHTML = barraFiltrosVendas();
     atualizarListaVendas();
+  }
+
+  else if (abaAtual === 'contato') {
+    main.innerHTML = `
+      <div class="pagina">
+        <h2>Contato</h2>
+        <p>Se precisar de ajuda, fale com o suporte.</p>
+
+        <div class="card">
+          <p><strong>Email:</strong> suporte@estoqueapp.com</p>
+          <p><strong>WhatsApp:</strong> (51) 99999-9999</p>
+        </div>
+      </div>
+    `;
+  }
+
+  else if (abaAtual === 'conta') {
+    main.innerHTML = `
+      <div class="pagina">
+        <h2>Conta</h2>
+
+        <div class="card">
+          <p><strong>Status:</strong> Usuário gratuito</p>
+          <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
+          <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
+        </div>
+
+        <button class="btn primary" onclick="abrirMenuExportar()">
+          Exportar dados
+        </button>
+      </div>
+    `;
   }
 }
 

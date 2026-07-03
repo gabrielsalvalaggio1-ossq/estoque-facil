@@ -465,15 +465,16 @@ function renderizarConteudo() {
     `;
   }
 
-  else if (abaAtual === 'conta') {
+else if (abaAtual === 'conta') {
+  const email = window.USER_EMAIL || 'Não logado';
+
   main.innerHTML = `
     <div class="pagina">
       <h2>Conta</h2>
 
       <div class="card">
-        <p><strong>Email:</strong> <span id="emailUsuario">Carregando...</span></p>
-
-        <p><strong>Status:</strong> Usuário gratuito</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Status:</strong> Usuário conectado</p>
         <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
         <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
       </div>
@@ -483,10 +484,11 @@ function renderizarConteudo() {
       </button>
     </div>
   `;
+}
+}
 
   setTimeout(atualizarEmailConta, 0);
-}
-}
+
 
 function renderizarCarrinho() {
   const ids = Object.keys(carrinho);

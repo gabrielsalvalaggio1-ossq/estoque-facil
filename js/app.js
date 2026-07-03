@@ -6,7 +6,6 @@
 
 let produtosCache = [];
 let vendasCache = [];
-let usuarioLogado = null;
 let carrinho = {}; // { produtoId: quantidade }
 let abaAtual = 'estoque';
 let idEmEdicao = null;
@@ -48,6 +47,23 @@ async function recarregarDados() {
   vendasCache = await Vendas.listarVendas();
 }
 
+async function buscarEmailUsuario() {
+  try {
+    const res = await fetch('/me');
+    const data = await res.json();
+    return data.email;
+  } catch (e) {
+    return null;
+  }
+}
+async function atualizarEmailConta() {
+  const email = await buscarEmailUsuario();
+  const el = document.getElementById('emailUsuario');
+
+  if (el) {
+    el.textContent = email || 'Não logado';
+  }
+}
 // --- Foto do produto ---
 
 /**
@@ -450,22 +466,26 @@ function renderizarConteudo() {
   }
 
   else if (abaAtual === 'conta') {
-    main.innerHTML = `
-      <div class="pagina">
-        <h2>Conta</h2>
+  main.innerHTML = `
+    <div class="pagina">
+      <h2>Conta</h2>
 
-        <div class="card">
-          <p><strong>Status:</strong> Usuário gratuito</p>
-          <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
-          <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
-        </div>
+      <div class="card">
+        <p><strong>Email:</strong> <span id="emailUsuario">Carregando...</span></p>
 
-        <button class="btn primary" onclick="abrirMenuExportar()">
-          Exportar dados
-        </button>
+        <p><strong>Status:</strong> Usuário gratuito</p>
+        <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
+        <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
       </div>
-    `;
-  }
+
+      <button class="btn primary" onclick="abrirMenuExportar()">
+        Exportar dados
+      </button>
+    </div>
+  `;
+
+  setTimeout(atualizarEmailConta, 0);
+}
 }
 
 function renderizarCarrinho() {

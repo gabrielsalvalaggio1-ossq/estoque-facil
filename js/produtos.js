@@ -122,12 +122,14 @@ async function excluirProduto(id) {
 
 /**
  * Dá baixa no estoque de uma lista de itens vendidos.
- * Usado após confirmar uma venda.
+ * Usado após confirmar uma venda. Os itens são sempre produtos diferentes
+ * (o carrinho é indexado por produtoId), então processá-los em paralelo é
+ * seguro e evita esperar uma cadeia de requisições em série.
  */
 async function darBaixaEstoque(itens) {
-  for (const item of itens) {
+  await Promise.all(itens.map(async (item) => {
     const produto = await DB.buscarPorId(DB.STORES.PRODUTOS, item.produtoId);
-    if (!produto) continue;
+    if (!produto) return;
     produto.estoque = Math.max(0, produto.estoque - item.quantidade);
     produto.totalSaidas = (produto.totalSaidas || 0) + item.quantidade;
     produto.atualizadoEm = new Date().toISOString();
@@ -136,18 +138,19 @@ async function darBaixaEstoque(itens) {
       produtoId: produto.id, nomeProduto: produto.nome,
       tipo: 'saida', quantidade: item.quantidade, motivo: 'venda'
     });
-  }
+  }));
 }
 
 /**
  * Devolve ao estoque os itens de uma venda cancelada.
  * Usado por Vendas.cancelarVenda — mantém o histórico consistente,
- * desfazendo a saída registrada no momento da venda.
+ * desfazendo a saída registrada no momento da venda. Mesma lógica de
+ * paralelização de darBaixaEstoque, pelo mesmo motivo.
  */
 async function restaurarEstoque(itens) {
-  for (const item of itens) {
+  await Promise.all(itens.map(async (item) => {
     const produto = await DB.buscarPorId(DB.STORES.PRODUTOS, item.produtoId);
-    if (!produto) continue;
+    if (!produto) return;
     produto.estoque = produto.estoque + item.quantidade;
     produto.totalSaidas = Math.max(0, (produto.totalSaidas || 0) - item.quantidade);
     produto.atualizadoEm = new Date().toISOString();
@@ -156,7 +159,7 @@ async function restaurarEstoque(itens) {
       produtoId: produto.id, nomeProduto: produto.nome,
       tipo: 'entrada', quantidade: item.quantidade, motivo: 'cancelamento'
     });
-  }
+  }));
 }
 
 function calcularEstatisticas(produtos) {

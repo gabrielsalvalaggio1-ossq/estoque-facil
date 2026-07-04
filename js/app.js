@@ -45,8 +45,10 @@ function dataDeHoje() {
 }
 
 async function recarregarDados() {
-  produtosCache = await Produtos.listarProdutos();
-  vendasCache = await Vendas.listarVendas();
+  [produtosCache, vendasCache] = await Promise.all([
+    Produtos.listarProdutos(),
+    Vendas.listarVendas()
+  ]);
 }
 
 // --- Foto do produto ---
@@ -514,11 +516,22 @@ function linhaVenda(venda) {
   </div>`;
 }
 
+let cancelamentoEmAndamento = new Set();
+
 async function cancelarVendaComConfirmacao(id) {
+  if (cancelamentoEmAndamento.has(id)) return; // já está cancelando essa venda
   if (!confirm('Cancelar esta venda? O estoque dos produtos será devolvido.')) return;
-  await Vendas.cancelarVenda(id);
-  await recarregarDados();
-  renderizarTudo();
+
+  cancelamentoEmAndamento.add(id);
+  try {
+    await Vendas.cancelarVenda(id);
+    await recarregarDados();
+    renderizarTudo();
+  } catch (erro) {
+    alert(erro.message || 'Não foi possível cancelar a venda. Verifique sua conexão e tente novamente.');
+  } finally {
+    cancelamentoEmAndamento.delete(id);
+  }
 }
 
 // --- Render geral ---
@@ -902,6 +915,12 @@ function mostrarErroFormulario(mensagem) {
 }
 
 async function salvarFormularioProduto() {
+  const btnSalvar = document.getElementById('btnSalvar');
+  if (btnSalvar.disabled) return; // já está salvando — ignora cliques repetidos
+  btnSalvar.disabled = true;
+  const textoOriginal = btnSalvar.textContent;
+  btnSalvar.textContent = 'Salvando…';
+
   const nome = document.getElementById('fNome').value.trim();
   const preco = parseFloat(document.getElementById('fPreco').value);
   // Produtos vendidos por peso aceitam quantidade decimal (ex: 12.5 kg);
@@ -927,7 +946,9 @@ async function salvarFormularioProduto() {
     fecharModal();
     renderizarTudo();
   } catch (erro) {
-    mostrarErroFormulario(erro.message);
+    mostrarErroFormulario(erro.message || 'Não foi possível salvar. Verifique sua conexão e tente novamente.');
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = textoOriginal;
   }
 }
 
@@ -1010,13 +1031,25 @@ function abrirComprovante() {
     });
   });
 
-  document.getElementById('btnConfirmar').addEventListener('click', async () => {
+  document.getElementById('btnConfirmar').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return; // já está processando — ignora cliques repetidos
+    btn.disabled = true;
+    const textoOriginal = btn.textContent;
+    btn.textContent = 'Registrando venda…';
+
     const cliente = document.getElementById('fCliente').value;
-    await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente });
-    carrinho = {};
-    await recarregarDados();
-    wrap.remove();
-    renderizarTudo();
+    try {
+      await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente });
+      carrinho = {};
+      await recarregarDados();
+      wrap.remove();
+      renderizarTudo();
+    } catch (erro) {
+      alert(erro.message || 'Não foi possível registrar a venda. Verifique sua conexão e tente novamente.');
+      btn.disabled = false;
+      btn.textContent = textoOriginal;
+    }
   });
 }
 
@@ -1140,7 +1173,24 @@ document.getElementById('btnExportarSidebar').addEventListener('click', abrirMen
 
 async function iniciar() {
   document.getElementById('dateLabel').textContent = dataDeHoje();
-  await recarregarDados();
+
+  // Evita a tela em branco enquanto os primeiros fetches ao D1 respondem
+  // (o app só passa a renderizar dados quando eles realmente chegaram).
+  document.getElementById('main').innerHTML = `<div class="empty">
+    <p class="titulo">Carregando…</p>
+    <p class="hint">Buscando seus dados.</p>
+  </div>`;
+
+  try {
+    await recarregarDados();
+  } catch (erro) {
+    document.getElementById('main').innerHTML = `<div class="empty">
+      <p class="titulo">Não foi possível carregar seus dados</p>
+      <p class="hint">${escaparHtml(erro.message || 'Verifique sua conexão e tente novamente.')}</p>
+    </div>`;
+    return;
+  }
+
   renderizarTudo();
 
   const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);

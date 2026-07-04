@@ -22,7 +22,11 @@ function formatarQuantidadeItem(item) {
 }
 
 /**
- * Registra uma venda e já dá baixa no estoque dos produtos envolvidos.
+ * Registra uma venda. Dá baixa no estoque PRIMEIRO e só grava a venda como
+ * concluída depois de o estoque ser confirmado — assim, se a rede falhar no
+ * meio do processo, o pior cenário é "a venda não foi registrada" (o
+ * vendedor tenta de novo), e não "venda concluída no histórico com estoque
+ * errado", que é muito mais difícil de perceber e corrigir depois.
  * carrinho: [{ produtoId, nome, quantidade, precoUnitario, unidade }]
  * opcoes: { formaPagamento, cliente, vendedor }
  */
@@ -48,22 +52,22 @@ async function registrarVenda(carrinho, opcoes = {}) {
     status: 'concluida'
   };
 
-  await DB.adicionar(DB.STORES.VENDAS, venda);
   await Produtos.darBaixaEstoque(carrinho);
+  await DB.adicionar(DB.STORES.VENDAS, venda);
 
   return venda;
 }
 
 /**
  * Cancela uma venda sem excluí-la: marca status "cancelada" e devolve
- * os itens ao estoque. O histórico da venda continua visível.
+ * os itens ao estoque. Devolve o estoque só DEPOIS de confirmar a mudança
+ * de status — assim, se o usuário tentar cancelar de novo após uma falha
+ * de rede, não corre o risco de devolver o mesmo estoque duas vezes.
  */
 async function cancelarVenda(id) {
   const venda = await DB.buscarPorId(DB.STORES.VENDAS, id);
   if (!venda) throw new Error('Venda não encontrada.');
   if (venda.status === 'cancelada') return venda;
-
-  await Produtos.restaurarEstoque(venda.itens);
 
   const atualizada = {
     ...venda,
@@ -71,6 +75,7 @@ async function cancelarVenda(id) {
     canceladaEm: new Date().toISOString()
   };
   await DB.atualizar(DB.STORES.VENDAS, atualizada);
+  await Produtos.restaurarEstoque(venda.itens);
   return atualizada;
 }
 

@@ -838,7 +838,7 @@ main{
   .sidebar{
     display:flex;
     flex-direction:column;
-    width:220px;
+    width:230px;
     flex-shrink:0;
     background:var(--ledger);
     padding:24px 14px;

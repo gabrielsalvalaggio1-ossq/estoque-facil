@@ -42,6 +42,13 @@ export async function onRequest(context) {
 
   const url = new URL(request.url);
   const partes = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
+
+  // Rota especial: devolve o e-mail autenticado, para a interface mostrar
+  // "quem está logado" (ex: aba Conta) sem precisar duplicar essa lógica.
+  if (partes[0] === 'me') {
+    return json({ email });
+  }
+
   const store = partes[0];
   const id = partes[1];
 

@@ -516,7 +516,7 @@ function linhaVenda(venda) {
   </div>`;
 }
 
-let cancelamentoEmAndamento = new Set();
+let usuarioLogadoEmail = '';
 
 async function cancelarVendaComConfirmacao(id) {
   if (cancelamentoEmAndamento.has(id)) return; // já está cancelando essa venda
@@ -1183,6 +1183,8 @@ async function iniciar() {
 
   try {
     await recarregarDados();
+    // Não bloqueia a tela por causa disso — é só um dado de exibição na aba Conta.
+    DB.buscarUsuarioLogado().then(r => { usuarioLogadoEmail = (r && r.email) || ''; }).catch(() => {});
   } catch (erro) {
     document.getElementById('main').innerHTML = `<div class="empty">
       <p class="titulo">Não foi possível carregar seus dados</p>

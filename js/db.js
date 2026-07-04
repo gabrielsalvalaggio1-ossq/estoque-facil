@@ -73,6 +73,11 @@ async function buscarPorId(storeName, id) {
   return tratarResposta(resp);
 }
 
+async function buscarUsuarioLogado() {
+  const resp = await fetch('/api/me');
+  return tratarResposta(resp);
+}
+
 // Exposto globalmente porque o projeto usa scripts simples (sem bundler),
 // mantendo a filosofia de "zero dependências, zero build step".
 window.DB = {
@@ -82,5 +87,6 @@ window.DB = {
   atualizar,
   remover,
   listarTodos,
-  buscarPorId
+  buscarPorId,
+  buscarUsuarioLogado
 };

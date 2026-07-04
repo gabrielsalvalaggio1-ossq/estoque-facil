@@ -157,7 +157,7 @@ function calcularResumoFinanceiro(vendas) {
   return {
     totalVendido,
     porFormaPagamento,
-    totalfiadoEmAberto: porFormaPagamento.fiado
+    totalFiadoEmAberto: porFormaPagamento.fiado
   };
 }
 
@@ -213,6 +213,7 @@ window.Vendas = {
   calcularVendasDoMes,
   calcularResumoFinanceiro,
   calcularHistoricoClientes,
+  formatarQuantidadeItem,
   gerarCsvVendas,
   gerarCsvClientes
 };

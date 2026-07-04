@@ -1,13 +1,15 @@
 /**
- * db.js
- * Camada única de acesso ao IndexedDB.
- * Nenhum outro arquivo deve falar com o IndexedDB diretamente —
- * assim, se um dia trocarmos de storage (ex: sincronizar com Supabase
- * no plano Premium), só este arquivo muda.
+ * db.js (versão multi-usuário / nuvem)
+ * Camada única de acesso aos dados.
+ *
+ * Antes: falava com o IndexedDB do navegador (dados só naquele aparelho).
+ * Agora: fala com a API em /api/... (functions/api/[[path]].js), que por sua
+ * vez guarda tudo no D1, isolado por usuário logado via Cloudflare Access.
+ *
+ * IMPORTANTE: a interface pública (window.DB.*) continua EXATAMENTE igual à
+ * versão anterior — por isso produtos.js, vendas.js e app.js não precisam
+ * de nenhuma alteração. Só esta camada mudou de "onde" guarda os dados.
  */
-
-const DB_NAME = 'estoqueAppDB';
-const DB_VERSION = 2;
 
 const STORES = {
   PRODUTOS: 'produtos',
@@ -15,102 +17,60 @@ const STORES = {
   MOVIMENTOS: 'movimentos'
 };
 
-let dbInstance = null;
-
-function abrirBanco() {
-  if (dbInstance) return Promise.resolve(dbInstance);
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-
-      if (!db.objectStoreNames.contains(STORES.PRODUTOS)) {
-        const produtosStore = db.createObjectStore(STORES.PRODUTOS, { keyPath: 'id' });
-        produtosStore.createIndex('nome', 'nome', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains(STORES.VENDAS)) {
-        const vendasStore = db.createObjectStore(STORES.VENDAS, { keyPath: 'id' });
-        vendasStore.createIndex('data', 'data', { unique: false });
-      }
-
-      if (!db.objectStoreNames.contains(STORES.MOVIMENTOS)) {
-        const movStore = db.createObjectStore(STORES.MOVIMENTOS, { keyPath: 'id' });
-        movStore.createIndex('data', 'data', { unique: false });
-        movStore.createIndex('produtoId', 'produtoId', { unique: false });
-      }
-    };
-
-    request.onsuccess = (event) => {
-      dbInstance = event.target.result;
-      resolve(dbInstance);
-    };
-
-    request.onerror = (event) => {
-      reject(event.target.error);
-    };
-  });
-}
-
 function gerarId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
 }
 
+async function tratarResposta(resp) {
+  if (!resp.ok) {
+    let mensagem = 'Erro ao comunicar com o servidor.';
+    try {
+      const corpo = await resp.json();
+      if (corpo && corpo.error) mensagem = corpo.error;
+    } catch (e) {
+      // resposta sem corpo JSON — mantém a mensagem genérica
+    }
+    if (resp.status === 401) {
+      mensagem = 'Sessão expirada ou acesso não autorizado. Faça login novamente.';
+    }
+    throw new Error(mensagem);
+  }
+  return resp.json();
+}
+
 async function adicionar(storeName, registro) {
-  const db = await abrirBanco();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const request = store.add(registro);
-    request.onsuccess = () => resolve(registro);
-    request.onerror = (e) => reject(e.target.error);
+  const resp = await fetch(`/api/${storeName}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(registro)
   });
+  return tratarResposta(resp);
 }
 
 async function atualizar(storeName, registro) {
-  const db = await abrirBanco();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const request = store.put(registro);
-    request.onsuccess = () => resolve(registro);
-    request.onerror = (e) => reject(e.target.error);
+  const resp = await fetch(`/api/${storeName}/${encodeURIComponent(registro.id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(registro)
   });
+  return tratarResposta(resp);
 }
 
 async function remover(storeName, id) {
-  const db = await abrirBanco();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    const request = store.delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = (e) => reject(e.target.error);
+  const resp = await fetch(`/api/${storeName}/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
   });
+  await tratarResposta(resp);
 }
 
 async function listarTodos(storeName) {
-  const db = await abrirBanco();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const request = store.getAll();
-    request.onsuccess = () => resolve(request.result || []);
-    request.onerror = (e) => reject(e.target.error);
-  });
+  const resp = await fetch(`/api/${storeName}`);
+  return tratarResposta(resp);
 }
 
 async function buscarPorId(storeName, id) {
-  const db = await abrirBanco();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const request = store.get(id);
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = (e) => reject(e.target.error);
-  });
+  const resp = await fetch(`/api/${storeName}/${encodeURIComponent(id)}`);
+  return tratarResposta(resp);
 }
 
 // Exposto globalmente porque o projeto usa scripts simples (sem bundler),

@@ -16,6 +16,7 @@ let filtroVendas = { periodo: 'todas', status: 'todas' };
 let buscaVenda = '';
 let imagemPendente = null; // base64 da foto escolhida/tirada, ainda não salva
 let streamScannerAtivo = null;
+let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no formulário de produto
 
 const ROTULOS_PAGAMENTO = {
   dinheiro: '💵 Dinheiro',
@@ -197,7 +198,11 @@ function abrirScannerParaVender() {
       return;
     }
     abaAtual = 'venda';
-    alterarCarrinho(produto.id, 1);
+    if (produto.unidade === 'kg') {
+      venderPeso(produto.id);
+    } else {
+      alterarCarrinho(produto.id, 1);
+    }
     renderizarTudo();
   });
 }
@@ -296,6 +301,14 @@ function telaVaziaVendas() {
   </div>`;
 }
 
+/** Formata a quantidade em estoque de forma explícita quanto à unidade: '12 un' ou '2,500 kg'. */
+function formatarQuantidadeEstoque(produto) {
+  if (produto.unidade === 'kg') {
+    return Number(produto.estoque).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' kg';
+  }
+  return produto.estoque + ' un';
+}
+
 /** Card de gestão (aba Estoque): mostra quantidade, sem botão de vender — toque para editar. */
 function cartaoProdutoEstoque(produto) {
   const estoqueBaixo = produto.estoque <= (produto.estoqueMinimo || 0);
@@ -309,8 +322,8 @@ function cartaoProdutoEstoque(produto) {
     <div class="info">
       <div class="name">${escaparHtml(produto.nome)}</div>
       <div class="meta">
-        <span class="price">${formatarMoeda(produto.preco)}</span>
-        <span class="stock ${estoqueBaixo ? 'low' : ''}">${produto.estoque} em estoque</span>
+        <span class="price">${formatarMoeda(produto.preco)}${produto.unidade === 'kg' ? '/kg' : ''}</span>
+        <span class="stock ${estoqueBaixo ? 'low' : ''}">${formatarQuantidadeEstoque(produto)} em estoque</span>
         <span class="cat">${escaparHtml(categoria)}</span>
       </div>
     </div>
@@ -367,12 +380,36 @@ function atualizarListaVenda() {
 /** Card de venda (aba Venda): estilo cardápio — sem número de estoque, só nome, foto, preço e botão de vender. */
 function cartaoProdutoVenda(produto) {
   const qtd = carrinho[produto.id] || 0;
+  const ehPeso = produto.unidade === 'kg';
   const estoqueZerado = produto.estoque <= 0;
   const semMaisAdicionar = qtd >= produto.estoque;
 
   const img = produto.imagem
     ? `<img src="${produto.imagem}" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
+
+  let acoes;
+  if (qtd > 0 && ehPeso) {
+    // Produto por peso: em vez de +/-1 (que não faz sentido em kg), o
+    // vendedor digita o peso exato pesado na balança.
+    acoes = `
+      <div class="qty-peso">
+        <input type="number" class="input-peso" inputmode="decimal" step="0.001" min="0" max="${produto.estoque}"
+          value="${qtd}" onchange="definirQuantidadeCarrinho('${produto.id}', this.value)">
+        <span class="unid-peso">kg</span>
+        <button class="qtybtn" onclick="removerDoCarrinho('${produto.id}')" title="Remover do carrinho">×</button>
+      </div>`;
+  } else if (qtd > 0) {
+    acoes = `
+      <button class="qtybtn" onclick="alterarCarrinho('${produto.id}', -1)">−</button>
+      <span class="qtd">${qtd}</span>
+      <button class="qtybtn add" onclick="alterarCarrinho('${produto.id}', 1)" ${semMaisAdicionar ? 'disabled' : ''}>+</button>`;
+  } else {
+    acoes = `
+      <button class="sellbtn" onclick="${ehPeso ? `venderPeso('${produto.id}')` : `alterarCarrinho('${produto.id}', 1)`}" ${estoqueZerado ? 'disabled' : ''}>
+        Vender
+      </button>`;
+  }
 
   return `
     <div class="product-card venda-card">
@@ -381,28 +418,13 @@ function cartaoProdutoVenda(produto) {
       <div class="info">
         <div class="name">${escaparHtml(produto.nome)}</div>
         <div class="meta">
-          <span class="price">${formatarMoeda(produto.preco)}</span>
+          <span class="price">${formatarMoeda(produto.preco)}${ehPeso ? '/kg' : ''}</span>
           ${estoqueZerado ? `<span class="stock low">Esgotado</span>` : ''}
         </div>
       </div>
 
       <div class="actions">
-        ${qtd > 0 ? `
-          <button onclick="alterarCarrinho('${produto.id}', -1)">−</button>
-          <span>${qtd}</span>
-          <button 
-            onclick="alterarCarrinho('${produto.id}', 1)"
-            ${semMaisAdicionar ? 'disabled' : ''}
-          >+</button>
-        ` : `
-<button 
-  class="sellbtn"
-  onclick="alterarCarrinho('${produto.id}', 1)"
-  ${estoqueZerado ? 'disabled' : ''}
->
-  Vender
-</button>
-        `}
+        ${acoes}
       </div>
     </div>
   `;
@@ -471,7 +493,7 @@ function linhaVenda(venda) {
   const data = new Date(venda.data);
   const dataFormatada = data.toLocaleDateString('pt-BR') + ' · ' +
     data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  const nomesItens = venda.itens.map(i => `${i.quantidade}x ${i.nome}`).join(', ');
+  const nomesItens = venda.itens.map(i => `${Vendas.formatarQuantidadeItem(i)} ${i.nome}`).join(', ');
   const cancelada = venda.status === 'cancelada';
   const rotuloPagamento = ROTULOS_PAGAMENTO[venda.formaPagamento] || ROTULOS_PAGAMENTO.dinheiro;
 
@@ -578,17 +600,19 @@ else if (abaAtual === 'venda') {
 
 function renderizarCarrinho() {
   const ids = Object.keys(carrinho);
-  const totalItens = ids.reduce((soma, id) => soma + carrinho[id], 0);
+  // Conta produtos distintos, não a soma das quantidades — somar "2 un + 0,5 kg"
+  // resultaria em "2,5 itens", o que não faz sentido nenhum para o usuário.
+  const totalProdutos = ids.length;
   const totalValor = ids.reduce((soma, id) => {
     const produto = produtosCache.find(p => p.id === id);
     return soma + (produto ? produto.preco * carrinho[id] : 0);
   }, 0);
 
   const barra = document.getElementById('cartbar');
-  if (totalItens > 0) {
+  if (totalProdutos > 0) {
     barra.style.display = 'flex';
     document.getElementById('cartCount').textContent =
-      totalItens === 1 ? '1 item no carrinho' : `${totalItens} itens no carrinho`;
+      totalProdutos === 1 ? '1 item no carrinho' : `${totalProdutos} itens no carrinho`;
     document.getElementById('cartTotal').textContent = formatarMoeda(totalValor);
   } else {
     barra.style.display = 'none';
@@ -621,11 +645,55 @@ function alterarCarrinho(produtoId, delta) {
   renderizarCarrinho();
 }
 
+/** Primeiro toque em "Vender" de um produto por peso: começa com 100g, o vendedor ajusta o peso exato em seguida. */
+function venderPeso(produtoId) {
+  const produto = produtosCache.find(p => p.id === produtoId);
+  if (!produto || produto.estoque <= 0) return;
+  carrinho[produtoId] = Math.min(0.1, produto.estoque);
+  atualizarListaVenda();
+  renderizarCarrinho();
+}
+
+/** Define o peso exato digitado pelo vendedor (ex: valor lido na balança). */
+function definirQuantidadeCarrinho(produtoId, valorDigitado) {
+  const produto = produtosCache.find(p => p.id === produtoId);
+  if (!produto) return;
+
+  const bruto = String(valorDigitado).trim();
+  if (bruto === '') {
+    // Campo ficou vazio no meio da edição (ex: usuário apagou tudo antes de
+    // digitar o novo valor) — mantém a quantidade anterior em vez de
+    // esvaziar o carrinho sem o usuário perceber.
+    atualizarListaVenda();
+    return;
+  }
+
+  const novaQtd = parseFloat(bruto.replace(',', '.'));
+  if (isNaN(novaQtd)) {
+    atualizarListaVenda();
+    return;
+  }
+  if (novaQtd <= 0) {
+    delete carrinho[produtoId];
+  } else {
+    carrinho[produtoId] = Math.min(novaQtd, produto.estoque);
+  }
+  atualizarListaVenda();
+  renderizarCarrinho();
+}
+
+function removerDoCarrinho(produtoId) {
+  delete carrinho[produtoId];
+  atualizarListaVenda();
+  renderizarCarrinho();
+}
+
 // --- Modal de produto ---
 
 function abrirModalProduto(produto) {
   idEmEdicao = produto ? produto.id : null;
   imagemPendente = produto ? (produto.imagem || null) : null;
+  unidadeSelecionada = produto && produto.unidade === 'kg' ? 'kg' : 'un';
   const categorias = Produtos.listarCategorias(produtosCache);
 
   const wrap = document.createElement('div');
@@ -713,6 +781,14 @@ function abrirModalProduto(produto) {
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModal(); });
   document.getElementById('btnSalvar').addEventListener('click', salvarFormularioProduto);
 
+  document.getElementById('unidadeToggle').addEventListener('click', (e) => {
+    const botao = e.target.closest('.unidade-opt');
+    if (!botao) return;
+    unidadeSelecionada = botao.dataset.unidade;
+    atualizarCamposUnidade();
+  });
+  atualizarCamposUnidade();
+
   document.getElementById('btnMaisOpcoes').addEventListener('click', (e) => {
     const painel = document.getElementById('opcoesAvancadas');
     const abrir = painel.hidden;
@@ -786,6 +862,34 @@ function atualizarPreviewFoto() {
   }
 }
 
+/**
+ * Aplica o efeito de escolher "Unidade" ou "Peso (kg)" no formulário:
+ * marca o botão certo como selecionado, ajusta o campo de quantidade para
+ * aceitar decimais quando for peso, troca os rótulos e mostra/esconde a dica.
+ */
+function atualizarCamposUnidade() {
+  document.querySelectorAll('#unidadeToggle .unidade-opt').forEach(botao => {
+    botao.classList.toggle('selected', botao.dataset.unidade === unidadeSelecionada);
+  });
+
+  const ehPeso = unidadeSelecionada === 'kg';
+
+  const campoEstoque = document.getElementById('fEstoque');
+  if (campoEstoque) {
+    campoEstoque.step = ehPeso ? '0.001' : '1';
+    campoEstoque.placeholder = ehPeso ? '0,000' : '0';
+  }
+
+  const lblPreco = document.getElementById('lblPreco');
+  if (lblPreco) lblPreco.textContent = ehPeso ? 'Preço por kg (R$)' : 'Preço (R$)';
+
+  const lblEstoque = document.getElementById('lblEstoque');
+  if (lblEstoque) lblEstoque.textContent = ehPeso ? 'Quantidade (kg)' : 'Quantidade';
+
+  const hint = document.getElementById('hintUnidade');
+  if (hint) hint.style.display = ehPeso ? 'block' : 'none';
+}
+
 function fecharModal() {
   const el = document.getElementById('productModalWrap');
   if (el) el.remove();
@@ -800,19 +904,24 @@ function mostrarErroFormulario(mensagem) {
 async function salvarFormularioProduto() {
   const nome = document.getElementById('fNome').value.trim();
   const preco = parseFloat(document.getElementById('fPreco').value);
-  const estoque = parseInt(document.getElementById('fEstoque').value, 10);
+  // Produtos vendidos por peso aceitam quantidade decimal (ex: 12.5 kg);
+  // produtos por unidade continuam em número inteiro.
+  const estoque = unidadeSelecionada === 'kg'
+    ? parseFloat(document.getElementById('fEstoque').value)
+    : parseInt(document.getElementById('fEstoque').value, 10);
   const campoMinimo = document.getElementById('fMinimo');
   const campoCategoria = document.getElementById('fCategoria');
   const campoCodigo = document.getElementById('fCodigoBarras');
   const estoqueMinimo = campoMinimo ? parseInt(campoMinimo.value, 10) : NaN;
   const categoria = campoCategoria ? campoCategoria.value : '';
   const codigoBarras = campoCodigo ? campoCodigo.value.trim() : '';
+  const unidade = unidadeSelecionada;
 
   try {
     if (idEmEdicao) {
-      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras });
+      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade });
     } else {
-      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras });
+      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade });
     }
     await recarregarDados();
     fecharModal();
@@ -842,15 +951,21 @@ function abrirComprovante() {
   const ids = Object.keys(carrinho);
   if (ids.length === 0) return;
 
-  const itens = ids.map(id => {
-    const produto = produtosCache.find(p => p.id === id);
-    return {
-      produtoId: id,
-      nome: produto.nome,
-      quantidade: carrinho[id],
-      precoUnitario: produto.preco
-    };
-  });
+  const itens = ids
+    .map(id => {
+      const produto = produtosCache.find(p => p.id === id);
+      if (!produto) return null;
+      return {
+        produtoId: id,
+        nome: produto.nome,
+        quantidade: carrinho[id],
+        precoUnitario: produto.preco,
+        unidade: produto.unidade
+      };
+    })
+    .filter(Boolean);
+
+  if (itens.length === 0) return;
   const total = itens.reduce((soma, i) => soma + i.precoUnitario * i.quantidade, 0);
   formaPagamentoEscolhida = 'dinheiro';
 
@@ -862,7 +977,7 @@ function abrirComprovante() {
       <p class="rlabel">Comprovante</p>
       <h2>Cobrança</h2>
       <p class="rdate">${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</p>
-      ${itens.map(i => `<div class="ritem"><span><span class="qn">${i.quantidade}x</span>${escaparHtml(i.nome)}</span><span>${formatarMoeda(i.precoUnitario * i.quantidade)}</span></div>`).join('')}
+      ${itens.map(i => `<div class="ritem"><span><span class="qn">${Vendas.formatarQuantidadeItem(i)}</span>${escaparHtml(i.nome)}</span><span>${formatarMoeda(i.precoUnitario * i.quantidade)}</span></div>`).join('')}
       <div class="rtotal"><span>Total</span><span>${formatarMoeda(total)}</span></div>
 
       <p class="pay-label">Nome do cliente (opcional)</p>

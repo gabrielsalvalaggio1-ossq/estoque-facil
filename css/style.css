@@ -330,6 +330,64 @@ main{
 }
 .field input:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber); }
 
+/* --- Toggle "Vendido por: Unidade / Peso (kg)" --- */
+.unidade-toggle{
+  display:flex;
+  background:var(--paper-dim);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:3px;
+  gap:3px;
+}
+.unidade-opt{
+  flex:1;
+  border:none;
+  background:transparent;
+  color:var(--ink-soft);
+  font-family:'Inter',sans-serif;
+  font-size:13.5px;
+  font-weight:600;
+  padding:9px 10px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.unidade-opt:active{ transform:scale(0.98); }
+.unidade-opt.selected{
+  background:var(--ledger);
+  color:var(--paper);
+}
+.hint-unidade{
+  font-size:12px;
+  color:var(--ink-soft);
+  font-family:'Inter',sans-serif;
+  margin:-8px 0 14px;
+  line-height:1.4;
+}
+
+/* --- Campo de peso no card de venda (produto vendido por kg) --- */
+.qty-peso{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.input-peso{
+  width:88px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:9px 8px;
+  font-size:16px;
+  font-family:'IBM Plex Mono',monospace;
+  text-align:right;
+  background:#fff;
+}
+.input-peso:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber); }
+.unid-peso{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13px;
+  color:var(--ink-soft);
+}
+
 /* --- Foto do produto (modal) --- */
 .foto-area{
   display:flex;

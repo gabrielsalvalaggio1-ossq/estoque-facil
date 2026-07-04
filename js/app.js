@@ -516,6 +516,13 @@ function linhaVenda(venda) {
   </div>`;
 }
 
+function fazerLogout() {
+  if (!confirm('Sair da sua conta?')) return;
+  // Endpoint padrão do Cloudflare Access: limpa o cookie de sessão (CF_Authorization)
+  // e leva de volta para a tela de login.
+  window.location.href = '/cdn-cgi/access/logout';
+}
+
 let usuarioLogadoEmail = '';
 
 async function cancelarVendaComConfirmacao(id) {
@@ -575,6 +582,11 @@ else if (abaAtual === 'venda') {
         <h2>👤 Minha Conta</h2>
 
         <div class="card-info">
+          <p><strong>Logado como:</strong> ${escaparHtml(usuarioLogadoEmail || 'Carregando…')}</p>
+          <button type="button" class="btn danger" id="btnLogout" style="width:auto;padding:9px 16px;margin-top:10px;">Sair da conta</button>
+        </div>
+
+        <div class="card-info">
           <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
           <p><strong>Vendas registradas:</strong> ${vendasCache.length}</p>
           <p><strong>Status:</strong> Sistema ativo</p>
@@ -587,6 +599,8 @@ else if (abaAtual === 'venda') {
         </div>
       </div>
     `;
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
   }
 
   else if (abaAtual === 'contato') {
@@ -1128,7 +1142,7 @@ const PRODUTOS_EXEMPLO = [
 
 function abrirOnboarding() {
   const wrap = document.createElement('div');
-  wrap.className = 'modal-wrap';
+  wrap.className = 'modal-wrap modal-wrap-centro';
   wrap.id = 'onboardWrap';
   wrap.innerHTML = `
     <div class="onboard">
@@ -1182,9 +1196,13 @@ async function iniciar() {
   </div>`;
 
   try {
-    await recarregarDados();
-    // Não bloqueia a tela por causa disso — é só um dado de exibição na aba Conta.
-    DB.buscarUsuarioLogado().then(r => { usuarioLogadoEmail = (r && r.email) || ''; }).catch(() => {});
+    const [, usuario] = await Promise.all([
+      recarregarDados(),
+      DB.buscarUsuarioLogado().catch(() => null)
+    ]);
+    usuarioLogadoEmail = (usuario && usuario.email) || '';
+    const sidebarEmail = document.getElementById('sidebarEmail');
+    if (sidebarEmail) sidebarEmail.textContent = usuarioLogadoEmail;
   } catch (erro) {
     document.getElementById('main').innerHTML = `<div class="empty">
       <p class="titulo">Não foi possível carregar seus dados</p>

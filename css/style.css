@@ -296,6 +296,17 @@ main{
   display:flex; align-items:flex-end; justify-content:center;
   z-index:50;
 }
+/* Variante usada só no popup de boas-vindas: centralizado na tela,
+   em vez de "folha" grudada embaixo como os outros modais. */
+.modal-wrap-centro{
+  align-items:center;
+  padding:20px;
+}
+.modal-wrap-centro .onboard{
+  border-radius:20px;
+  max-height:90vh;
+  overflow-y:auto;
+}
 .modal{
   width:100%; max-width:420px;
   background:var(--paper);

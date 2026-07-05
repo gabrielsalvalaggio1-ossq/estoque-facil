@@ -617,6 +617,12 @@ main{
 .tag.estoquista{ background:#F3DED6; color:var(--coral-deep); }
 
 .team-msg{ font-size:13px; color:var(--ink-soft); margin:0; }
+.team-plano{
+  font-size:12.5px;
+  color:var(--ink-soft);
+  margin:-4px 0 14px;
+}
+.team-plano strong{ color:var(--ledger); }
 
 .team-row{
   display:flex; justify-content:space-between; align-items:center;

@@ -525,6 +525,7 @@ function fazerLogout() {
 
 let usuarioLogadoEmail = '';
 let usuarioLogadoPapel = 'dono'; // 'dono' | 'vendedor' | 'estoquista' — padrão otimista até a API responder
+let usuarioLogadoPlano = 'gratis'; // 'gratis' | 'equipe' — só importa pra quem é "dono"
 
 async function cancelarVendaComConfirmacao(id) {
   if (cancelamentoEmAndamento.has(id)) return; // já está cancelando essa venda
@@ -944,10 +945,23 @@ let membrosEquipeCache = [];
 
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
+// Espelha os limites do backend (functions/api/[[path]].js) só pra exibição —
+// quem decide de verdade se pode adicionar mais gente é sempre a API.
+const PLANOS_INFO = {
+  gratis: { rotulo: 'Grátis', maxMembros: 1 },
+  equipe: { rotulo: 'Equipe', maxMembros: 5 },
+};
+
 function cartaoGestaoEquipeHtml() {
+  const plano = PLANOS_INFO[usuarioLogadoPlano] || PLANOS_INFO.gratis;
   return `
     <div class="card-info">
       <h3>Gestão de equipe</h3>
+      <p class="team-plano">
+        Plano atual: <strong>${escaparHtml(plano.rotulo)}</strong>
+        <span>· até ${plano.maxMembros} pessoa${plano.maxMembros > 1 ? 's' : ''} na equipe</span>
+      </p>
+
       <div id="listaMembros">
         <p class="team-msg">Carregando…</p>
       </div>
@@ -1388,16 +1402,34 @@ async function iniciar() {
     <p class="hint">Buscando seus dados.</p>
   </div>`;
 
+  let usuario;
   try {
-    const [, usuario] = await Promise.all([
-      recarregarDados(),
-      DB.buscarUsuarioLogado().catch(() => null)
-    ]);
-    usuarioLogadoEmail = (usuario && usuario.email) || '';
-    usuarioLogadoPapel = (usuario && usuario.papel) || 'dono';
-    const sidebarEmail = document.getElementById('sidebarEmail');
-    if (sidebarEmail) sidebarEmail.textContent = usuarioLogadoEmail;
-    aplicarRestricoesDePapel(usuarioLogadoPapel);
+    usuario = await DB.buscarUsuarioLogado();
+  } catch (erro) {
+    document.getElementById('main').innerHTML = `<div class="empty">
+      <p class="titulo">Não foi possível carregar seus dados</p>
+      <p class="hint">${escaparHtml(erro.message || 'Verifique sua conexão e tente novamente.')}</p>
+    </div>`;
+    return;
+  }
+
+  usuarioLogadoEmail = usuario.email || '';
+  const sidebarEmail = document.getElementById('sidebarEmail');
+  if (sidebarEmail) sidebarEmail.textContent = usuarioLogadoEmail;
+
+  // E-mail autenticado mas ainda sem empresa nenhuma: mostra a tela de
+  // cadastro self-service em vez de tentar carregar estoque/vendas.
+  if (!usuario.empresaId) {
+    mostrarTelaCriarEmpresa();
+    return;
+  }
+
+  usuarioLogadoPapel = usuario.papel || 'dono';
+  usuarioLogadoPlano = usuario.plano || 'gratis';
+  aplicarRestricoesDePapel(usuarioLogadoPapel);
+
+  try {
+    await recarregarDados();
   } catch (erro) {
     document.getElementById('main').innerHTML = `<div class="empty">
       <p class="titulo">Não foi possível carregar seus dados</p>
@@ -1417,6 +1449,73 @@ async function iniciar() {
     navigator.serviceWorker.register('service-worker.js').catch(err => {
       console.warn('Service worker não registrado:', err);
     });
+  }
+}
+
+/**
+ * Tela mostrada quando o e-mail logado ainda não pertence a nenhuma
+ * empresa. Some com as abas e barras de ferramentas (não fazem sentido
+ * ainda) e deixa só o formulário de cadastro.
+ */
+function mostrarTelaCriarEmpresa() {
+  document.querySelectorAll('[data-tab]').forEach(botao => { botao.style.display = 'none'; });
+  const toolbarEstoque = document.getElementById('toolbarEstoque');
+  const toolbarVenda = document.getElementById('toolbarVenda');
+  if (toolbarEstoque) toolbarEstoque.style.display = 'none';
+  if (toolbarVenda) toolbarVenda.style.display = 'none';
+
+  document.getElementById('main').innerHTML = `
+    <div class="page">
+      <h2>🏁 Criar sua empresa</h2>
+      <p class="hint-unidade" style="margin:-6px 0 18px;">
+        Esse e-mail ainda não está associado a nenhuma empresa. Crie a sua pra
+        começar — você vira o "dono" e depois pode convidar sua equipe.
+      </p>
+
+      <div class="field">
+        <label for="fNomeEmpresa">Nome da empresa</label>
+        <input id="fNomeEmpresa" type="text" placeholder="Ex: Mercado da Esquina">
+      </div>
+
+      <p class="erro" id="erroCriarEmpresa" style="display:none;"></p>
+      <button type="button" class="btn primary" id="btnCriarEmpresa" style="width:100%;">Criar empresa</button>
+    </div>
+  `;
+
+  document.getElementById('btnCriarEmpresa').addEventListener('click', criarEmpresaEContinuar);
+  setTimeout(() => {
+    const campo = document.getElementById('fNomeEmpresa');
+    if (campo) campo.focus();
+  }, 50);
+}
+
+async function criarEmpresaEContinuar() {
+  const btn = document.getElementById('btnCriarEmpresa');
+  if (!btn || btn.disabled) return;
+
+  const erro = document.getElementById('erroCriarEmpresa');
+  erro.style.display = 'none';
+
+  const campoNome = document.getElementById('fNomeEmpresa');
+  const nomeEmpresa = campoNome.value.trim();
+  if (!nomeEmpresa) {
+    erro.textContent = 'Informe o nome da empresa.';
+    erro.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Criando…';
+
+  try {
+    await DB.criarEmpresa(nomeEmpresa);
+    await iniciar(); // agora a empresa existe — recarrega tudo do zero
+  } catch (e) {
+    erro.textContent = e.message || 'Não foi possível criar a empresa. Tente novamente.';
+    erro.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 

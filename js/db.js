@@ -78,6 +78,19 @@ async function buscarUsuarioLogado() {
   return tratarResposta(resp);
 }
 
+// --- Cadastro self-service (/api/empresas) ---
+// Diferente do resto: essa rota é chamada quando a pessoa AINDA não tem
+// empresa nenhuma — é ela que cria a empresa e vira "dono" automaticamente.
+
+async function criarEmpresa(nomeEmpresa) {
+  const resp = await fetch('/api/empresas', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nomeEmpresa })
+  });
+  return tratarResposta(resp);
+}
+
 // --- Gestão de equipe (/api/membros) — só o "dono" tem acesso a essas rotas. ---
 
 async function listarMembros() {
@@ -112,6 +125,7 @@ window.DB = {
   listarTodos,
   buscarPorId,
   buscarUsuarioLogado,
+  criarEmpresa,
   listarMembros,
   adicionarMembro,
   removerMembro

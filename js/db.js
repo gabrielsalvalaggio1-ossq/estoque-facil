@@ -78,6 +78,29 @@ async function buscarUsuarioLogado() {
   return tratarResposta(resp);
 }
 
+// --- Gestão de equipe (/api/membros) — só o "dono" tem acesso a essas rotas. ---
+
+async function listarMembros() {
+  const resp = await fetch('/api/membros');
+  return tratarResposta(resp);
+}
+
+async function adicionarMembro(email, papel) {
+  const resp = await fetch('/api/membros', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, papel })
+  });
+  return tratarResposta(resp);
+}
+
+async function removerMembro(email) {
+  const resp = await fetch(`/api/membros/${encodeURIComponent(email)}`, {
+    method: 'DELETE'
+  });
+  await tratarResposta(resp);
+}
+
 // Exposto globalmente porque o projeto usa scripts simples (sem bundler),
 // mantendo a filosofia de "zero dependências, zero build step".
 window.DB = {
@@ -88,5 +111,8 @@ window.DB = {
   remover,
   listarTodos,
   buscarPorId,
-  buscarUsuarioLogado
+  buscarUsuarioLogado,
+  listarMembros,
+  adicionarMembro,
+  removerMembro
 };

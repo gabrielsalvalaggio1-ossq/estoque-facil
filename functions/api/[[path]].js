@@ -12,6 +12,9 @@
  *
  * Rotas:
  *   GET  /api/me                    -> { email, empresaId, papel, nomeEmpresa }
+ *   GET  /api/membros               -> lista membros da empresa (só dono)
+ *   POST /api/membros               -> adiciona um membro à empresa (só dono)
+ *   DELETE /api/membros/:email      -> remove um membro da empresa (só dono)
  *   GET  /api/:store                -> lista registros da empresa nesse store
  *   GET  /api/:store/:id            -> um registro específico
  *   POST /api/:store                -> cria um registro
@@ -22,6 +25,7 @@
  */
 
 const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
+const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
@@ -59,6 +63,119 @@ function permissaoPara(papel, store) {
   return regras[store] || null;
 }
 
+/** Quantos "donos" a empresa tem — usado pra nunca deixar zero. */
+async function contarDonos(db, empresaId) {
+  const linha = await db
+    .prepare(`SELECT COUNT(*) AS total FROM membros WHERE empresa_id = ? AND papel = 'dono'`)
+    .bind(empresaId)
+    .first();
+  return linha ? linha.total : 0;
+}
+
+/**
+ * Trata todas as rotas /api/membros. Só quem é "dono" da própria empresa
+ * pode gerenciar a equipe — todo o resto recebe 403.
+ */
+async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
+  if (membro.papel !== 'dono') {
+    return json({ error: 'Só o dono da empresa pode gerenciar a equipe.' }, 403);
+  }
+
+  const empresaId = membro.empresaId;
+
+  // GET /api/membros — lista os membros da empresa.
+  if (request.method === 'GET' && !emailAlvo) {
+    const { results } = await db
+      .prepare(`
+        SELECT usuario_email AS email, papel, criado_em AS criadoEm
+        FROM membros
+        WHERE empresa_id = ?
+        ORDER BY criado_em ASC
+      `)
+      .bind(empresaId)
+      .all();
+    return json(results);
+  }
+
+  // POST /api/membros — adiciona um novo membro.
+  if (request.method === 'POST' && !emailAlvo) {
+    let corpo;
+    try {
+      corpo = await request.json();
+    } catch (e) {
+      return json({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+
+    const email = ((corpo && corpo.email) || '').trim().toLowerCase();
+    const papel = corpo && corpo.papel;
+
+    if (!email || !email.includes('@')) {
+      return json({ error: 'Informe um e-mail válido.' }, 400);
+    }
+    if (!PAPEIS_VALIDOS.includes(papel)) {
+      return json({ error: `Papel inválido. Use um destes: ${PAPEIS_VALIDOS.join(', ')}.` }, 400);
+    }
+
+    // Por enquanto, um e-mail só pode pertencer a uma empresa.
+    const existente = await db
+      .prepare('SELECT empresa_id AS empresaId FROM membros WHERE usuario_email = ?')
+      .bind(email)
+      .first();
+
+    if (existente) {
+      const mensagem = existente.empresaId === empresaId
+        ? 'Esse e-mail já faz parte da sua equipe.'
+        : 'Esse e-mail já pertence a outra empresa. Por enquanto, cada e-mail só pode estar em uma empresa.';
+      return json({ error: mensagem }, 409);
+    }
+
+    await db
+      .prepare(`
+        INSERT INTO membros (empresa_id, usuario_email, papel, criado_em)
+        VALUES (?, ?, ?, datetime('now'))
+      `)
+      .bind(empresaId, email, papel)
+      .run();
+
+    return json({ email, papel }, 201);
+  }
+
+  // DELETE /api/membros/:email — remove um membro.
+  if (request.method === 'DELETE' && emailAlvo) {
+    const emailDecodificado = decodeURIComponent(emailAlvo).trim().toLowerCase();
+
+    if (emailDecodificado === emailLogado.trim().toLowerCase()) {
+      return json({ error: 'Você não pode remover a si mesmo da equipe. Peça para outro dono fazer isso.' }, 400);
+    }
+
+    const alvo = await db
+      .prepare('SELECT papel FROM membros WHERE empresa_id = ? AND usuario_email = ?')
+      .bind(empresaId, emailDecodificado)
+      .first();
+
+    if (!alvo) {
+      return json({ error: 'Esse e-mail não é membro da sua empresa.' }, 404);
+    }
+
+    // Nunca deixar a empresa sem nenhum dono.
+    if (alvo.papel === 'dono') {
+      const totalDonos = await contarDonos(db, empresaId);
+      if (totalDonos <= 1) {
+        return json({ error: 'Não é possível remover o único dono da empresa.' }, 400);
+      }
+    }
+
+    await db
+      .prepare('DELETE FROM membros WHERE empresa_id = ? AND usuario_email = ?')
+      .bind(empresaId, emailDecodificado)
+      .run();
+
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Rota ou método não suportado para /api/membros.' }, 405);
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -84,6 +201,15 @@ export async function onRequest(context) {
   // GET /api/me — a UI usa isso pra saber o que mostrar/esconder pra essa pessoa.
   if (primeiro === 'me' && request.method === 'GET') {
     return json({ email, empresaId: membro.empresaId, papel: membro.papel, nomeEmpresa: membro.nomeEmpresa });
+  }
+
+  // /api/membros e /api/membros/:email — gestão de equipe (só dono).
+  if (primeiro === 'membros') {
+    try {
+      return await tratarRotaMembros(db, email, membro, partes[1], request);
+    } catch (erro) {
+      return json({ error: erro.message || 'Erro interno ao gerenciar a equipe.' }, 500);
+    }
   }
 
   const store = primeiro;

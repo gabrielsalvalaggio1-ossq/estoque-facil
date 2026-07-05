@@ -598,10 +598,16 @@ else if (abaAtual === 'venda') {
           <p>Total em vendas hoje: ${formatarMoeda(Vendas.calcularVendasDoDia(vendasCache))}</p>
           <p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>
         </div>
+
+        ${usuarioLogadoPapel === 'dono' ? cartaoGestaoEquipeHtml() : ''}
       </div>
     `;
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
+
+    if (usuarioLogadoPapel === 'dono') {
+      inicializarGestaoEquipe();
+    }
   }
 
   else if (abaAtual === 'contato') {
@@ -927,6 +933,167 @@ function mostrarErroFormulario(mensagem) {
   const erro = document.getElementById('erroForm');
   erro.textContent = mensagem;
   erro.style.display = 'block';
+}
+
+// --- Gestão de equipe (aba Conta, só visível pra "dono") ---
+
+// Guarda a última lista de membros carregada, pra poder referenciar cada
+// linha por índice nos cliques de remover/confirmar sem precisar escapar
+// e-mails em seletores CSS.
+let membrosEquipeCache = [];
+
+const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
+
+function cartaoGestaoEquipeHtml() {
+  return `
+    <div class="card-info">
+      <h3>Gestão de equipe</h3>
+      <div id="listaMembros">
+        <p class="team-msg">Carregando…</p>
+      </div>
+
+      <div class="field" style="margin-top:16px;">
+        <label for="fMembroEmail">E-mail do funcionário</label>
+        <input id="fMembroEmail" type="email" placeholder="pessoa@exemplo.com" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="fMembroPapel">Papel</label>
+        <select id="fMembroPapel" class="filtro-select">
+          <option value="vendedor">Vendedor</option>
+          <option value="estoquista">Estoquista</option>
+        </select>
+      </div>
+
+      <p class="erro" id="erroEquipe" style="display:none;"></p>
+      <button type="button" class="btn primary" id="btnAdicionarMembro" style="width:100%;">Adicionar</button>
+    </div>
+  `;
+}
+
+function inicializarGestaoEquipe() {
+  carregarListaMembros();
+  const btnAdicionar = document.getElementById('btnAdicionarMembro');
+  if (btnAdicionar) btnAdicionar.addEventListener('click', adicionarMembroDaEquipe);
+}
+
+function linhaMembroHtml(membro, indice) {
+  const rotulo = ROTULOS_PAPEL[membro.papel] || membro.papel;
+  const ehEuMesmo = (membro.email || '').toLowerCase() === (usuarioLogadoEmail || '').toLowerCase();
+
+  return `
+    <div class="team-row" id="teamRow${indice}">
+      <div class="team-info">
+        <span class="team-email">${escaparHtml(membro.email)}</span>
+        <span class="tag ${escaparHtml(membro.papel)}">${escaparHtml(rotulo)}</span>
+      </div>
+      ${ehEuMesmo ? '' : `
+        <div class="team-actions">
+          <button type="button" class="btn-remover-membro" data-indice="${indice}">Remover</button>
+        </div>
+      `}
+    </div>
+  `;
+}
+
+async function carregarListaMembros() {
+  const container = document.getElementById('listaMembros');
+  if (!container) return;
+  container.innerHTML = '<p class="team-msg">Carregando…</p>';
+
+  try {
+    membrosEquipeCache = await DB.listarMembros();
+    if (membrosEquipeCache.length === 0) {
+      container.innerHTML = '<p class="team-msg">Nenhum membro cadastrado ainda.</p>';
+      return;
+    }
+    container.innerHTML = membrosEquipeCache.map((m, i) => linhaMembroHtml(m, i)).join('');
+    container.querySelectorAll('.btn-remover-membro').forEach(botao => {
+      botao.addEventListener('click', () => pedirConfirmacaoRemoverMembro(Number(botao.dataset.indice)));
+    });
+  } catch (erro) {
+    container.innerHTML = `<p class="erro" style="margin:0;">${escaparHtml(erro.message || 'Não foi possível carregar a equipe.')}</p>`;
+  }
+}
+
+function pedirConfirmacaoRemoverMembro(indice) {
+  const membro = membrosEquipeCache[indice];
+  const linha = document.getElementById(`teamRow${indice}`);
+  if (!membro || !linha) return;
+
+  linha.innerHTML = `
+    <div class="team-confirm">
+      <span>Remover ${escaparHtml(membro.email)} da equipe?</span>
+      <button type="button" class="btn-confirmar-sim" data-indice="${indice}">Remover</button>
+      <button type="button" class="btn-confirmar-nao" data-indice="${indice}">Cancelar</button>
+    </div>
+  `;
+  linha.querySelector('.btn-confirmar-sim').addEventListener('click', () => confirmarRemoverMembro(indice));
+  linha.querySelector('.btn-confirmar-nao').addEventListener('click', () => carregarListaMembros());
+}
+
+async function confirmarRemoverMembro(indice) {
+  const membro = membrosEquipeCache[indice];
+  if (!membro) return;
+
+  const linha = document.getElementById(`teamRow${indice}`);
+  const btnSim = linha ? linha.querySelector('.btn-confirmar-sim') : null;
+  if (btnSim) {
+    btnSim.disabled = true;
+    btnSim.textContent = 'Removendo…';
+  }
+
+  try {
+    await DB.removerMembro(membro.email);
+    await carregarListaMembros();
+  } catch (erro) {
+    mostrarErroEquipe(erro.message || 'Não foi possível remover esse membro.');
+    await carregarListaMembros();
+  }
+}
+
+async function adicionarMembroDaEquipe() {
+  const btn = document.getElementById('btnAdicionarMembro');
+  if (!btn || btn.disabled) return;
+  limparErroEquipe();
+
+  const campoEmail = document.getElementById('fMembroEmail');
+  const campoPapel = document.getElementById('fMembroPapel');
+  const email = campoEmail.value.trim();
+  const papel = campoPapel.value;
+
+  if (!email || !email.includes('@')) {
+    mostrarErroEquipe('Informe um e-mail válido.');
+    return;
+  }
+
+  btn.disabled = true;
+  const textoOriginal = btn.textContent;
+  btn.textContent = 'Adicionando…';
+
+  try {
+    await DB.adicionarMembro(email, papel);
+    campoEmail.value = '';
+    await carregarListaMembros();
+  } catch (erro) {
+    mostrarErroEquipe(erro.message || 'Não foi possível adicionar esse membro.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+
+function mostrarErroEquipe(mensagem) {
+  const erro = document.getElementById('erroEquipe');
+  if (!erro) return;
+  erro.textContent = mensagem;
+  erro.style.display = 'block';
+}
+
+function limparErroEquipe() {
+  const erro = document.getElementById('erroEquipe');
+  if (!erro) return;
+  erro.style.display = 'none';
+  erro.textContent = '';
 }
 
 async function salvarFormularioProduto() {

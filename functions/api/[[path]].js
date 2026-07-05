@@ -1,27 +1,35 @@
 /**
- * functions/api/[[path]].js
+ * functions/api/[[path]].js  (v2 — empresas, papéis e auditoria)
  *
- * Cloudflare Pages Function (catch-all) que atende /api/*.
- * Substitui o IndexedDB local por um banco D1 compartilhado, isolando os
- * dados por usuário através do header que o Cloudflare Access injeta em
- * toda requisição autenticada: Cf-Access-Authenticated-User-Email.
+ * Muda em relação à v1:
+ *  - Os dados não são mais isolados por e-mail direto — são isolados por
+ *    "empresa" (várias pessoas podem compartilhar a mesma empresa).
+ *  - Cada e-mail pertence a uma empresa com um papel: dono, vendedor ou
+ *    estoquista. O papel decide o que a pessoa pode fazer.
+ *  - Toda escrita em vendas/movimentos carimba automaticamente quem fez
+ *    (criado_por / registrado_por) — o cliente não escolhe isso, o servidor
+ *    decide com base em quem está logado, pra não dar pra falsificar.
  *
- * Rotas suportadas (todas exigem o Access já estar protegendo o domínio):
- *   GET    /api/:store            -> lista todos os registros do usuário logado nesse store
- *   GET    /api/:store/:id        -> busca um registro específico
- *   POST   /api/:store            -> cria um registro (body = objeto completo, precisa ter "id")
- *   PUT    /api/:store/:id        -> substitui/atualiza um registro
- *   DELETE /api/:store/:id        -> remove um registro
+ * Rotas:
+ *   GET  /api/me                    -> { email, empresaId, papel, nomeEmpresa }
+ *   GET  /api/:store                -> lista registros da empresa nesse store
+ *   GET  /api/:store/:id            -> um registro específico
+ *   POST /api/:store                -> cria um registro
+ *   PUT  /api/:store/:id            -> atualiza um registro
+ *   DELETE /api/:store/:id          -> remove um registro
  *
- * :store precisa ser um dos valores em STORES_VALIDOS — os mesmos nomes que
- * já existiam em DB.STORES no db.js original (produtos, vendas, movimentos).
- *
- * Requer, no Pages, um binding de D1 chamado "DB":
- *   Dashboard -> Workers & Pages -> seu projeto -> Settings -> Functions
- *   -> D1 database bindings -> Variable name: DB -> selecione seu banco.
+ * Requer o binding D1 "DB", igual antes.
  */
 
 const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
+
+// O que cada papel pode fazer em cada store.
+// 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
+const PERMISSOES = {
+  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total' },
+  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: null },
+  estoquista: { produtos: 'total',  vendas: null,      movimentos: 'total' },
+};
 
 function json(dados, status = 200) {
   return new Response(JSON.stringify(dados), {
@@ -30,30 +38,33 @@ function json(dados, status = 200) {
   });
 }
 
+/** Descobre a qual empresa e com qual papel esse e-mail pertence. */
+async function resolverMembro(db, email) {
+  const linha = await db
+    .prepare(`
+      SELECT m.empresa_id AS empresaId, m.papel AS papel, e.nome AS nomeEmpresa
+      FROM membros m
+      JOIN empresas e ON e.id = m.empresa_id
+      WHERE m.usuario_email = ?
+      LIMIT 1
+    `)
+    .bind(email)
+    .first();
+  return linha || null;
+}
+
+function permissaoPara(papel, store) {
+  const regras = PERMISSOES[papel];
+  if (!regras) return null;
+  return regras[store] || null;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
 
-  // Em produção, com o Access ativado no domínio, este header sempre vem
-  // preenchido pelo próprio Cloudflare antes da requisição chegar aqui.
   const email = request.headers.get('Cf-Access-Authenticated-User-Email');
   if (!email) {
     return json({ error: 'Não autenticado. Acesse pelo domínio protegido pelo Cloudflare Access.' }, 401);
-  }
-
-  const url = new URL(request.url);
-  const partes = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
-
-  // Rota especial: devolve o e-mail autenticado, para a interface mostrar
-  // "quem está logado" (ex: aba Conta) sem precisar duplicar essa lógica.
-  if (partes[0] === 'me') {
-    return json({ email });
-  }
-
-  const store = partes[0];
-  const id = partes[1];
-
-  if (!STORES_VALIDOS.includes(store)) {
-    return json({ error: `Store "${store}" inválido.` }, 404);
   }
 
   const db = env.DB;
@@ -61,19 +72,51 @@ export async function onRequest(context) {
     return json({ error: 'Binding D1 "DB" não configurado neste projeto Pages.' }, 500);
   }
 
+  const membro = await resolverMembro(db, email);
+  if (!membro) {
+    return json({ error: 'Este e-mail ainda não foi associado a nenhuma empresa. Peça para o dono te convidar.' }, 403);
+  }
+
+  const url = new URL(request.url);
+  const partes = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
+  const primeiro = partes[0];
+
+  // GET /api/me — a UI usa isso pra saber o que mostrar/esconder pra essa pessoa.
+  if (primeiro === 'me' && request.method === 'GET') {
+    return json({ email, empresaId: membro.empresaId, papel: membro.papel, nomeEmpresa: membro.nomeEmpresa });
+  }
+
+  const store = primeiro;
+  const id = partes[1];
+
+  if (!STORES_VALIDOS.includes(store)) {
+    return json({ error: `Store "${store}" inválido.` }, 404);
+  }
+
+  const permissao = permissaoPara(membro.papel, store);
+  if (!permissao) {
+    return json({ error: `Seu papel (${membro.papel}) não tem acesso a "${store}".` }, 403);
+  }
+  const metodoEscrita = ['POST', 'PUT', 'DELETE'].includes(request.method);
+  if (metodoEscrita && permissao !== 'total') {
+    return json({ error: `Seu papel (${membro.papel}) só tem acesso de leitura a "${store}".` }, 403);
+  }
+
+  const empresaId = membro.empresaId;
+
   try {
     if (request.method === 'GET' && !id) {
       const { results } = await db
-        .prepare('SELECT dados FROM registros WHERE usuario_email = ? AND store = ?')
-        .bind(email, store)
+        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ?')
+        .bind(empresaId, store)
         .all();
       return json(results.map(r => JSON.parse(r.dados)));
     }
 
     if (request.method === 'GET' && id) {
       const row = await db
-        .prepare('SELECT dados FROM registros WHERE usuario_email = ? AND store = ? AND id = ?')
-        .bind(email, store, id)
+        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+        .bind(empresaId, store, id)
         .first();
       return json(row ? JSON.parse(row.dados) : null);
     }
@@ -83,31 +126,39 @@ export async function onRequest(context) {
       if (!registro || !registro.id) {
         return json({ error: 'Registro precisa ter um campo "id".' }, 400);
       }
+      // Carimba quem criou — vem do servidor (e-mail autenticado), nunca do
+      // que o cliente mandar, pra não dar pra forjar quem fez a ação.
+      registro.criado_por = email;
+      registro.criado_em = new Date().toISOString();
+
       await db
-        .prepare('INSERT INTO registros (id, usuario_email, store, dados, atualizado_em) VALUES (?, ?, ?, ?, datetime("now"))')
-        .bind(registro.id, email, store, JSON.stringify(registro))
+        .prepare('INSERT INTO registros (id, empresa_id, usuario_email, store, dados, atualizado_em) VALUES (?, ?, ?, ?, ?, datetime("now"))')
+        .bind(registro.id, empresaId, email, store, JSON.stringify(registro))
         .run();
       return json(registro, 201);
     }
 
     if (request.method === 'PUT' && id) {
       const registro = await request.json();
+      registro.atualizado_por = email;
+      registro.atualizado_em = new Date().toISOString();
+
       await db
         .prepare(`
-          INSERT INTO registros (id, usuario_email, store, dados, atualizado_em)
-          VALUES (?, ?, ?, ?, datetime('now'))
-          ON CONFLICT(id, usuario_email, store)
-          DO UPDATE SET dados = excluded.dados, atualizado_em = datetime('now')
+          INSERT INTO registros (id, empresa_id, usuario_email, store, dados, atualizado_em)
+          VALUES (?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(id, empresa_id, store)
+          DO UPDATE SET dados = excluded.dados, atualizado_em = datetime('now'), usuario_email = excluded.usuario_email
         `)
-        .bind(id, email, store, JSON.stringify(registro))
+        .bind(id, empresaId, email, store, JSON.stringify(registro))
         .run();
       return json(registro);
     }
 
     if (request.method === 'DELETE' && id) {
       await db
-        .prepare('DELETE FROM registros WHERE usuario_email = ? AND store = ? AND id = ?')
-        .bind(email, store, id)
+        .prepare('DELETE FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+        .bind(empresaId, store, id)
         .run();
       return json({ ok: true });
     }

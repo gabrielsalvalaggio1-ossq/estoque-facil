@@ -524,6 +524,7 @@ function fazerLogout() {
 }
 
 let usuarioLogadoEmail = '';
+let usuarioLogadoPapel = 'dono'; // 'dono' | 'vendedor' | 'estoquista' — padrão otimista até a API responder
 
 async function cancelarVendaComConfirmacao(id) {
   if (cancelamentoEmAndamento.has(id)) return; // já está cancelando essa venda
@@ -1185,6 +1186,31 @@ document.getElementById('btnCobrar').addEventListener('click', abrirComprovante)
 document.getElementById('btnExportar').addEventListener('click', abrirMenuExportar);
 document.getElementById('btnExportarSidebar').addEventListener('click', abrirMenuExportar);
 
+/**
+ * Esconde as abas que o papel da pessoa logada não deveria ver:
+ * vendedor só mexe em Venda, estoquista só mexe em Estoque, dono vê tudo.
+ * Conta e Contato ficam liberados pra todo mundo.
+ */
+function aplicarRestricoesDePapel(papel) {
+  const abasPorPapel = {
+    dono: ['estoque', 'venda', 'historico', 'conta', 'contato'],
+    vendedor: ['venda', 'conta', 'contato'],
+    estoquista: ['estoque', 'conta', 'contato']
+  };
+  const permitidas = abasPorPapel[papel] || abasPorPapel.dono;
+
+  document.querySelectorAll('[data-tab]').forEach(botao => {
+    botao.style.display = permitidas.includes(botao.dataset.tab) ? '' : 'none';
+  });
+
+  if (!permitidas.includes(abaAtual)) {
+    abaAtual = permitidas[0];
+    document.querySelectorAll('[data-tab]').forEach(botao => {
+      botao.classList.toggle('active', botao.dataset.tab === abaAtual);
+    });
+  }
+}
+
 async function iniciar() {
   document.getElementById('dateLabel').textContent = dataDeHoje();
 
@@ -1201,8 +1227,10 @@ async function iniciar() {
       DB.buscarUsuarioLogado().catch(() => null)
     ]);
     usuarioLogadoEmail = (usuario && usuario.email) || '';
+    usuarioLogadoPapel = (usuario && usuario.papel) || 'dono';
     const sidebarEmail = document.getElementById('sidebarEmail');
     if (sidebarEmail) sidebarEmail.textContent = usuarioLogadoEmail;
+    aplicarRestricoesDePapel(usuarioLogadoPapel);
   } catch (erro) {
     document.getElementById('main').innerHTML = `<div class="empty">
       <p class="titulo">Não foi possível carregar seus dados</p>

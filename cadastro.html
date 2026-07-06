@@ -2,37 +2,58 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>MEV - Cadastro</title>
+  <title>Meu Estoque e Vendas — Criar conta</title>
+  <style>
+    body { font-family: Arial; padding: 30px; max-width: 320px; }
+    input { display: block; margin: 10px 0; padding: 10px; width: 250px; }
+    button { padding: 10px 14px; cursor: pointer; border-radius: 6px; font-weight: 600;
+      background: #1b3a2f; color: white; border: none; width: 100%; }
+    #erro { color: #b33; font-size: 13px; margin-top: 8px; min-height: 16px; }
+  </style>
 </head>
 <body>
 
-<h2>Criar conta MEV</h2>
+<h2>Criar conta</h2>
 
 <input id="nome" placeholder="Nome">
-<input id="email" placeholder="Email">
+<input id="email" placeholder="E-mail" type="email">
 <input id="senha" type="password" placeholder="Senha">
+<p id="erro"></p>
 
 <button onclick="cadastro()">Criar conta</button>
 
+<p style="margin-top:20px; font-size:13px;">
+  Já tem conta? <a href="/login.html">Entrar</a>
+</p>
+
 <script>
 async function cadastro() {
-  const nome = document.getElementById("nome").value;
-  const email = document.getElementById("email").value;
+  const nome = document.getElementById("nome").value.trim();
+  const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
+  const erroEl = document.getElementById("erro");
+  erroEl.textContent = "";
 
-  const res = await fetch("https://mev-api.gabrielsalvalaggio1.workers.dev/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ nome, email, senha })
-  });
+  if (!email || !senha) {
+    erroEl.textContent = "Preencha e-mail e senha.";
+    return;
+  }
 
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome, email, senha })
+    });
+    const data = await res.json();
 
-  if (data.ok) {
-    alert("Conta criada!");
-    window.location.href = "/login.html";
-  } else {
-    alert("Erro ao criar conta");
+    if (data.ok) {
+      window.location.href = "/index.html";
+    } else {
+      erroEl.textContent = data.error || "Erro ao criar conta.";
+    }
+  } catch (e) {
+    erroEl.textContent = "Não foi possível conectar ao servidor.";
   }
 }
 </script>

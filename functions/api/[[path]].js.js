@@ -255,17 +255,46 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
   return json({ error: 'Rota ou método não suportado para /api/membros.' }, 405);
 }
 
+async function sha256Hex(texto) {
+  const dados = new TextEncoder().encode(texto);
+  const buffer = await crypto.subtle.digest('SHA-256', dados);
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Lê o cookie "session" (token cru) e descobre o e-mail do usuário, validando o hash contra a tabela sessoes. */
+async function resolverEmailDaSessao(db, request) {
+  const cookieHeader = request.headers.get('Cookie') || '';
+  const match = cookieHeader.match(/session=([^;]+)/);
+  if (!match) return null;
+
+  const tokenHash = await sha256Hex(match[1]);
+  const linha = await db
+    .prepare(`
+      SELECT u.email AS email, s.expires_at AS expiresAt
+      FROM sessoes s
+      JOIN usuarios u ON u.id = s.usuario_id
+      WHERE s.token_hash = ?
+    `)
+    .bind(tokenHash)
+    .first();
+
+  if (!linha) return null;
+  if (new Date(linha.expiresAt) < new Date()) return null; // sessão expirada
+
+  return linha.email;
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
-
-  const email = request.headers.get('Cf-Access-Authenticated-User-Email');
-  if (!email) {
-    return json({ error: 'Não autenticado. Acesse pelo domínio protegido pelo Cloudflare Access.' }, 401);
-  }
 
   const db = env.DB;
   if (!db) {
     return json({ error: 'Binding D1 "DB" não configurado neste projeto Pages.' }, 500);
+  }
+
+  const email = await resolverEmailDaSessao(db, request);
+  if (!email) {
+    return json({ error: 'Não autenticado. Faça login novamente.' }, 401);
   }
 
   const url = new URL(request.url);

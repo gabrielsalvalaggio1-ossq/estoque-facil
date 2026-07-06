@@ -3,234 +3,507 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meu Estoque e Vendas — Planos</title>
-<meta name="description" content="Controle de estoque e vendas para pequenos comerciantes. Comece grátis por 2 meses.">
+<title>Planos — Meu Estoque e Vendas</title>
+<meta name="description" content="Controle o estoque e as vendas do seu negócio pelo celular. Comece grátis, sem cartão de crédito. Planos a partir de R$19,90/mês.">
 <meta name="theme-color" content="#1B3A2F">
 <link rel="icon" href="icons/icon-192.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
   :root{
     --ledger: #1B3A2F;
     --ledger-dark: #12281F;
+    --ledger-soft: #24463A;
     --paper: #FBFAF3;
-    --paper-dim: #EFEBDD;
+    --paper-dim: #F2EEE0;
+    --paper-line: #E7E1CE;
     --ink: #1F2420;
     --ink-soft: #5B6259;
+    --ink-faint: #8A9088;
     --amber: #D9A441;
     --amber-deep: #8A6A22;
+    --amber-pale: #FBF0D8;
     --coral: #E2572B;
     --coral-deep: #8F2E14;
+    --coral-pale: #FCE4DA;
     --line: #D9D4C2;
+    --shadow-sm: 0 2px 10px rgba(27,58,47,.06);
+    --shadow-md: 0 12px 32px rgba(27,58,47,.12);
+    --shadow-lg: 0 24px 60px rgba(27,58,47,.18);
+    --ease: cubic-bezier(.22,1,.36,1);
   }
   *{ box-sizing:border-box; }
   html{ scroll-behavior:smooth; }
+  @media (prefers-reduced-motion: reduce){
+    html{ scroll-behavior:auto; }
+    *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; scroll-behavior:auto !important; }
+  }
   body{
     margin:0;
     background:var(--paper);
     color:var(--ink);
     font-family:'Inter',sans-serif;
-    line-height:1.5;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
   }
-  h1,h2,h3{ font-family:'Fraunces',serif; margin:0; }
+  h1,h2,h3{ font-family:'Fraunces',serif; margin:0; color:var(--ledger); }
   a{ color:inherit; }
-  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+  img{ max-width:100%; display:block; }
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 24px; }
+  ::selection{ background:var(--amber); color:var(--ledger-dark); }
+  :focus-visible{ outline:2px solid var(--coral); outline-offset:3px; border-radius:4px; }
 
-  /* --- topo --- */
+  .reveal{ opacity:0; transform:translateY(14px); transition:opacity .6s var(--ease), transform .6s var(--ease); }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  /* ================= TOPBAR ================= */
   .topbar{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:20px 0;
+    position:sticky; top:0; z-index:50;
+    background:rgba(251,250,243,.88);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--paper-line);
   }
-  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; }
+  .topbar-inner{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 0;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; color:var(--ledger); }
   .brand-mark{
-    width:30px; height:30px; border-radius:8px;
+    width:32px; height:32px; border-radius:9px;
     background:var(--ledger); color:var(--paper);
     display:flex; align-items:center; justify-content:center;
-    font-family:'Fraunces',serif; font-weight:700;
+    font-family:'Fraunces',serif; font-weight:700; font-size:16px;
+    box-shadow:var(--shadow-sm);
   }
+  .topbar-actions{ display:flex; align-items:center; gap:8px; }
+  .topbar a.entrar{
+    text-decoration:none; font-size:14px; font-weight:600; color:var(--ink-soft);
+    padding:9px 14px; border-radius:8px; transition:background .2s var(--ease), color .2s var(--ease);
+  }
+  .topbar a.entrar:hover{ background:var(--paper-dim); color:var(--ink); }
   .topbar .cta{
     background:var(--ledger); color:var(--paper);
-    padding:9px 18px; border-radius:8px; text-decoration:none;
-    font-weight:600; font-size:14px;
+    padding:10px 18px; border-radius:9px; text-decoration:none;
+    font-weight:700; font-size:14px; white-space:nowrap;
+    transition:transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
   }
-  .topbar a.entrar{
-    text-decoration:none; font-size:14px; color:var(--ink-soft); margin-right:18px;
-  }
+  .topbar .cta:hover{ background:var(--ledger-soft); transform:translateY(-1px); box-shadow:var(--shadow-sm); }
 
-  /* --- hero --- */
+  /* ================= HERO ================= */
   .hero{
-    background:var(--ledger); color:var(--paper);
-    padding:72px 0 90px;
+    position:relative;
+    background:
+      radial-gradient(60% 90% at 85% 0%, rgba(217,164,65,.16), transparent 60%),
+      radial-gradient(50% 60% at 10% 10%, rgba(226,87,43,.10), transparent 60%),
+      var(--ledger);
+    color:var(--paper);
+    padding:76px 0 64px;
+    overflow:hidden;
   }
-  .hero .wrap{ text-align:center; }
+  .hero::after{
+    content:"";
+    position:absolute; inset:auto 0 0 0; height:120px;
+    background:linear-gradient(to bottom, transparent, rgba(18,40,31,.35));
+    pointer-events:none;
+  }
+  .hero-grid{
+    display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center;
+  }
   .eyebrow{
-    display:inline-block; color:var(--amber); font-weight:600;
-    font-size:13px; letter-spacing:.04em; text-transform:uppercase;
-    margin-bottom:14px;
+    display:inline-flex; align-items:center; gap:8px;
+    color:var(--amber); font-weight:700;
+    font-size:12.5px; letter-spacing:.05em; text-transform:uppercase;
+    margin-bottom:18px;
+    background:rgba(217,164,65,.12); border:1px solid rgba(217,164,65,.3);
+    padding:6px 12px; border-radius:999px;
   }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--coral); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+
   .hero h1{
-    font-size:clamp(30px, 5vw, 48px); font-weight:600; line-height:1.15;
-    max-width:760px; margin:0 auto 18px;
+    font-size:clamp(32px, 4.4vw, 50px); font-weight:600; line-height:1.12;
+    letter-spacing:-.01em;
+    margin:0 0 20px;
+    color:var(--paper);
   }
+  .hero h1 em{ font-style:normal; color:var(--amber); }
   .hero p.sub{
-    color:#D8E2DB; font-size:17px; max-width:520px; margin:0 auto 32px;
+    color:#D8E2DB; font-size:17.5px; max-width:480px; margin:0 0 30px;
   }
-  .hero-ctas{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .hero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
   .btn-primary{
     background:var(--amber); color:var(--ledger-dark);
-    padding:14px 26px; border-radius:10px; text-decoration:none;
+    padding:15px 28px; border-radius:11px; text-decoration:none;
     font-weight:700; font-size:15.5px;
+    box-shadow:0 10px 26px rgba(217,164,65,.28);
+    transition:transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+    display:inline-flex; align-items:center; gap:8px;
   }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 14px 32px rgba(217,164,65,.4); background:#E6B354; }
+  .btn-primary:active{ transform:translateY(0); }
   .btn-ghost{
-    border:1px solid rgba(251,250,243,.35); color:var(--paper);
-    padding:14px 26px; border-radius:10px; text-decoration:none;
-    font-weight:600; font-size:15.5px;
+    border:1px solid rgba(251,250,243,.28); color:var(--paper);
+    padding:15px 26px; border-radius:11px; text-decoration:none;
+    font-weight:600; font-size:15.5px; background:rgba(255,255,255,.03);
+    transition:background .2s var(--ease), border-color .2s var(--ease);
   }
-  .hero-note{ margin-top:16px; font-size:13px; color:#AEC0B6; }
+  .btn-ghost:hover{ background:rgba(255,255,255,.08); border-color:rgba(251,250,243,.5); }
+  .hero-proof{
+    margin-top:28px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    font-size:13.5px; color:#AEC0B6;
+  }
+  .hero-proof .stars{ color:var(--amber); letter-spacing:1px; }
+  .hero-note{ margin-top:0; font-size:13px; color:#AEC0B6; }
 
-  /* --- recursos --- */
-  .features{ padding:70px 0; }
-  .features h2{ text-align:center; font-size:28px; margin-bottom:10px; }
-  .features .lead{
-    text-align:center; color:var(--ink-soft); max-width:480px;
-    margin:0 auto 44px; font-size:15px;
+  /* --- mockup card --- */
+  .hero-visual{ position:relative; }
+  .mock{
+    background:var(--paper); border-radius:18px; box-shadow:var(--shadow-lg);
+    padding:20px; transform:rotate(1.2deg);
+    animation:floaty 5s ease-in-out infinite;
   }
+  @keyframes floaty{ 0%,100%{ transform:rotate(1.2deg) translateY(0); } 50%{ transform:rotate(1.2deg) translateY(-8px); } }
+  .mock-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .mock-head .t{ font-weight:700; font-size:13px; color:var(--ink-soft); }
+  .mock-head .pill{ background:var(--coral-pale); color:var(--coral-deep); font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
+  .mock-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 12px; border-radius:10px; margin-bottom:8px; background:#fff; border:1px solid var(--paper-line);
+  }
+  .mock-row .name{ font-size:13.5px; font-weight:600; }
+  .mock-row .qty{ font-size:12px; color:var(--ink-soft); }
+  .mock-row.low{ border-color:var(--coral); background:var(--coral-pale); }
+  .mock-row.low .qty{ color:var(--coral-deep); font-weight:700; }
+  .mock-total{
+    margin-top:14px; display:flex; justify-content:space-between; align-items:center;
+    padding:14px; border-radius:12px; background:var(--ledger); color:var(--paper);
+  }
+  .mock-total .label{ font-size:12.5px; color:#AEC0B6; }
+  .mock-total .val{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; color:var(--amber); }
+  .badge-float{
+    position:absolute; top:-14px; right:-14px;
+    background:var(--coral); color:#fff; font-weight:700; font-size:12px;
+    padding:8px 14px; border-radius:12px; box-shadow:var(--shadow-md);
+    transform:rotate(-4deg);
+  }
+
+  /* ================= TRUST STRIP ================= */
+  .trust{ background:var(--paper-dim); border-bottom:1px solid var(--paper-line); padding:22px 0; }
+  .trust-inner{
+    display:flex; flex-wrap:wrap; gap:28px; justify-content:center; align-items:center;
+    font-size:13.5px; color:var(--ink-soft); font-weight:600;
+  }
+  .trust-inner span{ display:flex; align-items:center; gap:7px; }
+  .trust-inner .ic{ color:var(--ledger); }
+
+  /* ================= BENEFÍCIOS ================= */
+  .features{ padding:88px 0 76px; }
+  .section-head{ text-align:center; max-width:600px; margin:0 auto 48px; }
+  .section-head .kicker{
+    display:inline-block; color:var(--coral); font-weight:700; font-size:12.5px;
+    letter-spacing:.05em; text-transform:uppercase; margin-bottom:12px;
+  }
+  .section-head h2{ font-size:clamp(26px,3.4vw,36px); font-weight:600; line-height:1.2; margin-bottom:14px; }
+  .section-head p{ color:var(--ink-soft); font-size:16px; margin:0; }
+
   .feature-grid{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    display:grid; grid-template-columns:repeat(3,1fr);
     gap:20px;
   }
   .feature-card{
-    background:#fff; border:1px solid var(--line); border-radius:14px;
-    padding:22px;
+    background:#fff; border:1px solid var(--line); border-radius:16px;
+    padding:26px 24px; transition:transform .25s var(--ease), box-shadow .25s var(--ease), border-color .25s var(--ease);
   }
-  .feature-card .ico{ font-size:22px; margin-bottom:10px; }
-  .feature-card h3{ font-size:16px; font-weight:600; margin-bottom:6px; font-family:'Inter',sans-serif; }
-  .feature-card p{ font-size:13.5px; color:var(--ink-soft); margin:0; }
+  .feature-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-md); border-color:transparent; }
+  .feature-card .ico{
+    width:44px; height:44px; border-radius:12px; margin-bottom:16px;
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+    background:var(--amber-pale);
+  }
+  .feature-card:nth-child(2) .ico{ background:var(--coral-pale); }
+  .feature-card:nth-child(3) .ico{ background:var(--paper-dim); }
+  .feature-card:nth-child(5) .ico{ background:var(--coral-pale); }
+  .feature-card:nth-child(6) .ico{ background:var(--paper-dim); }
+  .feature-card h3{ font-size:17px; font-weight:700; margin-bottom:8px; font-family:'Inter',sans-serif; color:var(--ink); }
+  .feature-card p{ font-size:14px; color:var(--ink-soft); margin:0; line-height:1.6; }
 
-  /* --- planos --- */
-  .pricing{ background:var(--paper-dim); padding:76px 0; }
-  .pricing h2{ text-align:center; font-size:28px; margin-bottom:10px; }
-  .pricing .lead{
-    text-align:center; color:var(--ink-soft); max-width:480px;
-    margin:0 auto 44px; font-size:15px;
+  /* ================= PLANOS ================= */
+  .pricing{ background:var(--ledger-dark); padding:92px 0 100px; position:relative; overflow:hidden; }
+  .pricing::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(60% 50% at 50% 0%, rgba(217,164,65,.10), transparent 70%);
   }
+  .pricing .section-head h2, .pricing .section-head .kicker{ color:var(--paper); }
+  .pricing .section-head p{ color:#AEC0B6; }
+  .pricing .section-head .kicker{ color:var(--amber); }
+
+  .billing-toggle{
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    margin:0 0 48px; position:relative; z-index:1;
+  }
+  .billing-toggle span{ font-size:14px; font-weight:600; color:#AEC0B6; }
+  .billing-toggle span.active{ color:var(--paper); }
+  .switch{
+    width:46px; height:26px; background:rgba(251,250,243,.15); border-radius:999px;
+    position:relative; cursor:pointer; border:1px solid rgba(251,250,243,.2);
+  }
+  .switch::after{
+    content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:var(--amber); transition:transform .25s var(--ease);
+  }
+  .switch.on::after{ transform:translateX(20px); }
+  .save-tag{
+    background:var(--coral); color:#fff; font-size:11px; font-weight:700;
+    padding:3px 9px; border-radius:999px;
+  }
+
   .plans{
-    display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:22px; max-width:760px; margin:0 auto;
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:24px; max-width:1020px; margin:0 auto; align-items:stretch;
+    position:relative; z-index:1;
   }
   .plan{
-    background:#fff; border:1px solid var(--line); border-radius:18px;
-    padding:32px 28px; position:relative;
+    background:var(--ledger); border:1px solid rgba(251,250,243,.12); border-radius:20px;
+    padding:34px 28px; position:relative; display:flex; flex-direction:column;
+    transition:transform .3s var(--ease), box-shadow .3s var(--ease);
   }
+  .plan:hover{ transform:translateY(-6px); }
   .plan.destaque{
-    border:2px solid var(--ledger);
-    box-shadow:0 12px 32px rgba(27,58,47,.14);
+    background:linear-gradient(180deg, #24463A, #1B3A2F);
+    border:2px solid var(--amber);
+    box-shadow:0 20px 50px rgba(0,0,0,.35);
+    transform:scale(1.04);
   }
+  .plan.destaque:hover{ transform:scale(1.04) translateY(-6px); }
   .plan .tag{
-    position:absolute; top:-13px; right:24px;
+    position:absolute; top:-14px; left:50%; transform:translateX(-50%);
     background:var(--amber); color:var(--ledger-dark);
-    font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px;
-    letter-spacing:.02em;
+    font-size:12px; font-weight:800; padding:6px 16px; border-radius:999px;
+    letter-spacing:.02em; white-space:nowrap; box-shadow:var(--shadow-sm);
   }
-  .plan .nome{ font-size:14px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
-  .plan .preco{ font-family:'Fraunces',serif; font-size:38px; font-weight:600; margin:10px 0 2px; color:var(--ledger); }
-  .plan .preco span{ font-size:15px; font-weight:500; color:var(--ink-soft); font-family:'Inter',sans-serif; }
-  .plan .periodo{ font-size:13px; color:var(--ink-soft); margin-bottom:22px; }
-  .plan ul{ list-style:none; margin:0 0 26px; padding:0; }
+  .plan .nome{ font-size:14px; font-weight:700; color:#AEC0B6; text-transform:uppercase; letter-spacing:.04em; margin-bottom:14px; }
+  .plan.destaque .nome{ color:var(--amber); }
+  .plan .preco-row{ display:flex; align-items:baseline; gap:6px; margin-bottom:4px; }
+  .plan .preco{ font-family:'Fraunces',serif; font-size:42px; font-weight:600; color:var(--paper); }
+  .plan .preco-de{ font-size:14px; color:#8AA096; text-decoration:line-through; }
+  .plan .ciclo{ font-size:14px; color:#AEC0B6; }
+  .plan .periodo{ font-size:13px; color:#8AA096; margin-bottom:24px; min-height:18px; }
+  .plan ul{ list-style:none; margin:0 0 28px; padding:0; flex:1; }
   .plan li{
-    display:flex; gap:8px; align-items:flex-start;
-    font-size:14px; margin-bottom:11px; color:var(--ink);
+    display:flex; gap:10px; align-items:flex-start;
+    font-size:14px; margin-bottom:13px; color:#D8E2DB; line-height:1.4;
   }
-  .plan li .check{ color:var(--ledger); font-weight:700; }
-  .plan a{
-    display:block; text-align:center; padding:13px; border-radius:10px;
-    text-decoration:none; font-weight:700; font-size:14.5px;
+  .plan li .check{
+    color:var(--amber); font-weight:700; flex-shrink:0; margin-top:1px;
   }
-  .plan.destaque a{ background:var(--ledger); color:var(--paper); }
-  .plan:not(.destaque) a{ background:var(--paper-dim); color:var(--ledger); border:1px solid var(--line); }
+  .plan li.muted{ color:#7C8F87; }
+  .plan li.muted .check{ color:#5C6D66; }
+  .plan a.plan-cta{
+    display:block; text-align:center; padding:14px; border-radius:11px;
+    text-decoration:none; font-weight:700; font-size:15px;
+    transition:transform .2s var(--ease), box-shadow .2s var(--ease), background .2s var(--ease);
+  }
+  .plan.destaque a.plan-cta{ background:var(--amber); color:var(--ledger-dark); box-shadow:0 10px 24px rgba(217,164,65,.3); }
+  .plan.destaque a.plan-cta:hover{ transform:translateY(-2px); box-shadow:0 14px 30px rgba(217,164,65,.42); }
+  .plan:not(.destaque) a.plan-cta{ background:rgba(251,250,243,.08); color:var(--paper); border:1px solid rgba(251,250,243,.22); }
+  .plan:not(.destaque) a.plan-cta:hover{ background:rgba(251,250,243,.14); }
+  .plan-foot{ text-align:center; font-size:12.5px; color:#8AA096; margin-top:10px; }
 
-  /* --- faq --- */
-  .faq{ padding:70px 0 90px; }
-  .faq h2{ text-align:center; font-size:26px; margin-bottom:36px; }
-  .faq-item{
-    border-bottom:1px solid var(--line); padding:18px 0; max-width:700px; margin:0 auto;
+  .pricing-guarantee{
+    max-width:1020px; margin:44px auto 0; text-align:center; position:relative; z-index:1;
+    font-size:13.5px; color:#AEC0B6; display:flex; gap:22px; justify-content:center; flex-wrap:wrap;
   }
-  .faq-item h3{ font-size:15px; font-weight:600; font-family:'Inter',sans-serif; margin-bottom:6px; }
-  .faq-item p{ font-size:14px; color:var(--ink-soft); margin:0; }
+  .pricing-guarantee span{ display:flex; align-items:center; gap:7px; }
+
+  /* ================= COMPARATIVO ================= */
+  .compare{ padding:88px 0; }
+  .compare-table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table.compare-table{
+    width:100%; border-collapse:collapse; min-width:640px;
+    background:#fff; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-sm);
+  }
+  .compare-table th, .compare-table td{
+    padding:14px 18px; text-align:center; border-bottom:1px solid var(--paper-line); font-size:14px;
+  }
+  .compare-table th{ background:var(--paper-dim); font-family:'Fraunces',serif; font-weight:600; font-size:15px; color:var(--ledger); }
+  .compare-table td:first-child, .compare-table th:first-child{ text-align:left; font-weight:600; color:var(--ink); }
+  .compare-table th:not(:first-child){ position:relative; }
+  .compare-table .col-dest{ background:var(--amber-pale); }
+  .compare-table .yes{ color:var(--ledger); font-weight:700; }
+  .compare-table .no{ color:var(--ink-faint); }
+
+  /* ================= FAQ ================= */
+  .faq{ padding:80px 0 96px; background:var(--paper-dim); }
+  .faq-list{ max-width:740px; margin:0 auto; }
+  .faq-item{
+    border-bottom:1px solid var(--line); background:#fff;
+    border:1px solid var(--paper-line); border-radius:12px; margin-bottom:12px; overflow:hidden;
+  }
+  .faq-q{
+    width:100%; text-align:left; background:none; border:0; cursor:pointer;
+    padding:18px 20px; display:flex; justify-content:space-between; align-items:center; gap:16px;
+    font-family:'Inter',sans-serif; font-size:15.5px; font-weight:700; color:var(--ink);
+  }
+  .faq-q .plus{
+    flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--paper-dim);
+    display:flex; align-items:center; justify-content:center; font-size:16px; color:var(--ledger);
+    transition:transform .25s var(--ease), background .25s var(--ease);
+  }
+  .faq-item.open .faq-q .plus{ transform:rotate(45deg); background:var(--amber-pale); }
+  .faq-a{
+    max-height:0; overflow:hidden; transition:max-height .3s var(--ease), padding .3s var(--ease);
+    padding:0 20px;
+  }
+  .faq-item.open .faq-a{ max-height:220px; padding:0 20px 20px; }
+  .faq-a p{ margin:0; font-size:14.5px; color:var(--ink-soft); line-height:1.65; }
+
+  /* ================= CTA FINAL ================= */
+  .cta-final{
+    background:var(--ledger); color:var(--paper); text-align:center;
+    padding:76px 0; position:relative; overflow:hidden;
+  }
+  .cta-final::before{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(50% 80% at 50% 100%, rgba(226,87,43,.14), transparent 70%);
+  }
+  .cta-final h2{ color:var(--paper); font-size:clamp(26px,3.6vw,36px); margin-bottom:14px; position:relative; }
+  .cta-final p{ color:#D8E2DB; font-size:16px; max-width:480px; margin:0 auto 30px; position:relative; }
+  .cta-final .hero-ctas{ justify-content:center; position:relative; }
 
   footer{
     background:var(--ledger-dark); color:#AEC0B6;
-    padding:30px 0; text-align:center; font-size:13px;
+    padding:32px 0; text-align:center; font-size:13px;
   }
+  footer a{ color:var(--amber); text-decoration:none; }
 
+  /* ================= RESPONSIVE ================= */
+  @media (max-width:920px){
+    .hero-grid{ grid-template-columns:1fr; }
+    .hero-visual{ order:-1; max-width:380px; margin:0 auto 12px; }
+    .feature-grid{ grid-template-columns:repeat(2,1fr); }
+    .plans{ grid-template-columns:1fr; max-width:420px; }
+    .plan.destaque{ transform:none; order:-1; }
+    .plan.destaque:hover{ transform:translateY(-6px); }
+  }
   @media (max-width:560px){
-    .topbar .entrar{ margin-right:10px; font-size:13px; }
-    .topbar .cta{ padding:8px 14px; font-size:13px; }
+    .wrap{ padding:0 18px; }
+    .topbar .entrar{ padding:8px 10px; font-size:13px; }
+    .topbar .cta{ padding:9px 14px; font-size:13px; }
+    .hero{ padding:40px 0 48px; }
+    .hero-ctas{ flex-direction:column; }
+    .hero-ctas .btn-primary, .hero-ctas .btn-ghost{ width:100%; text-align:center; justify-content:center; }
+    .hero-proof{ justify-content:center; text-align:center; }
+    .feature-grid{ grid-template-columns:1fr; }
+    .trust-inner{ gap:14px 20px; font-size:12.5px; }
+    .pricing{ padding:64px 0 72px; }
+    .cta-final .hero-ctas{ flex-direction:column; }
+    .cta-final .btn-primary, .cta-final .btn-ghost{ width:100%; text-align:center; justify-content:center; }
+    .plan.destaque{ padding:30px 22px; }
+    .section-head{ margin-bottom:36px; }
   }
 </style>
 </head>
 <body>
 
-<div class="topbar wrap">
-  <div class="brand">
-    <span class="brand-mark">M</span>
-    Meu Estoque e Vendas
-  </div>
-  <div>
-    <a class="entrar" href="/login.html">Entrar</a>
-    <a class="cta" href="/cadastro.html">Criar conta grátis</a>
+<div class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      Meu Estoque e Vendas
+    </div>
+    <div class="topbar-actions">
+      <a class="entrar" href="/login.html">Entrar</a>
+      <a class="cta" href="/cadastro.html">Criar conta grátis</a>
+    </div>
   </div>
 </div>
 
 <section class="hero">
-  <div class="wrap">
-    <span class="eyebrow">Controle de estoque e vendas</span>
-    <h1>Saiba o que você tem, o que vendeu e o que está acabando — sem planilha, sem complicação.</h1>
-    <p class="sub">Feito para quem vende no balcão, na feira ou por WhatsApp. Cadastre produtos, venda em poucos toques e o estoque se atualiza sozinho.</p>
-    <div class="hero-ctas">
-      <a class="btn-primary" href="/cadastro.html">Começar grátis por 2 meses</a>
-      <a class="btn-ghost" href="#planos">Ver planos</a>
+  <div class="wrap hero-grid">
+    <div class="reveal in">
+      <span class="eyebrow"><span class="dot"></span> Feito para o pequeno comércio brasileiro</span>
+      <h1>Pare de perder dinheiro sem saber o que tem no estoque.</h1>
+      <p class="sub">Cadastre seus produtos, venda em poucos toques pelo celular e veja o estoque se atualizar sozinho. Sem planilha, sem complicação, sem letra miúda.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="/cadastro.html">Começar grátis por 2 meses →</a>
+        <a class="btn-ghost" href="#planos">Ver planos e preços</a>
+      </div>
+      <div class="hero-proof">
+        <span class="stars">★★★★★</span>
+        <span>Usado por comerciantes de feira, loja e delivery em todo o Brasil</span>
+      </div>
+      <p class="hero-note">Sem cartão de crédito · Cancele quando quiser · Leva 5 minutos pra começar</p>
     </div>
-    <p class="hero-note">Sem cartão de crédito. Cancele quando quiser.</p>
+
+    <div class="hero-visual reveal in">
+      <div class="mock">
+        <span class="badge-float">+R$ 340 vendidos hoje</span>
+        <div class="mock-head">
+          <span class="t">Estoque · Loja da Ana</span>
+          <span class="pill">Ao vivo</span>
+        </div>
+        <div class="mock-row"><span class="name">Arroz 5kg</span><span class="qty">18 un.</span></div>
+        <div class="mock-row"><span class="name">Refrigerante 2L</span><span class="qty">32 un.</span></div>
+        <div class="mock-row low"><span class="name">Detergente</span><span class="qty">Só 2 un. — repor</span></div>
+        <div class="mock-row"><span class="name">Café 500g</span><span class="qty">21 un.</span></div>
+        <div class="mock-total">
+          <span class="label">Vendido hoje</span>
+          <span class="val">R$ 1.284,00</span>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
+<div class="trust">
+  <div class="wrap trust-inner">
+    <span><span class="ic">🔒</span> Seus dados sempre seguros</span>
+    <span><span class="ic">📱</span> Funciona em qualquer celular</span>
+    <span><span class="ic">⚡</span> Atualiza o estoque na hora</span>
+    <span><span class="ic">🇧🇷</span> Suporte em português</span>
+  </div>
+</div>
+
 <section class="features">
   <div class="wrap">
-    <h2>Tudo que um pequeno negócio precisa, num só lugar</h2>
-    <p class="lead">Sem curva de aprendizado — em 5 minutos você já está vendendo pelo app.</p>
+    <div class="section-head reveal">
+      <span class="kicker">Por que usar o MEV</span>
+      <h2>Resultado no seu bolso, não só funcionalidade na tela</h2>
+      <p>Cada recurso existe pra resolver um problema real de quem vende todo dia.</p>
+    </div>
     <div class="feature-grid">
-      <div class="feature-card">
-        <div class="ico">📦</div>
-        <h3>Estoque em tempo real</h3>
-        <p>Cadastre por unidade ou por peso (kg). Cada venda já desconta do estoque automaticamente.</p>
+      <div class="feature-card reveal">
+        <div class="ico">💰</div>
+        <h3>Nunca mais venda o que não tem</h3>
+        <p>O estoque desconta sozinho a cada venda. Você sabe exatamente o que tem no balcão antes de prometer ao cliente.</p>
       </div>
-      <div class="feature-card">
-        <div class="ico">🛒</div>
-        <h3>Venda em poucos toques</h3>
-        <p>Um cardápio visual pra montar a cobrança rápido — inclusive escaneando o código de barras.</p>
+      <div class="feature-card reveal">
+        <div class="ico">⏱️</div>
+        <h3>Venda em segundos, não em minutos</h3>
+        <p>Um cardápio visual pra montar a cobrança rápido, com leitor de código de barras. Menos fila, mais venda.</p>
       </div>
-      <div class="feature-card">
-        <div class="ico">📊</div>
-        <h3>Histórico e relatórios</h3>
-        <p>Veja vendido hoje, no mês, formas de pagamento e fiado em aberto, tudo num painel simples.</p>
+      <div class="feature-card reveal">
+        <div class="ico">📈</div>
+        <h3>Saiba se o mês está bom antes do fim do mês</h3>
+        <p>Veja o quanto vendeu hoje, na semana e no mês, por forma de pagamento — inclusive o fiado em aberto.</p>
       </div>
-      <div class="feature-card">
+      <div class="feature-card reveal">
         <div class="ico">👥</div>
-        <h3>Equipe com permissões</h3>
-        <p>Convide vendedores e estoquistas com acesso limitado ao que cada um precisa fazer.</p>
+        <h3>Sua equipe sem bagunçar seu negócio</h3>
+        <p>Convide vendedores e estoquistas com acesso só ao que precisam. Você continua no controle de tudo.</p>
       </div>
-      <div class="feature-card">
-        <div class="ico">🧾</div>
-        <h3>Auditoria de tudo</h3>
-        <p>Toda venda e ajuste de estoque fica registrado com quem fez — sem dúvida sobre o que aconteceu.</p>
+      <div class="feature-card reveal">
+        <div class="ico">🛡️</div>
+        <h3>Fim do "quem mexeu nisso?"</h3>
+        <p>Toda venda e todo ajuste de estoque fica registrado com nome e horário. Sem dúvida, sem discussão.</p>
       </div>
-      <div class="feature-card">
-        <div class="ico">⬇️</div>
-        <h3>Exportação em CSV</h3>
-        <p>Baixe estoque, vendas, movimentações e clientes em planilha quando precisar.</p>
+      <div class="feature-card reveal">
+        <div class="ico">📤</div>
+        <h3>Seus dados sempre com você</h3>
+        <p>Exporte estoque, vendas, movimentações e clientes em planilha sempre que precisar — o negócio é seu.</p>
       </div>
     </div>
   </div>
@@ -238,65 +511,203 @@
 
 <section class="pricing" id="planos">
   <div class="wrap">
-    <h2>Planos simples, sem pegadinha</h2>
-    <p class="lead">Comece de graça. Quando sua equipe crescer, é só fazer upgrade.</p>
+    <div class="section-head reveal">
+      <span class="kicker">Planos e preços</span>
+      <h2>Comece de graça. Cresça no seu ritmo.</h2>
+      <p>Sem pegadinha, sem taxa escondida. Cancele quando quiser, direto pela sua conta.</p>
+    </div>
 
     <div class="plans">
-      <div class="plan">
-        <div class="nome">Grátis</div>
-        <div class="preco">R$ 0</div>
+      <div class="plan reveal">
+        <div class="nome">Free</div>
+        <div class="preco-row"><span class="preco">R$ 0</span></div>
         <div class="periodo">Grátis pelos primeiros 2 meses</div>
         <ul>
           <li><span class="check">✓</span> 1 pessoa usando o sistema</li>
-          <li><span class="check">✓</span> Estoque, vendas e histórico completos</li>
+          <li><span class="check">✓</span> Estoque e vendas ilimitados</li>
+          <li><span class="check">✓</span> Histórico completo</li>
           <li><span class="check">✓</span> Exportação em CSV</li>
-          <li><span class="check">✓</span> Sem cartão de crédito</li>
+          <li class="muted"><span class="check">–</span> Sem equipe / múltiplos usuários</li>
+          <li class="muted"><span class="check">–</span> Sem suporte prioritário</li>
         </ul>
-        <a href="/cadastro.html">Criar conta grátis</a>
+        <a class="plan-cta" href="/cadastro.html">Criar conta grátis</a>
+        <div class="plan-foot">Sem cartão de crédito</div>
       </div>
 
-      <div class="plan destaque">
-        <span class="tag">Mais escolhido</span>
-        <div class="nome">Pro</div>
-        <div class="preco">Sob consulta</div>
-        <div class="periodo">Para equipes com mais de 1 pessoa</div>
+      <div class="plan destaque reveal">
+        <span class="tag">★ Recomendado</span>
+        <div class="nome">Essencial</div>
+        <div class="preco-row"><span class="preco">R$ 19,90</span><span class="ciclo">/mês</span></div>
+        <div class="periodo">Ideal pra quem já vende sozinho todo dia</div>
         <ul>
+          <li><span class="check">✓</span> Tudo do plano Free, sem limites</li>
+          <li><span class="check">✓</span> Até 2 pessoas na equipe</li>
+          <li><span class="check">✓</span> Relatórios de vendas e fiado</li>
+          <li><span class="check">✓</span> Leitor de código de barras</li>
+          <li><span class="check">✓</span> Suporte por WhatsApp</li>
+        </ul>
+        <a class="plan-cta" href="/cadastro.html?plano=essencial">Assinar o Essencial</a>
+        <div class="plan-foot">Cancele quando quiser</div>
+      </div>
+
+      <div class="plan reveal">
+        <div class="nome">Pro</div>
+        <div class="preco-row"><span class="preco">R$ 39,90</span><span class="ciclo">/mês</span></div>
+        <div class="periodo">Pra quem já tem equipe e mais de uma loja</div>
+        <ul>
+          <li><span class="check">✓</span> Tudo do Essencial, sem limites</li>
           <li><span class="check">✓</span> Até 5 pessoas na equipe</li>
-          <li><span class="check">✓</span> Papéis: dono, vendedor e estoquista</li>
-          <li><span class="check">✓</span> Tudo do plano Grátis, sem limites de uso</li>
+          <li><span class="check">✓</span> Papéis: dono, vendedor, estoquista</li>
+          <li><span class="check">✓</span> Auditoria completa de ações</li>
           <li><span class="check">✓</span> Suporte prioritário</li>
         </ul>
-        <a href="/cadastro.html">Falar sobre o plano Pro</a>
+        <a class="plan-cta" href="/cadastro.html?plano=pro">Assinar o Pro</a>
+        <div class="plan-foot">Cancele quando quiser</div>
       </div>
+    </div>
+
+    <div class="pricing-guarantee reveal">
+      <span>🔄 Troque de plano quando quiser</span>
+      <span>🚫 Sem multa de cancelamento</span>
+      <span>💬 Suporte real, em português</span>
+    </div>
+  </div>
+</section>
+
+<section class="compare">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="kicker">Comparativo</span>
+      <h2>Qual plano combina com você</h2>
+      <p>Veja lado a lado o que cada plano oferece.</p>
+    </div>
+    <div class="compare-table-wrap reveal">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Recurso</th>
+            <th>Free</th>
+            <th class="col-dest">Essencial</th>
+            <th>Pro</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Pessoas na equipe</td>
+            <td>1</td>
+            <td class="col-dest yes">2</td>
+            <td class="yes">5</td>
+          </tr>
+          <tr>
+            <td>Estoque e vendas ilimitados</td>
+            <td class="yes">✓</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Relatórios de fiado e pagamento</td>
+            <td class="no">—</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Leitor de código de barras</td>
+            <td class="no">—</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Papéis e permissões por pessoa</td>
+            <td class="no">—</td>
+            <td class="no">—</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Auditoria completa de ações</td>
+            <td class="no">—</td>
+            <td class="no">—</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Suporte</td>
+            <td>E-mail</td>
+            <td class="col-dest">WhatsApp</td>
+            <td>Prioritário</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
 
 <section class="faq">
   <div class="wrap">
-    <h2>Perguntas frequentes</h2>
-    <div class="faq-item">
-      <h3>Preciso instalar alguma coisa?</h3>
-      <p>Não. É um site que funciona como app — você pode "adicionar à tela inicial" no celular e usar como se fosse instalado.</p>
+    <div class="section-head reveal">
+      <span class="kicker">Dúvidas frequentes</span>
+      <h2>Perguntas que todo comerciante faz antes de começar</h2>
     </div>
-    <div class="faq-item">
-      <h3>O que acontece depois dos 2 meses grátis?</h3>
-      <p>Você pode seguir no plano Grátis (1 pessoa) ou migrar pro Pro se sua equipe crescer. Nada é cobrado automaticamente sem você confirmar.</p>
+    <div class="faq-list">
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Preciso instalar alguma coisa no celular?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Não. O MEV funciona direto no navegador do celular ou computador. Você pode "adicionar à tela inicial" e ele fica com cara de aplicativo instalado, sem ocupar espaço extra.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">O que acontece depois dos 2 meses grátis?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Você escolhe o plano que combina com seu momento — Free se estiver sozinho no negócio, Essencial ou Pro se sua equipe crescer. Nada é cobrado automaticamente sem você confirmar antes.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Posso trocar de plano depois?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Sim, a qualquer momento e direto pela sua conta. Se sua equipe crescer, é só subir de plano; se precisar economizar, também pode voltar.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Meus dados ficam salvos onde? E se eu trocar de celular?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Tudo fica salvo em nuvem, com backup automático. Se trocar de celular ou usar o computador, basta fazer login com seu e-mail e todo o histórico está lá.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Preciso saber mexer em computador pra usar?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Não. O sistema foi pensado pra quem nunca usou nada parecido — em 5 minutos você já cadastra seu primeiro produto e faz sua primeira venda.</p></div>
+      </div>
+      <div class="faq-item reveal">
+        <button class="faq-q" aria-expanded="false">Como funciona o cancelamento?<span class="plus">+</span></button>
+        <div class="faq-a"><p>Você cancela quando quiser, direto na sua conta, sem multa e sem precisar ligar pra ninguém. Seus dados continuam disponíveis pra exportação por um tempo depois do cancelamento.</p></div>
+      </div>
     </div>
-    <div class="faq-item">
-      <h3>Meus dados ficam salvos onde?</h3>
-      <p>Em nuvem, com backup automático — você acessa de qualquer aparelho fazendo login com seu e-mail.</p>
-    </div>
-    <div class="faq-item">
-      <h3>Posso mudar de plano depois?</h3>
-      <p>Sim, a qualquer momento, direto na sua conta.</p>
+  </div>
+</section>
+
+<section class="cta-final">
+  <div class="wrap reveal">
+    <h2>Pronto pra saber exatamente o que tem no seu estoque?</h2>
+    <p>Comece grátis agora. Sem cartão, sem compromisso, sem letra miúda.</p>
+    <div class="hero-ctas">
+      <a class="btn-primary" href="/cadastro.html">Começar grátis por 2 meses →</a>
+      <a class="btn-ghost" href="#planos">Comparar planos</a>
     </div>
   </div>
 </section>
 
 <footer>
-  Meu Estoque e Vendas · gabriel.salvasantos@gmail.com · (51) 99445-9862
+  Meu Estoque e Vendas · <a href="mailto:gabriel.salvasantos@gmail.com">gabriel.salvasantos@gmail.com</a> · (51) 99445-9862
 </footer>
+
+<script>
+  // Reveal on scroll
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  revealEls.forEach(el => io.observe(el));
+
+  // FAQ accordion
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item.open').forEach(i => { i.classList.remove('open'); i.querySelector('.faq-q').setAttribute('aria-expanded','false'); });
+      if(!wasOpen){ item.classList.add('open'); btn.setAttribute('aria-expanded','true'); }
+    });
+  });
+</script>
 
 </body>
 </html>

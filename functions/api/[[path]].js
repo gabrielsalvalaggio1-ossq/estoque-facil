@@ -42,6 +42,19 @@ function infoPlano(plano) {
   return PLANOS[plano] || PLANOS[PLANO_PADRAO];
 }
 
+// Estados possíveis de assinaturas.status (schema-assinaturas.sql).
+const ESTADOS_ASSINATURA = ['FREE', 'TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED'];
+
+// Em quais estados a empresa ainda pode ESCREVER (vender, cadastrar produto,
+// etc). Fora desses, só leitura — ninguém perde o histórico, só para de
+// crescer o estoque/vendas até regularizar o pagamento.
+const ESTADOS_QUE_PERMITEM_ESCRITA = new Set(['FREE', 'TRIAL', 'ACTIVE', 'PAST_DUE']);
+
+const MENSAGENS_BLOQUEIO_ASSINATURA = {
+  CANCELED: 'Sua assinatura foi cancelada. Reative um plano para voltar a cadastrar e vender.',
+  EXPIRED: 'Sua assinatura expirou. Escolha um plano para continuar usando o sistema.',
+};
+
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
 const PERMISSOES = {
@@ -70,6 +83,36 @@ async function resolverMembro(db, email) {
     .bind(email)
     .first();
   return linha || null;
+}
+
+/**
+ * Busca o status corrente da assinatura da empresa (schema-assinaturas.sql).
+ * Roda em toda request autenticada que já tem empresa — uma query simples,
+ * indexada por empresa_id.
+ */
+async function statusAssinatura(db, empresaId) {
+  const linha = await db
+    .prepare(`
+      SELECT status, plano_id AS planoId, data_expiracao AS dataExpiracao
+      FROM assinaturas
+      WHERE empresa_id = ?
+      ORDER BY criado_em DESC
+      LIMIT 1
+    `)
+    .bind(empresaId)
+    .first();
+  return linha || { status: 'EXPIRED', planoId: 'free', dataExpiracao: null };
+}
+
+/**
+ * Decide se o método da requisição pode passar dado o status da assinatura.
+ * GET sempre passa (leitura/exportação continuam disponíveis mesmo vencida).
+ * Retorna null quando pode seguir, ou um objeto de erro pra devolver 402.
+ */
+function gateEscritaPorAssinatura(method, status) {
+  if (method === 'GET') return null;
+  if (ESTADOS_QUE_PERMITEM_ESCRITA.has(status)) return null;
+  return { error: MENSAGENS_BLOQUEIO_ASSINATURA[status] || 'Assinatura inativa.', status };
 }
 
 /**
@@ -331,6 +374,31 @@ export async function onRequest(context) {
 
   if (!membro) {
     return json({ error: 'Este e-mail ainda não foi associado a nenhuma empresa. Peça para o dono te convidar.' }, 403);
+  }
+
+  // Status de billing da empresa — calculado uma vez por request e reusado
+  // tanto pelo gate de escrita quanto pela rota /api/assinatura.
+  const assinatura = await statusAssinatura(db, membro.empresaId);
+
+  // GET /api/assinatura — a UI usa isso pra mostrar banner de "pagamento
+  // pendente" ou tela de upgrade, sem precisar decodificar nada sozinha.
+  if (primeiro === 'assinatura' && request.method === 'GET') {
+    return json({
+      status: assinatura.status,
+      planoId: assinatura.planoId,
+      dataExpiracao: assinatura.dataExpiracao,
+      podeEscrever: ESTADOS_QUE_PERMITEM_ESCRITA.has(assinatura.status),
+    });
+  }
+
+  // Bloqueia escrita (POST/PUT/DELETE) em QUALQUER rota abaixo — membros e
+  // stores — se a assinatura da empresa não estiver num estado que permite.
+  // Isolamento por empresa_id já garante que uma conta nunca vê dado de
+  // outra; isto garante que uma conta inadimplente não continua operando
+  // além do que o plano permite na própria conta.
+  const bloqueioAssinatura = gateEscritaPorAssinatura(request.method, assinatura.status);
+  if (bloqueioAssinatura) {
+    return json(bloqueioAssinatura, 402); // 402 Payment Required
   }
 
   // /api/membros e /api/membros/:email — gestão de equipe (só dono).

@@ -47,17 +47,67 @@ async function sha256Hex(texto) {
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Senha: guardamos "salt:hash" dentro de senha_hash, pra nunca comparar
-// senha em texto puro.
-async function gerarHashDeSenha(senha) {
-  const salt = crypto.randomUUID();
-  const hash = await sha256Hex(`${salt}:${senha}`);
-  return `${salt}:${hash}`;
+function bytesParaHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }
+function hexParaBytes(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  return bytes;
+}
+
+// Comparação em tempo constante — evita vazar, por diferença de tempo de
+// resposta, em quantos caracteres o hash calculado bate com o salvo.
+function iguaisEmTempoConstante(a, b) {
+  if (a.length !== b.length) return false;
+  let diferenca = 0;
+  for (let i = 0; i < a.length; i++) diferenca |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diferenca === 0;
+}
+
+const PBKDF2_ITERACOES = 100000;
+
+async function derivarPbkdf2(senha, saltBytes, iteracoes) {
+  const chaveBase = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(senha), 'PBKDF2', false, ['deriveBits']
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: saltBytes, iterations: iteracoes, hash: 'SHA-256' },
+    chaveBase,
+    256
+  );
+  return bytesParaHex(new Uint8Array(bits));
+}
+
+// Senha: guardamos um hash com salt em senha_hash, pra nunca comparar senha
+// em texto puro. Formato novo: "pbkdf2:iteracoes:saltHex:hashHex" — PBKDF2
+// é deliberadamente lento (100 mil iterações), o que dificulta muito um
+// ataque de força bruta caso o banco vaze algum dia. Contas criadas antes
+// dessa mudança ainda têm o formato antigo "salt:hash" (SHA-256 simples);
+// continuamos aceitando login nelas e migramos o hash pro formato novo
+// automaticamente no primeiro login com sucesso (ver rota de login).
+async function gerarHashDeSenha(senha) {
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const hashHex = await derivarPbkdf2(senha, saltBytes, PBKDF2_ITERACOES);
+  return `pbkdf2:${PBKDF2_ITERACOES}:${bytesParaHex(saltBytes)}:${hashHex}`;
+}
+
 async function senhaConfere(senha, hashSalvo) {
-  const [salt, hash] = String(hashSalvo).split(':');
+  const valor = String(hashSalvo || '');
+
+  if (valor.startsWith('pbkdf2:')) {
+    const [, iteracoesStr, saltHex, hashHex] = valor.split(':');
+    const iteracoes = parseInt(iteracoesStr, 10);
+    if (!iteracoes || !saltHex || !hashHex) return false;
+    const calculado = await derivarPbkdf2(senha, hexParaBytes(saltHex), iteracoes);
+    return iguaisEmTempoConstante(calculado, hashHex);
+  }
+
+  // Formato antigo (contas criadas antes da migração pra PBKDF2).
+  const [salt, hash] = valor.split(':');
   if (!salt || !hash) return false;
-  return (await sha256Hex(`${salt}:${senha}`)) === hash;
+  const calculado = await sha256Hex(`${salt}:${senha}`);
+  return iguaisEmTempoConstante(calculado, hash);
 }
 
 /** Cria a empresa "solo" pra um e-mail novo, se ele ainda não pertencer a nenhuma (tabela empresas/membros, fonte da verdade pra permissões). */
@@ -143,6 +193,15 @@ export async function onRequest(context) {
       }
       if (!(await senhaConfere(senha, usuario.senha_hash))) {
         return json({ ok: false, error: 'Senha inválida.' }, 401);
+      }
+
+      // Login certo com um hash do formato antigo (SHA-256 simples): migra
+      // silenciosamente pro PBKDF2 agora que temos a senha em mãos — assim
+      // as contas mais antigas vão ficando mais seguras sem exigir nenhuma
+      // ação da pessoa (ela nem percebe que isso aconteceu).
+      if (!String(usuario.senha_hash).startsWith('pbkdf2:')) {
+        const novoHash = await gerarHashDeSenha(senha);
+        await db.prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?').bind(novoHash, usuario.id).run();
       }
 
       const tokenSessao = await criarSessao(db, usuario.id, request);

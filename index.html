@@ -17,26 +17,40 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/style.css" data-clarity-unmask="true">
+
 <script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "xhal4lh08w");
+(function(c,l,a,r,i,t,y){
+    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+})(window, document, "clarity", "script", "xhal4lh08w");
 </script>
 
-<!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q5PJ2HE6NX"></script>
 <script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-Q5PJ2HE6NX');
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-Q5PJ2HE6NX');
 </script>
+
 </head>
 
 <body>
+
+<!-- 🔐 PROTEÇÃO SEGURA -->
+<script>
+(function () {
+  const user = JSON.parse(localStorage.getItem("user"));
+
+  if (!user) {
+    window.location.href = "/login.html";
+    return;
+  }
+
+  window.__USER__ = user;
+})();
+</script>
 
 <div id="shell" style="display:flex;">
 
@@ -56,7 +70,11 @@
 
     <button type="button" class="side-item" id="btnExportarSidebar">⬇ Exportar</button>
 
-    <p id="sidebarEmail" style="margin:14px 12px 4px;font-size:11.5px;color:#C7D3CB;opacity:0.8;word-break:break-all;line-height:1.4;"></p>
+    <p id="sidebarEmail"
+       style="margin:14px 12px 4px;font-size:11.5px;color:#C7D3CB;opacity:0.8;word-break:break-all;line-height:1.4;">
+    </p>
+
+    <button class="side-item" onclick="logout()">🚪 Sair</button>
 
   </nav>
 
@@ -97,22 +115,20 @@
         <button type="button" data-tab="conta">Conta</button>
         <button type="button" data-tab="contato">Contato</button>
       </div>
+
       <button type="button" class="export-link" id="btnExportar">Exportar</button>
     </nav>
 
-    <!-- TOOLBAR ESTOQUE -->
+    <!-- TOOLBAR -->
     <div class="toolbar" id="toolbarEstoque">
       <button type="button" class="btn-destaque" id="btnAddProduct">Adicionar produto</button>
       <button type="button" class="btn-scan-toolbar" id="btnEscanearVender">📷</button>
     </div>
 
-    <!-- TOOLBAR VENDA (IMPORTANTE PRO TEU JS) -->
     <div class="toolbar" id="toolbarVenda" style="display:none;"></div>
 
-    <!-- MAIN -->
     <main id="main"></main>
 
-    <!-- CARRINHO -->
     <div class="cartbar" id="cartbar">
       <div>
         <div class="left" id="cartCount">0 itens no carrinho</div>
@@ -124,7 +140,22 @@
   </div>
 </div>
 
-<!-- JS -->
+<!-- 🔐 USUÁRIO + LOGOUT (SEGURO) -->
+<script>
+const user = window.__USER__;
+
+if (user && document.getElementById("sidebarEmail")) {
+  document.getElementById("sidebarEmail").innerText =
+    user.nome + " (" + user.email + ")";
+}
+
+function logout() {
+  localStorage.removeItem("user");
+  window.location.href = "/login.html";
+}
+</script>
+
+<!-- JS DO APP -->
 <script src="js/db.js"></script>
 <script src="js/produtos.js"></script>
 <script src="js/vendas.js"></script>

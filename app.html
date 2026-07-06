@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>MEV - App</title>
+</head>
+<body>
+
+<h2>Sistema MEV</h2>
+
+<p id="user"></p>
+
+<script>
+const user = JSON.parse(localStorage.getItem("user"));
+
+if (!user) {
+  window.location.href = "/login.html";
+}
+
+document.getElementById("user").innerText =
+  "Logado como: " + user.nome;
+</script>
+
+</body>
+</html>

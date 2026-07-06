@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>MEV - Cadastro</title>
+</head>
+<body>
+
+<h2>Criar conta MEV</h2>
+
+<input id="nome" placeholder="Nome">
+<input id="email" placeholder="Email">
+<input id="senha" type="password" placeholder="Senha">
+
+<button onclick="cadastro()">Criar conta</button>
+
+<script>
+async function cadastro() {
+  const nome = document.getElementById("nome").value;
+  const email = document.getElementById("email").value;
+  const senha = document.getElementById("senha").value;
+
+  const res = await fetch("https://mev-api.gabrielsalvalaggio1.workers.dev/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome, email, senha })
+  });
+
+  const data = await res.json();
+
+  if (data.ok) {
+    alert("Conta criada!");
+    window.location.href = "/login.html";
+  } else {
+    alert("Erro ao criar conta");
+  }
+}
+</script>
+
+</body>
+</html>

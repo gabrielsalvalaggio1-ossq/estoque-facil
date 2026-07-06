@@ -952,42 +952,67 @@ const PLANOS_INFO = {
   equipe: { rotulo: 'Equipe', maxMembros: 5 },
 };
 
+// Papel selecionado no toggle de "adicionar membro" (substitui o antigo <select>).
+let papelEquipeSelecionado = 'vendedor';
+
+function gerarIniciaisEmail(email) {
+  const nomeParte = (email || '').split('@')[0] || '?';
+  const pedacos = nomeParte.split(/[._-]/).filter(Boolean);
+  if (pedacos.length >= 2) return (pedacos[0][0] + pedacos[1][0]).toUpperCase();
+  return nomeParte.slice(0, 2).toUpperCase();
+}
+
 function cartaoGestaoEquipeHtml() {
   const plano = PLANOS_INFO[usuarioLogadoPlano] || PLANOS_INFO.gratis;
   return `
     <div class="card-info">
-      <h3>Gestão de equipe</h3>
-      <p class="team-plano">
-        Plano atual: <strong>${escaparHtml(plano.rotulo)}</strong>
-        <span>· até ${plano.maxMembros} pessoa${plano.maxMembros > 1 ? 's' : ''} na equipe</span>
-      </p>
+      <div class="team-header">
+        <h3>Equipe</h3>
+        <span class="team-plan-pill">${escaparHtml(plano.rotulo)} · até ${plano.maxMembros} pessoa${plano.maxMembros > 1 ? 's' : ''}</span>
+      </div>
 
-      <div id="listaMembros">
+      <div id="listaMembros" class="team-list">
         <p class="team-msg">Carregando…</p>
       </div>
 
-      <div class="field" style="margin-top:16px;">
-        <label for="fMembroEmail">E-mail do funcionário</label>
-        <input id="fMembroEmail" type="email" placeholder="pessoa@exemplo.com" autocomplete="off">
-      </div>
-      <div class="field">
-        <label for="fMembroPapel">Papel</label>
-        <select id="fMembroPapel" class="filtro-select">
-          <option value="vendedor">Vendedor</option>
-          <option value="estoquista">Estoquista</option>
-        </select>
-      </div>
+      <div class="team-add">
+        <p class="team-add-label">Adicionar membro</p>
 
-      <p class="erro" id="erroEquipe" style="display:none;"></p>
-      <button type="button" class="btn primary" id="btnAdicionarMembro" style="width:100%;">Adicionar</button>
+        <div class="field">
+          <label for="fMembroEmail">E-mail do funcionário</label>
+          <input id="fMembroEmail" type="email" placeholder="pessoa@exemplo.com" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label>Papel</label>
+          <div class="papel-toggle" id="papelToggle">
+            <button type="button" class="papel-opt selected" data-papel="vendedor">Vendedor</button>
+            <button type="button" class="papel-opt" data-papel="estoquista">Estoquista</button>
+          </div>
+        </div>
+
+        <p class="erro" id="erroEquipe" style="display:none;"></p>
+        <button type="button" class="btn primary" id="btnAdicionarMembro" style="width:100%;">Adicionar à equipe</button>
+      </div>
     </div>
   `;
 }
 
 function inicializarGestaoEquipe() {
+  papelEquipeSelecionado = 'vendedor';
   carregarListaMembros();
+
   const btnAdicionar = document.getElementById('btnAdicionarMembro');
   if (btnAdicionar) btnAdicionar.addEventListener('click', adicionarMembroDaEquipe);
+
+  document.querySelectorAll('#papelToggle .papel-opt').forEach(botao => {
+    botao.addEventListener('click', () => {
+      papelEquipeSelecionado = botao.dataset.papel;
+      document.querySelectorAll('#papelToggle .papel-opt').forEach(b => {
+        b.classList.toggle('selected', b.dataset.papel === papelEquipeSelecionado);
+      });
+    });
+  });
 }
 
 function linhaMembroHtml(membro, indice) {
@@ -996,13 +1021,16 @@ function linhaMembroHtml(membro, indice) {
 
   return `
     <div class="team-row" id="teamRow${indice}">
+      <span class="team-avatar" aria-hidden="true">${escaparHtml(gerarIniciaisEmail(membro.email))}</span>
       <div class="team-info">
-        <span class="team-email">${escaparHtml(membro.email)}</span>
-        <span class="tag ${escaparHtml(membro.papel)}">${escaparHtml(rotulo)}</span>
+        <span class="team-email">${escaparHtml(membro.email)}${ehEuMesmo ? ' <span class="team-you">(você)</span>' : ''}</span>
+        <span class="role-chip ${escaparHtml(membro.papel)}"><span class="dot"></span>${escaparHtml(rotulo)}</span>
       </div>
       ${ehEuMesmo ? '' : `
         <div class="team-actions">
-          <button type="button" class="btn-remover-membro" data-indice="${indice}">Remover</button>
+          <button type="button" class="btn-remover-membro" data-indice="${indice}" aria-label="Remover ${escaparHtml(membro.email)} da equipe" title="Remover da equipe">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
+          </button>
         </div>
       `}
     </div>
@@ -1071,9 +1099,8 @@ async function adicionarMembroDaEquipe() {
   limparErroEquipe();
 
   const campoEmail = document.getElementById('fMembroEmail');
-  const campoPapel = document.getElementById('fMembroPapel');
   const email = campoEmail.value.trim();
-  const papel = campoPapel.value;
+  const papel = papelEquipeSelecionado;
 
   if (!email || !email.includes('@')) {
     mostrarErroEquipe('Informe um e-mail válido.');
@@ -1329,7 +1356,7 @@ function abrirOnboarding() {
   wrap.innerHTML = `
     <div class="onboard">
       <div class="emoji">👋</div>
-      <h2>Bem-vindo(a) ao Meu Estoque e Vendas</h2>
+      <h2>Bem-vindo(a) ao Meu Estoque</h2>
       <p>Cadastre produtos, venda em poucos toques e o estoque se atualiza sozinho. Quer começar vendo um exemplo pronto, ou prefere cadastrar do zero?</p>
       <button class="btn primary" id="btnExemplo">Carregar exemplo</button>
       <button class="btn ghost" id="btnZero">Começar do zero</button>

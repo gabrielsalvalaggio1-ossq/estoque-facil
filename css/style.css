@@ -160,6 +160,40 @@ main{
 }
 .empty .hint{ font-size:12.5px; color:var(--ink-soft); margin:0; }
 
+/* --- Páginas simples (Conta, Contato): pilha de cartões com respiro --- */
+.page{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.page h2{
+  font-family:'Fraunces',serif;
+  font-size:20px;
+  margin:2px 0 2px;
+  color:var(--ledger);
+}
+.card-info{
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:20px;
+}
+.card-info h3{
+  font-family:'Fraunces',serif;
+  font-size:16px;
+  font-weight:600;
+  color:var(--ledger);
+  margin:0 0 12px;
+}
+.card-info p{
+  font-size:13.5px;
+  line-height:1.6;
+  color:var(--ink);
+  margin:0 0 6px;
+}
+.card-info p:last-child{ margin-bottom:0; }
+.card-info p strong{ color:var(--ledger); font-weight:600; }
+
 .product-card{
   background:var(--paper);
   border:1px solid var(--line);
@@ -612,54 +646,142 @@ main{
 .tag.cancelada{ background:#F3DED6; color:var(--coral-deep); }
 
 /* --- Gestão de equipe (aba Conta, só "dono") --- */
-.tag.dono{ background:#EFE1C4; color:var(--amber-deep); }
-.tag.vendedor{ background:#DCE8E0; color:var(--ledger); }
-.tag.estoquista{ background:#F3DED6; color:var(--coral-deep); }
 
 .team-msg{ font-size:13px; color:var(--ink-soft); margin:0; }
-.team-plano{
-  font-size:12.5px;
-  color:var(--ink-soft);
-  margin:-4px 0 14px;
+
+.team-header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap:wrap;
+  margin-bottom:14px;
 }
-.team-plano strong{ color:var(--ledger); }
+.team-header h3{ margin:0; }
+.team-plan-pill{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  color:var(--ledger);
+  background:var(--paper-dim);
+  border:1px solid var(--line);
+  padding:4px 10px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+
+.team-list{ margin-bottom:4px; }
 
 .team-row{
-  display:flex; justify-content:space-between; align-items:center;
-  padding:10px 0;
+  display:flex; align-items:center;
+  gap:12px;
+  padding:10px 2px;
   border-bottom:1px solid var(--line);
-  gap:10px;
 }
 .team-row:last-child{ border-bottom:none; }
-.team-info{ display:flex; flex-direction:column; gap:4px; min-width:0; }
-.team-email{ font-size:13.5px; color:var(--ink); word-break:break-all; }
+
+.team-avatar{
+  width:36px; height:36px; flex-shrink:0;
+  border-radius:50%;
+  background:var(--paper-dim);
+  border:1px solid var(--line);
+  color:var(--ledger);
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:13.5px;
+  display:flex; align-items:center; justify-content:center;
+}
+
+.team-info{ display:flex; flex-direction:column; gap:5px; min-width:0; flex:1; }
+.team-email{ font-size:13.5px; font-weight:500; color:var(--ink); word-break:break-all; }
+.team-you{ color:var(--ink-soft); font-weight:400; font-size:12px; }
+
 .team-actions{ flex-shrink:0; }
 .btn-remover-membro{
-  background:none; border:none;
-  color:var(--coral-deep);
-  font-size:12px; font-weight:600;
+  width:32px; height:32px;
+  border-radius:50%;
+  border:none;
+  background:none;
+  color:var(--ink-soft);
   cursor:pointer;
-  padding:0;
-  font-family:'Inter',sans-serif;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s ease, color .15s ease;
 }
+.btn-remover-membro:hover{ background:#F3DED6; color:var(--coral-deep); }
+.btn-remover-membro:focus-visible{ outline:2px solid var(--coral); outline-offset:1px; }
+
+/* Chips de papel — Material Design "assist chip" com pontinho de status */
+.role-chip{
+  display:inline-flex; align-items:center; gap:6px;
+  width:fit-content;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:11px;
+  letter-spacing:.01em;
+  padding:4px 10px 4px 8px;
+  border-radius:999px;
+}
+.role-chip .dot{ width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+.role-chip.dono{ background:#EFE1C4; color:var(--amber-deep); }
+.role-chip.dono .dot{ background:var(--amber-deep); }
+.role-chip.vendedor{ background:#DCE8E0; color:var(--ledger); }
+.role-chip.vendedor .dot{ background:var(--ledger); }
+.role-chip.estoquista{ background:#F3DED6; color:var(--coral-deep); }
+.role-chip.estoquista .dot{ background:var(--coral-deep); }
+
+/* Formulário "adicionar membro" — separado do restante por um respiro maior */
+.team-add{
+  margin-top:18px;
+  padding-top:18px;
+  border-top:1px solid var(--line);
+}
+.team-add-label{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink-soft);
+  margin:0 0 14px;
+}
+
+/* Toggle de papel — mesma linguagem visual do toggle "Unidade/Peso" do produto */
+.papel-toggle{
+  display:flex;
+  background:var(--paper-dim);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:3px;
+  gap:3px;
+}
+.papel-opt{
+  flex:1;
+  border:none;
+  background:transparent;
+  color:var(--ink-soft);
+  font-family:'Inter',sans-serif;
+  font-size:13.5px;
+  font-weight:600;
+  padding:9px 10px;
+  border-radius:8px;
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.papel-opt:active{ transform:scale(0.98); }
+.papel-opt.selected{ background:var(--ledger); color:var(--paper); }
 
 .team-confirm{
   display:flex; align-items:center; flex-wrap:wrap;
   gap:8px;
   width:100%;
-  padding:2px 0;
+  padding:6px 2px;
 }
 .team-confirm span{ font-size:12.5px; color:var(--ink-soft); flex:1 1 100%; }
 .team-confirm button{
-  border:none; border-radius:6px;
-  padding:6px 12px;
+  border:none; border-radius:8px;
+  padding:7px 14px;
   font-size:12px; font-weight:600;
   cursor:pointer;
   font-family:'Inter',sans-serif;
 }
 .team-confirm .btn-confirmar-sim{ background:var(--coral); color:#fff; }
 .team-confirm .btn-confirmar-sim:disabled{ opacity:0.6; }
-.team-confirm .btn-confirmar-nao{ background:var(--paper-dim); color:var(--ink-soft); }
+.team-confirm .btn-confirmar-nao{ background:var(--paper); color:var(--ink-soft); border:1px solid var(--line); }
 
 /* --- Seletor de forma de pagamento (na cobrança) --- */
 .pay-label{
@@ -984,4 +1106,8 @@ main{
 @media (min-width: 1280px){
   header.top{ padding:28px 32px 20px; }
   .stats{ padding:16px 32px 0; max-width:640px; }
+}
+
+@media (min-width: 1000px){
+  .page{ max-width:560px; }
 }

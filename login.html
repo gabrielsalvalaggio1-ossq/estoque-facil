@@ -46,9 +46,6 @@ async function login() {
   }
 
   try {
-    // Caminho relativo (mesmo domínio) — é o que faz o cookie de sessão
-    // funcionar. Chamar um domínio diferente (ex: workers.dev) nunca
-    // funcionaria aqui, porque o cookie não atravessa domínios diferentes.
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

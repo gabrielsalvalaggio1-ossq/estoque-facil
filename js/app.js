@@ -516,11 +516,17 @@ function linhaVenda(venda) {
   </div>`;
 }
 
-function fazerLogout() {
+async function fazerLogout() {
   if (!confirm('Sair da sua conta?')) return;
-  // Endpoint padrão do Cloudflare Access: limpa o cookie de sessão (CF_Authorization)
-  // e leva de volta para a tela de login.
-  window.location.href = '/cdn-cgi/access/logout';
+  try {
+    // Encerra a sessão de verdade no servidor (apaga a linha em "sessoes" e
+    // limpa o cookie), antes de voltar pra tela de login.
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (e) {
+    // mesmo que a chamada falhe (ex: sem internet), ainda assim manda a
+    // pessoa pro login — não faz sentido travar o logout por causa disso.
+  }
+  window.location.href = '/login.html';
 }
 
 let usuarioLogadoEmail = '';

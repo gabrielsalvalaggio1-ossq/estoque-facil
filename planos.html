@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Estoque e Vendas — Planos</title>
+<meta name="description" content="Controle de estoque e vendas para pequenos comerciantes. Comece grátis por 2 meses.">
+<meta name="theme-color" content="#1B3A2F">
+<link rel="icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --ledger: #1B3A2F;
+    --ledger-dark: #12281F;
+    --paper: #FBFAF3;
+    --paper-dim: #EFEBDD;
+    --ink: #1F2420;
+    --ink-soft: #5B6259;
+    --amber: #D9A441;
+    --amber-deep: #8A6A22;
+    --coral: #E2572B;
+    --coral-deep: #8F2E14;
+    --line: #D9D4C2;
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.5;
+  }
+  h1,h2,h3{ font-family:'Fraunces',serif; margin:0; }
+  a{ color:inherit; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* --- topo --- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 0;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; }
+  .brand-mark{
+    width:30px; height:30px; border-radius:8px;
+    background:var(--ledger); color:var(--paper);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Fraunces',serif; font-weight:700;
+  }
+  .topbar .cta{
+    background:var(--ledger); color:var(--paper);
+    padding:9px 18px; border-radius:8px; text-decoration:none;
+    font-weight:600; font-size:14px;
+  }
+  .topbar a.entrar{
+    text-decoration:none; font-size:14px; color:var(--ink-soft); margin-right:18px;
+  }
+
+  /* --- hero --- */
+  .hero{
+    background:var(--ledger); color:var(--paper);
+    padding:72px 0 90px;
+  }
+  .hero .wrap{ text-align:center; }
+  .eyebrow{
+    display:inline-block; color:var(--amber); font-weight:600;
+    font-size:13px; letter-spacing:.04em; text-transform:uppercase;
+    margin-bottom:14px;
+  }
+  .hero h1{
+    font-size:clamp(30px, 5vw, 48px); font-weight:600; line-height:1.15;
+    max-width:760px; margin:0 auto 18px;
+  }
+  .hero p.sub{
+    color:#D8E2DB; font-size:17px; max-width:520px; margin:0 auto 32px;
+  }
+  .hero-ctas{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .btn-primary{
+    background:var(--amber); color:var(--ledger-dark);
+    padding:14px 26px; border-radius:10px; text-decoration:none;
+    font-weight:700; font-size:15.5px;
+  }
+  .btn-ghost{
+    border:1px solid rgba(251,250,243,.35); color:var(--paper);
+    padding:14px 26px; border-radius:10px; text-decoration:none;
+    font-weight:600; font-size:15.5px;
+  }
+  .hero-note{ margin-top:16px; font-size:13px; color:#AEC0B6; }
+
+  /* --- recursos --- */
+  .features{ padding:70px 0; }
+  .features h2{ text-align:center; font-size:28px; margin-bottom:10px; }
+  .features .lead{
+    text-align:center; color:var(--ink-soft); max-width:480px;
+    margin:0 auto 44px; font-size:15px;
+  }
+  .feature-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+  }
+  .feature-card{
+    background:#fff; border:1px solid var(--line); border-radius:14px;
+    padding:22px;
+  }
+  .feature-card .ico{ font-size:22px; margin-bottom:10px; }
+  .feature-card h3{ font-size:16px; font-weight:600; margin-bottom:6px; font-family:'Inter',sans-serif; }
+  .feature-card p{ font-size:13.5px; color:var(--ink-soft); margin:0; }
+
+  /* --- planos --- */
+  .pricing{ background:var(--paper-dim); padding:76px 0; }
+  .pricing h2{ text-align:center; font-size:28px; margin-bottom:10px; }
+  .pricing .lead{
+    text-align:center; color:var(--ink-soft); max-width:480px;
+    margin:0 auto 44px; font-size:15px;
+  }
+  .plans{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:22px; max-width:760px; margin:0 auto;
+  }
+  .plan{
+    background:#fff; border:1px solid var(--line); border-radius:18px;
+    padding:32px 28px; position:relative;
+  }
+  .plan.destaque{
+    border:2px solid var(--ledger);
+    box-shadow:0 12px 32px rgba(27,58,47,.14);
+  }
+  .plan .tag{
+    position:absolute; top:-13px; right:24px;
+    background:var(--amber); color:var(--ledger-dark);
+    font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:999px;
+    letter-spacing:.02em;
+  }
+  .plan .nome{ font-size:14px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; }
+  .plan .preco{ font-family:'Fraunces',serif; font-size:38px; font-weight:600; margin:10px 0 2px; color:var(--ledger); }
+  .plan .preco span{ font-size:15px; font-weight:500; color:var(--ink-soft); font-family:'Inter',sans-serif; }
+  .plan .periodo{ font-size:13px; color:var(--ink-soft); margin-bottom:22px; }
+  .plan ul{ list-style:none; margin:0 0 26px; padding:0; }
+  .plan li{
+    display:flex; gap:8px; align-items:flex-start;
+    font-size:14px; margin-bottom:11px; color:var(--ink);
+  }
+  .plan li .check{ color:var(--ledger); font-weight:700; }
+  .plan a{
+    display:block; text-align:center; padding:13px; border-radius:10px;
+    text-decoration:none; font-weight:700; font-size:14.5px;
+  }
+  .plan.destaque a{ background:var(--ledger); color:var(--paper); }
+  .plan:not(.destaque) a{ background:var(--paper-dim); color:var(--ledger); border:1px solid var(--line); }
+
+  /* --- faq --- */
+  .faq{ padding:70px 0 90px; }
+  .faq h2{ text-align:center; font-size:26px; margin-bottom:36px; }
+  .faq-item{
+    border-bottom:1px solid var(--line); padding:18px 0; max-width:700px; margin:0 auto;
+  }
+  .faq-item h3{ font-size:15px; font-weight:600; font-family:'Inter',sans-serif; margin-bottom:6px; }
+  .faq-item p{ font-size:14px; color:var(--ink-soft); margin:0; }
+
+  footer{
+    background:var(--ledger-dark); color:#AEC0B6;
+    padding:30px 0; text-align:center; font-size:13px;
+  }
+
+  @media (max-width:560px){
+    .topbar .entrar{ margin-right:10px; font-size:13px; }
+    .topbar .cta{ padding:8px 14px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar wrap">
+  <div class="brand">
+    <span class="brand-mark">M</span>
+    Meu Estoque e Vendas
+  </div>
+  <div>
+    <a class="entrar" href="/login.html">Entrar</a>
+    <a class="cta" href="/cadastro.html">Criar conta grátis</a>
+  </div>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Controle de estoque e vendas</span>
+    <h1>Saiba o que você tem, o que vendeu e o que está acabando — sem planilha, sem complicação.</h1>
+    <p class="sub">Feito para quem vende no balcão, na feira ou por WhatsApp. Cadastre produtos, venda em poucos toques e o estoque se atualiza sozinho.</p>
+    <div class="hero-ctas">
+      <a class="btn-primary" href="/cadastro.html">Começar grátis por 2 meses</a>
+      <a class="btn-ghost" href="#planos">Ver planos</a>
+    </div>
+    <p class="hero-note">Sem cartão de crédito. Cancele quando quiser.</p>
+  </div>
+</section>
+
+<section class="features">
+  <div class="wrap">
+    <h2>Tudo que um pequeno negócio precisa, num só lugar</h2>
+    <p class="lead">Sem curva de aprendizado — em 5 minutos você já está vendendo pelo app.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="ico">📦</div>
+        <h3>Estoque em tempo real</h3>
+        <p>Cadastre por unidade ou por peso (kg). Cada venda já desconta do estoque automaticamente.</p>
+      </div>
+      <div class="feature-card">
+        <div class="ico">🛒</div>
+        <h3>Venda em poucos toques</h3>
+        <p>Um cardápio visual pra montar a cobrança rápido — inclusive escaneando o código de barras.</p>
+      </div>
+      <div class="feature-card">
+        <div class="ico">📊</div>
+        <h3>Histórico e relatórios</h3>
+        <p>Veja vendido hoje, no mês, formas de pagamento e fiado em aberto, tudo num painel simples.</p>
+      </div>
+      <div class="feature-card">
+        <div class="ico">👥</div>
+        <h3>Equipe com permissões</h3>
+        <p>Convide vendedores e estoquistas com acesso limitado ao que cada um precisa fazer.</p>
+      </div>
+      <div class="feature-card">
+        <div class="ico">🧾</div>
+        <h3>Auditoria de tudo</h3>
+        <p>Toda venda e ajuste de estoque fica registrado com quem fez — sem dúvida sobre o que aconteceu.</p>
+      </div>
+      <div class="feature-card">
+        <div class="ico">⬇️</div>
+        <h3>Exportação em CSV</h3>
+        <p>Baixe estoque, vendas, movimentações e clientes em planilha quando precisar.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pricing" id="planos">
+  <div class="wrap">
+    <h2>Planos simples, sem pegadinha</h2>
+    <p class="lead">Comece de graça. Quando sua equipe crescer, é só fazer upgrade.</p>
+
+    <div class="plans">
+      <div class="plan">
+        <div class="nome">Grátis</div>
+        <div class="preco">R$ 0</div>
+        <div class="periodo">Grátis pelos primeiros 2 meses</div>
+        <ul>
+          <li><span class="check">✓</span> 1 pessoa usando o sistema</li>
+          <li><span class="check">✓</span> Estoque, vendas e histórico completos</li>
+          <li><span class="check">✓</span> Exportação em CSV</li>
+          <li><span class="check">✓</span> Sem cartão de crédito</li>
+        </ul>
+        <a href="/cadastro.html">Criar conta grátis</a>
+      </div>
+
+      <div class="plan destaque">
+        <span class="tag">Mais escolhido</span>
+        <div class="nome">Pro</div>
+        <div class="preco">Sob consulta</div>
+        <div class="periodo">Para equipes com mais de 1 pessoa</div>
+        <ul>
+          <li><span class="check">✓</span> Até 5 pessoas na equipe</li>
+          <li><span class="check">✓</span> Papéis: dono, vendedor e estoquista</li>
+          <li><span class="check">✓</span> Tudo do plano Grátis, sem limites de uso</li>
+          <li><span class="check">✓</span> Suporte prioritário</li>
+        </ul>
+        <a href="/cadastro.html">Falar sobre o plano Pro</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="faq">
+  <div class="wrap">
+    <h2>Perguntas frequentes</h2>
+    <div class="faq-item">
+      <h3>Preciso instalar alguma coisa?</h3>
+      <p>Não. É um site que funciona como app — você pode "adicionar à tela inicial" no celular e usar como se fosse instalado.</p>
+    </div>
+    <div class="faq-item">
+      <h3>O que acontece depois dos 2 meses grátis?</h3>
+      <p>Você pode seguir no plano Grátis (1 pessoa) ou migrar pro Pro se sua equipe crescer. Nada é cobrado automaticamente sem você confirmar.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Meus dados ficam salvos onde?</h3>
+      <p>Em nuvem, com backup automático — você acessa de qualquer aparelho fazendo login com seu e-mail.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Posso mudar de plano depois?</h3>
+      <p>Sim, a qualquer momento, direto na sua conta.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Meu Estoque e Vendas · gabriel.salvasantos@gmail.com · (51) 99445-9862
+</footer>
+
+</body>
+</html>

@@ -1329,7 +1329,7 @@ function abrirOnboarding() {
   wrap.innerHTML = `
     <div class="onboard">
       <div class="emoji">👋</div>
-      <h2>Bem-vindo(a) ao Meu Estoque</h2>
+      <h2>Bem-vindo(a) ao Meu Estoque e Vendas</h2>
       <p>Cadastre produtos, venda em poucos toques e o estoque se atualiza sozinho. Quer começar vendo um exemplo pronto, ou prefere cadastrar do zero?</p>
       <button class="btn primary" id="btnExemplo">Carregar exemplo</button>
       <button class="btn ghost" id="btnZero">Começar do zero</button>

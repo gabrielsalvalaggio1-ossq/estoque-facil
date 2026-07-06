@@ -145,9 +145,9 @@ export async function onRequest(context) {
         return json({ ok: false, error: 'Senha inválida.' }, 401);
       }
 
-      const token = await criarSessao(db, usuario.id, request);
+      const tokenSessao = await criarSessao(db, usuario.id, request);
       return json({ ok: true, user: { nome: usuario.nome, email: usuario.email } }, 200, {
-        'Set-Cookie': cookieDeSessao(token)
+        'Set-Cookie': cookieDeSessao(tokenSessao)
       });
     }
 
@@ -207,12 +207,12 @@ export async function onRequest(context) {
       }
 
       await garantirEmpresaEMembro(db, googleUser.email, googleUser.name ? `Loja de ${googleUser.name}` : null);
-      const token = await criarSessao(db, usuario.id, request);
+      const tokenSessao = await criarSessao(db, usuario.id, request);
 
       return new Response(null, {
         status: 302,
         headers: {
-          'Set-Cookie': cookieDeSessao(token),
+          'Set-Cookie': cookieDeSessao(tokenSessao),
           'Location': '/index.html'
         }
       });

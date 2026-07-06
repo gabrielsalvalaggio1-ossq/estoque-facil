@@ -46,17 +46,22 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((respostaCache) => {
+    (async () => {
+      const respostaCache = await caches.match(event.request);
+
       const buscaRede = fetch(event.request)
         .then((respostaRede) => {
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, respostaRede.clone());
-          });
+          // Clona ANTES de qualquer outra coisa tocar no corpo da resposta,
+          // pra nunca correr o risco de "body already used".
+          const copiaParaCache = respostaRede.clone();
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(event.request, copiaParaCache))
+            .catch(() => {}); // cache é um bônus; se falhar, não quebra a navegação
           return respostaRede;
         })
         .catch(() => respostaCache);
 
       return respostaCache || buscaRede;
-    })
+    })()
   );
 });

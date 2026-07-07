@@ -168,12 +168,35 @@
      dispositivo (desktop + mobile), em vez do cartão ilustrativo antigo.
      Aumenta a confiança porque mostra o produto real, não uma promessa
      desenhada. Paleta e sombras seguem os mesmos tokens do resto da página. --- */
-  .hero-visual{ position:relative; padding:10px 0 28px 34px; }
+  .hero-visual{
+    position:relative;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    width:100%;
+    max-width:620px;
+    margin:0 auto;
+
+    padding:20px 0 30px;
+}
   .device-desktop{
-    background:var(--paper); border-radius:14px; box-shadow:var(--shadow-lg);
-    overflow:hidden; border:1px solid var(--paper-line);
+    position:relative;
+
+    width:82%;
+    max-width:560px;
+
+    background:var(--paper);
+    border-radius:14px;
+    box-shadow:var(--shadow-lg);
+    overflow:hidden;
+    border:1px solid var(--paper-line);
+
     animation:floaty 6s ease-in-out infinite;
-  }
+
+    z-index:1;
+}
   @keyframes floaty{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
   .device-desktop .browser-bar{
     display:flex; align-items:center; gap:6px;
@@ -189,28 +212,27 @@
   }
   .device-desktop img{ display:block; width:100%; height:auto; }
 
-  .device-mobile{
+  ..device-mobile{
     position:absolute;
 
-    right:18px;
-    bottom:-8px;
+    right:8%;
+    bottom:-12px;
 
-    width:28%;
-    max-width:145px;
-    min-width:120px;
+    width:26%;
+    max-width:140px;
+    min-width:115px;
 
     background:#12281F;
     border-radius:22px;
-    padding:8px 8px 10px;
+    padding:8px;
 
     box-shadow:var(--shadow-lg);
 
     animation:floaty 6s ease-in-out infinite;
     animation-delay:.4s;
 
-    z-index:2;
+    z-index:3;
 }
-
   /* ================= TRUST STRIP ================= */
   .trust{ background:var(--paper-dim); border-bottom:1px solid var(--paper-line); padding:22px 0; }
   .trust-inner{

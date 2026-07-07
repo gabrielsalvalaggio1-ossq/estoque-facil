@@ -1635,7 +1635,6 @@ body.auth-page{
   position:sticky;
   top:0;
   z-index:5;
-  background:var(--paper);
   padding:2px 2px 10px;
 }
 .venda-topbar .campo-busca{ margin-bottom:8px; }

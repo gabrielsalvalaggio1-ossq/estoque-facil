@@ -114,6 +114,33 @@ async function removerMembro(email) {
   await tratarResposta(resp);
 }
 
+// --- Assinatura/billing (/api/assinatura) — leitura pra todo mundo,
+// escrita (trocar plano/cancelar) só o "dono" consegue de verdade (o
+// servidor confere isso de novo, isto aqui só evita a chamada inútil). ---
+
+async function buscarAssinatura() {
+  const resp = await fetch('/api/assinatura');
+  return tratarResposta(resp);
+}
+
+async function mudarPlano(planoId) {
+  const resp = await fetch('/api/assinatura', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ acao: 'mudar_plano', planoId })
+  });
+  return tratarResposta(resp);
+}
+
+async function cancelarAssinatura(motivo) {
+  const resp = await fetch('/api/assinatura', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ acao: 'cancelar', motivo })
+  });
+  return tratarResposta(resp);
+}
+
 // Exposto globalmente porque o projeto usa scripts simples (sem bundler),
 // mantendo a filosofia de "zero dependências, zero build step".
 window.DB = {
@@ -128,5 +155,8 @@ window.DB = {
   criarEmpresa,
   listarMembros,
   adicionarMembro,
-  removerMembro
+  removerMembro,
+  buscarAssinatura,
+  mudarPlano,
+  cancelarAssinatura
 };

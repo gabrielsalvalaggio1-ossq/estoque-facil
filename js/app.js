@@ -49,6 +49,13 @@ async function recarregarDados() {
     Produtos.listarProdutos(),
     Vendas.listarVendas()
   ]);
+
+  // Carrega a assinatura em segundo plano só pra quem é dono — é quem vê o
+  // pill de plano na Equipe e a aba Minha Assinatura. Erro aqui não deve
+  // travar o resto do app (por isso não tem await bloqueando, nem throw).
+  if (usuarioLogadoPapel === 'dono') {
+    DB.buscarAssinatura().then(a => { assinaturaCache = a; }).catch(() => {});
+  }
 }
 
 // --- Foto do produto ---
@@ -617,6 +624,16 @@ else if (abaAtual === 'venda') {
     }
   }
 
+  else if (abaAtual === 'assinatura') {
+    main.innerHTML = `
+      <div class="page">
+        <h2>💳 Minha assinatura</h2>
+        <div id="assinaturaContainer"><p class="team-msg">Carregando…</p></div>
+      </div>
+    `;
+    carregarTelaAssinatura();
+  }
+
   else if (abaAtual === 'contato') {
     main.innerHTML = `
       <div class="page">
@@ -949,14 +966,187 @@ function mostrarErroFormulario(mensagem) {
 // e-mails em seletores CSS.
 let membrosEquipeCache = [];
 
+// --- Minha assinatura (/api/assinatura) ---------------------------------
+
+let assinaturaCache = null;
+
+const ESTADO_ASSINATURA_UI = {
+  FREE:     { rotulo: 'Grátis',             classe: 'gratis' },
+  TRIAL:    { rotulo: 'Ativo',              classe: 'ativo' },
+  ACTIVE:   { rotulo: 'Ativo',              classe: 'ativo' },
+  PAST_DUE: { rotulo: 'Pagamento pendente', classe: 'pendente' },
+  CANCELED: { rotulo: 'Cancelado',          classe: 'cancelado' },
+  EXPIRED:  { rotulo: 'Cancelado',          classe: 'cancelado' },
+};
+
+const PLANOS_CATALOGO = [
+  { id: 'free',      nome: 'Free',      precoTexto: 'R$ 0/mês' },
+  { id: 'essencial', nome: 'Essencial', precoTexto: 'R$ 19,90/mês' },
+  { id: 'pro',       nome: 'Pro',       precoTexto: 'R$ 39,90/mês' },
+];
+
+function formatarDataCurta(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('pt-BR');
+}
+
+async function carregarTelaAssinatura() {
+  const container = document.getElementById('assinaturaContainer');
+  if (!container) return;
+  try {
+    assinaturaCache = await DB.buscarAssinatura();
+    container.innerHTML = telaAssinaturaHtml(assinaturaCache);
+    inicializarAcoesAssinatura();
+  } catch (erro) {
+    container.innerHTML = `<div class="card-info"><p class="erro" style="margin:0;">${escaparHtml(erro.message || 'Não foi possível carregar sua assinatura.')}</p></div>`;
+  }
+}
+
+function telaAssinaturaHtml(a) {
+  const estado = ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' };
+  const preco = a.planoId === 'free' || !a.precoCentavos
+    ? 'Grátis'
+    : formatarMoeda(a.precoCentavos / 100) + '/mês';
+
+  const proximaCobranca = a.planoId === 'free'
+    ? 'Não se aplica (plano grátis)'
+    : (a.status === 'CANCELED' || a.status === 'EXPIRED')
+      ? 'Assinatura cancelada — sem próxima cobrança'
+      : formatarDataCurta(a.dataExpiracao);
+
+  const formaPagamento = a.planoId === 'free'
+    ? 'Nenhuma — plano grátis não exige pagamento'
+    : 'Cartão de crédito (gerenciado pelo seu gateway de pagamento)';
+
+  const podeAgir = a.status !== 'CANCELED';
+
+  return `
+    <div class="card-info card-plano-atual">
+      <div class="plano-atual-topo">
+        <div>
+          <p class="plano-atual-nome">${escaparHtml(a.planoNome || NOME_PLANO_FALLBACK[a.planoId] || a.planoId)}</p>
+          <p class="plano-atual-preco">${escaparHtml(preco)}</p>
+        </div>
+        <span class="status-pill status-${estado.classe}"><span class="dot"></span>${escaparHtml(estado.rotulo)}</span>
+      </div>
+
+      <div class="plano-atual-linha">
+        <span class="lbl">Próxima cobrança</span>
+        <span class="val">${escaparHtml(proximaCobranca)}</span>
+      </div>
+      <div class="plano-atual-linha">
+        <span class="lbl">Forma de pagamento</span>
+        <span class="val">${escaparHtml(formaPagamento)}</span>
+      </div>
+    </div>
+
+    ${a.status === 'PAST_DUE' ? `
+      <div class="aviso-assinatura aviso-pendente">
+        ⚠️ Não conseguimos confirmar seu último pagamento. Regularize para não perder acesso à escrita de dados.
+      </div>` : ''}
+    ${(a.status === 'CANCELED' || a.status === 'EXPIRED') ? `
+      <div class="aviso-assinatura aviso-cancelado">
+        Sua assinatura está cancelada. Escolha um plano abaixo para reativar o sistema.
+      </div>` : ''}
+
+    <div class="card-info">
+      <h3>Planos disponíveis</h3>
+      <div class="lista-planos-troca">
+        ${PLANOS_CATALOGO.map(p => `
+          <div class="opcao-plano ${p.id === a.planoId && podeAgir ? 'atual' : ''}">
+            <div>
+              <p class="opcao-plano-nome">${escaparHtml(p.nome)}</p>
+              <p class="opcao-plano-preco">${escaparHtml(p.precoTexto)}</p>
+            </div>
+            ${p.id === a.planoId && podeAgir
+              ? '<span class="opcao-plano-tag">Plano atual</span>'
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${a.status === 'CANCELED' || a.status === 'EXPIRED' ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este')}</button>`
+            }
+          </div>
+        `).join('')}
+      </div>
+      <p class="erro" id="erroAssinatura" style="display:none;margin-top:10px;"></p>
+    </div>
+
+    ${podeAgir ? `
+      <div class="card-info" id="cardCancelarAssinatura">
+        <h3>Cancelar assinatura</h3>
+        <p style="font-size:13.5px;color:var(--ink-soft,#5B6259);margin:0 0 12px;">
+          Você para de ser cobrado e perde acesso aos recursos pagos. Seus dados continuam salvos.
+        </p>
+        <button type="button" class="btn danger" id="btnCancelarAssinatura" style="width:auto;padding:9px 16px;">Cancelar assinatura</button>
+      </div>
+    ` : ''}
+  `;
+}
+
+const NOME_PLANO_FALLBACK = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
+const PLANOS_ORDEM = { free: 0, essencial: 1, pro: 2 };
+
+function inicializarAcoesAssinatura() {
+  document.querySelectorAll('.btn-trocar-plano').forEach(botao => {
+    botao.addEventListener('click', () => trocarPlanoAssinatura(botao.dataset.plano, botao));
+  });
+
+  const btnCancelar = document.getElementById('btnCancelarAssinatura');
+  if (btnCancelar) btnCancelar.addEventListener('click', pedirConfirmacaoCancelarAssinatura);
+}
+
+function mostrarErroAssinatura(mensagem) {
+  const el = document.getElementById('erroAssinatura');
+  if (!el) return;
+  el.textContent = mensagem;
+  el.style.display = 'block';
+}
+
+async function trocarPlanoAssinatura(planoId, botao) {
+  if (!planoId || (botao && botao.disabled)) return;
+  const textoOriginal = botao ? botao.textContent : '';
+  if (botao) { botao.disabled = true; botao.textContent = 'Aplicando…'; }
+
+  try {
+    await DB.mudarPlano(planoId);
+    await carregarTelaAssinatura();
+  } catch (erro) {
+    mostrarErroAssinatura(erro.message || 'Não foi possível trocar de plano agora.');
+    if (botao) { botao.disabled = false; botao.textContent = textoOriginal; }
+  }
+}
+
+function pedirConfirmacaoCancelarAssinatura() {
+  const card = document.getElementById('cardCancelarAssinatura');
+  if (!card) return;
+  card.innerHTML = `
+    <h3>Cancelar assinatura</h3>
+    <div class="team-confirm" style="justify-content:flex-start;">
+      <span>Tem certeza? Você perde acesso aos recursos pagos imediatamente.</span>
+      <button type="button" class="btn-confirmar-sim" id="btnConfirmarCancelar">Sim, cancelar</button>
+      <button type="button" class="btn-confirmar-nao" id="btnVoltarCancelar">Voltar</button>
+    </div>
+  `;
+  document.getElementById('btnConfirmarCancelar').addEventListener('click', confirmarCancelarAssinatura);
+  document.getElementById('btnVoltarCancelar').addEventListener('click', carregarTelaAssinatura);
+}
+
+async function confirmarCancelarAssinatura() {
+  const btn = document.getElementById('btnConfirmarCancelar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Cancelando…'; }
+  try {
+    await DB.cancelarAssinatura('Cancelado pelo dono pela tela de assinatura');
+    await carregarTelaAssinatura();
+  } catch (erro) {
+    mostrarErroAssinatura(erro.message || 'Não foi possível cancelar agora.');
+    await carregarTelaAssinatura();
+  }
+}
+
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
-// Espelha os limites do backend (functions/api/[[path]].js) só pra exibição —
-// quem decide de verdade se pode adicionar mais gente é sempre a API.
-const PLANOS_INFO = {
-  gratis: { rotulo: 'Grátis', maxMembros: 1 },
-  equipe: { rotulo: 'Equipe', maxMembros: 5 },
-};
+// PLANOS_INFO legado foi removido — o pill de plano na Equipe agora lê
+// direto de assinaturaCache (ver telaAssinaturaHtml / cartaoGestaoEquipeHtml),
+// que é a mesma fonte de verdade da tela "Minha assinatura".
 
 // Papel selecionado no toggle de "adicionar membro" (substitui o antigo <select>).
 let papelEquipeSelecionado = 'vendedor';
@@ -969,12 +1159,13 @@ function gerarIniciaisEmail(email) {
 }
 
 function cartaoGestaoEquipeHtml() {
-  const plano = PLANOS_INFO[usuarioLogadoPlano] || PLANOS_INFO.gratis;
+  const nomePlano = (assinaturaCache && (assinaturaCache.planoNome || NOME_PLANO_FALLBACK[assinaturaCache.planoId])) || 'Free';
+  const maxMembros = (assinaturaCache && assinaturaCache.limiteMembros) || 1;
   return `
     <div class="card-info">
       <div class="team-header">
         <h3>Equipe</h3>
-        <span class="team-plan-pill">${escaparHtml(plano.rotulo)} · até ${plano.maxMembros} pessoa${plano.maxMembros > 1 ? 's' : ''}</span>
+        <span class="team-plan-pill">${escaparHtml(nomePlano)} · até ${maxMembros} pessoa${maxMembros > 1 ? 's' : ''}</span>
       </div>
 
       <div id="listaMembros" class="team-list">
@@ -1407,7 +1598,7 @@ document.getElementById('btnExportarSidebar').addEventListener('click', abrirMen
  */
 function aplicarRestricoesDePapel(papel) {
   const abasPorPapel = {
-    dono: ['estoque', 'venda', 'historico', 'conta', 'contato'],
+    dono: ['estoque', 'venda', 'historico', 'conta', 'assinatura', 'contato'],
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };

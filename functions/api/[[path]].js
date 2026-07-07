@@ -68,8 +68,9 @@ const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
 async function carregarPlanoDaEmpresa(db, empresaId) {
   const linha = await db
     .prepare(`
-      SELECT a.status AS status, p.id AS planoId, p.limite_produtos AS limiteProdutos,
-             p.limite_membros AS limiteMembros, p.recursos AS recursosJson
+      SELECT a.status AS status, a.data_expiracao AS dataExpiracao, a.cancelado_em AS canceladoEm,
+             p.id AS planoId, p.nome AS planoNome, p.preco_centavos AS precoCentavos, p.ciclo AS ciclo,
+             p.limite_produtos AS limiteProdutos, p.limite_membros AS limiteMembros, p.recursos AS recursosJson
       FROM assinaturas a
       JOIN planos p ON p.id = a.plano_id
       WHERE a.empresa_id = ?
@@ -84,7 +85,12 @@ async function carregarPlanoDaEmpresa(db, empresaId) {
   try { recursos = JSON.parse(linha.recursosJson || '{}'); } catch { recursos = {}; }
   return {
     status: linha.status,
+    dataExpiracao: linha.dataExpiracao,
+    canceladoEm: linha.canceladoEm,
     planoId: linha.planoId,
+    planoNome: linha.planoNome,
+    precoCentavos: linha.precoCentavos,
+    ciclo: linha.ciclo,
     limiteProdutos: linha.limiteProdutos,
     limiteMembros: linha.limiteMembros,
     recursos,
@@ -516,20 +522,109 @@ export async function onRequest(context) {
   // tanto pelo gate de escrita quanto pela rota /api/assinatura.
   const assinatura = await statusAssinatura(db, membro.empresaId);
 
-  // GET /api/assinatura — a UI usa isso pra mostrar banner de "pagamento
-  // pendente" e pra decidir quais botões mostrar/esconder ou desabilitar
-  // com mensagem amigável (relatórios, clientes, backup, equipe...).
+  // GET /api/assinatura — a UI usa isso pra montar a tela "Minha assinatura"
+  // (plano, preço, status, próxima cobrança) e pra decidir quais botões
+  // mostrar/esconder ou desabilitar com mensagem amigável em outras telas.
   if (primeiro === 'assinatura' && request.method === 'GET') {
     const plano = await carregarPlanoDaEmpresa(db, membro.empresaId);
     return json({
       status: assinatura.status,
-      planoId: assinatura.planoId,
-      dataExpiracao: assinatura.dataExpiracao,
+      planoId: plano ? plano.planoId : assinatura.planoId,
+      planoNome: plano ? plano.planoNome : null,
+      precoCentavos: plano ? plano.precoCentavos : null,
+      ciclo: plano ? plano.ciclo : null,
+      dataExpiracao: plano ? plano.dataExpiracao : assinatura.dataExpiracao,
+      canceladoEm: plano ? plano.canceladoEm : null,
       podeEscrever: ESTADOS_QUE_PERMITEM_ESCRITA.has(assinatura.status),
       limiteProdutos: plano ? plano.limiteProdutos : null,
       limiteMembros: plano ? plano.limiteMembros : null,
       recursos: plano ? plano.recursos : {},
     });
+  }
+
+  // POST /api/assinatura — trocar de plano (upgrade/downgrade) ou cancelar.
+  // Fica de propósito ANTES do gate de escrita: reativar/trocar de plano é
+  // exatamente a ação que uma empresa CANCELED/EXPIRED precisa poder fazer.
+  // Só o dono mexe em billing da empresa.
+  if (primeiro === 'assinatura' && request.method === 'POST') {
+    if (membro.papel !== 'dono') {
+      return json({ error: 'Só o dono da empresa pode alterar a assinatura.' }, 403);
+    }
+
+    let corpo;
+    try { corpo = await request.json(); } catch (e) { return json({ error: 'Corpo da requisição inválido.' }, 400); }
+
+    const acao = corpo && corpo.acao;
+    const empresaId = membro.empresaId;
+
+    if (acao === 'cancelar') {
+      await db
+        .prepare(`
+          UPDATE assinaturas
+          SET status = 'CANCELED', cancelado_em = datetime('now'),
+              motivo_cancelamento = ?, atualizado_em = datetime('now')
+          WHERE empresa_id = ? AND status IN ('FREE','TRIAL','ACTIVE','PAST_DUE')
+        `)
+        .bind((corpo && corpo.motivo) || null, empresaId)
+        .run();
+
+      await db.prepare('UPDATE usuarios SET status_assinatura = ? WHERE email = ?').bind('CANCELED', email).run();
+
+      return json({ ok: true, status: 'CANCELED' });
+    }
+
+    if (acao === 'mudar_plano') {
+      const planoId = corpo && corpo.planoId;
+      const planoValido = await db.prepare('SELECT id FROM planos WHERE id = ? AND ativo = 1').bind(planoId).first();
+      if (!planoValido) {
+        return json({ error: `Plano "${planoId}" inválido.` }, 400);
+      }
+
+      const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
+      const novoStatus = planoId === 'free' ? 'FREE' : 'ACTIVE';
+
+      // Mensal, então "próxima cobrança" é ~30 dias a partir de agora.
+      // (Isso é um cálculo local, sem gateway real integrado ainda — no dia
+      // que plugar Stripe/Pagar.me, essa data passa a vir do webhook deles.)
+      let dataExpiracao = null;
+      if (planoId !== 'free') {
+        const data = new Date();
+        data.setDate(data.getDate() + 30);
+        dataExpiracao = data.toISOString();
+      }
+
+      // Fecha o período corrente antes de abrir um novo — mantém o
+      // histórico completo em vez de sobrescrever a linha existente.
+      await db
+        .prepare(`
+          UPDATE assinaturas
+          SET status = 'CANCELED', cancelado_em = datetime('now'),
+              motivo_cancelamento = 'Troca de plano', atualizado_em = datetime('now')
+          WHERE empresa_id = ? AND status IN ('FREE','TRIAL','ACTIVE','PAST_DUE')
+        `)
+        .bind(empresaId)
+        .run();
+
+      await db
+        .prepare(`
+          INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao)
+          VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+        `)
+        .bind(`sub-${empresaId}-${Date.now()}`, empresaId, usuarioDono ? usuarioDono.id : null, planoId, novoStatus, dataExpiracao)
+        .run();
+
+      await db
+        .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ?, data_inicio_assinatura = datetime(\'now\'), data_expiracao = ? WHERE email = ?')
+        .bind(planoId, novoStatus, dataExpiracao, email)
+        .run();
+
+      // Mantém a coluna legada em sincronia, pra quem ainda lê empresas.plano.
+      await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
+
+      return json({ ok: true, planoId, status: novoStatus, dataExpiracao });
+    }
+
+    return json({ error: 'Ação inválida. Use "mudar_plano" ou "cancelar".' }, 400);
   }
 
   // Bloqueia escrita (POST/PUT/DELETE) em QUALQUER rota abaixo — membros e

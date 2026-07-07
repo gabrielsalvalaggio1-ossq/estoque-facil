@@ -1120,3 +1120,66 @@ main{
   }
 
 }
+
+/* ================= MINHA ASSINATURA ================= */
+
+.card-plano-atual{ padding-bottom:18px; }
+
+.plano-atual-topo{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  margin-bottom:16px; flex-wrap:wrap;
+}
+.plano-atual-nome{
+  font-family:'Fraunces', serif; font-size:22px; font-weight:600;
+  color:var(--ledger); margin:0 0 2px;
+}
+.plano-atual-preco{ font-size:14.5px; color:var(--amber-deep); font-weight:600; margin:0; }
+
+.status-pill{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:999px;
+  white-space:nowrap;
+}
+.status-pill .dot{ width:7px; height:7px; border-radius:50%; }
+.status-pill.status-gratis{ background:var(--paper-dim); color:var(--ledger); }
+.status-pill.status-gratis .dot{ background:var(--ledger); }
+.status-pill.status-ativo{ background:#DCE8E0; color:var(--ledger); }
+.status-pill.status-ativo .dot{ background:var(--ledger); }
+.status-pill.status-pendente{ background:#F6E7CB; color:var(--amber-deep); }
+.status-pill.status-pendente .dot{ background:var(--amber-deep); }
+.status-pill.status-cancelado{ background:#F3DED6; color:var(--coral-deep); }
+.status-pill.status-cancelado .dot{ background:var(--coral-deep); }
+
+.plano-atual-linha{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 0; border-top:1px solid var(--paper-dim);
+  font-size:13.5px;
+}
+.plano-atual-linha .lbl{ color:var(--ink-soft, #5B6259); }
+.plano-atual-linha .val{ color:var(--ledger); font-weight:600; text-align:right; }
+
+.aviso-assinatura{
+  border-radius:10px; padding:12px 14px; font-size:13.5px; font-weight:600;
+  margin:-6px 0 16px;
+}
+.aviso-pendente{ background:#F6E7CB; color:var(--amber-deep); }
+.aviso-cancelado{ background:#F3DED6; color:var(--coral-deep); }
+
+.lista-planos-troca{ display:flex; flex-direction:column; gap:10px; }
+.opcao-plano{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 14px; border-radius:10px; border:1px solid var(--paper-dim);
+  background:var(--paper);
+}
+.opcao-plano.atual{ border-color:var(--amber); background:#FBF3E1; }
+.opcao-plano-nome{ font-weight:700; color:var(--ledger); margin:0; font-size:14.5px; }
+.opcao-plano-preco{ font-size:12.5px; color:var(--ink-soft, #5B6259); margin:2px 0 0; }
+.opcao-plano-tag{
+  font-size:11.5px; font-weight:700; color:var(--amber-deep);
+  background:#F6E7CB; padding:5px 10px; border-radius:999px; white-space:nowrap;
+}
+
+@media (max-width: 480px){
+  .plano-atual-topo{ flex-direction:column; align-items:flex-start; }
+  .opcao-plano{ flex-wrap:wrap; }
+}

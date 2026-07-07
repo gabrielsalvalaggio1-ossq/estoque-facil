@@ -481,6 +481,49 @@ main{
   gap:6px;
 }
 .input-com-botao input{ flex:1; }
+
+/* --- Campo monetário com prefixo fixo "R$" (Preço de Custo) --- */
+.input-com-prefixo{
+  display:flex;
+  align-items:stretch;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fff;
+  overflow:hidden;
+}
+.input-com-prefixo:focus-within{
+  border-color:var(--amber);
+  box-shadow:0 0 0 3px rgba(217,164,65,.18);
+}
+.input-com-prefixo .prefixo-moeda{
+  display:flex; align-items:center;
+  padding:0 10px;
+  background:var(--paper-dim);
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:13.5px;
+  font-weight:600;
+  border-right:1px solid var(--line);
+}
+.input-com-prefixo input{
+  flex:1;
+  border:none;
+  padding:11px 12px;
+  font-size:15px;
+  font-family:'Inter',sans-serif;
+  background:transparent;
+  min-width:0;
+}
+.input-com-prefixo input:focus{ outline:none; }
+
+.secao-avancada-titulo{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink-soft);
+  margin:0 0 14px;
+}
 .btn-scan{
   width:44px; flex-shrink:0;
   border-radius:8px;

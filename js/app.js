@@ -58,6 +58,40 @@ async function recarregarDados() {
   }
 }
 
+// --- Campo monetário com máscara brasileira (usado no Preço de Custo) ---
+
+/**
+ * Aplica, em tempo real, a máscara "1.234,56" enquanto a pessoa digita —
+ * o mesmo padrão de campo de valor que qualquer sistema de PDV/ERP brasileiro
+ * usa. Trata o que foi digitado como centavos (dígitos puros), então não
+ * importa se a pessoa digita rápido ou cola um número: o resultado nunca
+ * fica num formato inválido pra interpretar depois.
+ */
+function aplicarMascaraMoeda(input) {
+  let digitos = input.value.replace(/\D/g, '');
+  if (!digitos) { input.value = ''; return; }
+  digitos = digitos.replace(/^0+(?=\d)/, '');
+  while (digitos.length < 3) digitos = '0' + digitos;
+
+  const centavos = digitos.slice(-2);
+  const parteInteira = digitos.slice(0, -2).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  input.value = `${parteInteira},${centavos}`;
+}
+
+/** Converte "1.234,56" (string mascarada) pra 1234.56 (número, em reais). */
+function valorMonetarioParaNumero(valorFormatado) {
+  if (!valorFormatado || !valorFormatado.trim()) return null;
+  const limpo = valorFormatado.trim().replace(/\./g, '').replace(',', '.');
+  const numero = parseFloat(limpo);
+  return isNaN(numero) ? null : numero;
+}
+
+/** Converte um número em reais pro formato mascarado, pra pré-preencher o campo ao editar. */
+function numeroParaValorMonetario(numero) {
+  if (numero === null || numero === undefined || isNaN(numero)) return '';
+  return Number(numero).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // --- Foto do produto ---
 
 /**
@@ -802,7 +836,7 @@ function abrirModalProduto(produto) {
       <div class="row2">
         <div class="field">
           <label id="lblPreco" for="fPreco">Preço (R$)</label>
-          <input id="fPreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" value="${produto ? produto.preco : ''}">
+          <input id="fPreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00" value="${produto ? produto.preco : ''}" oninput="avaliarAvisoCusto()">
         </div>
         <div class="field">
           <label id="lblEstoque" for="fEstoque">Quantidade</label>
@@ -811,9 +845,23 @@ function abrirModalProduto(produto) {
       </div>
       <p class="hint-unidade" id="hintUnidade" style="display:${produto && produto.unidade === 'kg' ? 'block' : 'none'};">Preço por kg. Quantidade em estoque também em kg (ex: 12.5).</p>
 
-      <button type="button" class="link-mais-opcoes" id="btnMaisOpcoes">+ Mais opções (categoria, código de barras, aviso de estoque)</button>
+      <button type="button" class="link-mais-opcoes" id="btnMaisOpcoes">+ Informações avançadas (custo, categoria, código de barras, aviso de estoque)</button>
 
       <div class="opcoes-avancadas" id="opcoesAvancadas" hidden>
+        <p class="secao-avancada-titulo">Informações Avançadas</p>
+
+        <div class="field">
+          <label for="fPrecoCusto">Preço de custo (R$)</label>
+          <div class="input-com-prefixo">
+            <span class="prefixo-moeda">R$</span>
+            <input id="fPrecoCusto" type="text" inputmode="decimal" placeholder="0,00"
+              value="${produto && produto.precoCusto != null ? numeroParaValorMonetario(produto.precoCusto) : ''}"
+              oninput="aplicarMascaraMoeda(this); avaliarAvisoCusto();">
+          </div>
+          <p class="hint-unidade" id="avisoCustoVenda" style="display:none;">Preço de custo maior que o preço de venda — confira os valores antes de salvar.</p>
+          <p class="hint-unidade">Usado para calcular seu lucro. Deixe em branco se preferir não informar agora.</p>
+        </div>
+
         <div class="row2">
           <div class="field">
             <label for="fMinimo">Avisar com estoque em</label>
@@ -863,12 +911,14 @@ function abrirModalProduto(produto) {
     const painel = document.getElementById('opcoesAvancadas');
     const abrir = painel.hidden;
     painel.hidden = !abrir;
-    e.target.textContent = abrir ? '– Ocultar opções' : '+ Mais opções (categoria, código de barras, aviso de estoque)';
+    e.target.textContent = abrir ? '– Ocultar informações avançadas' : '+ Informações avançadas (custo, categoria, código de barras, aviso de estoque)';
+    if (abrir) avaliarAvisoCusto();
   });
-  // Se o produto já tem categoria personalizada, código de barras ou mínimo definido, mostra aberto.
-  if (produto && (produto.categoria || produto.estoqueMinimo || produto.codigoBarras)) {
+  // Se o produto já tem custo, categoria personalizada, código de barras ou mínimo definido, mostra aberto.
+  if (produto && (produto.precoCusto != null || produto.categoria || produto.estoqueMinimo || produto.codigoBarras)) {
     document.getElementById('opcoesAvancadas').hidden = false;
-    document.getElementById('btnMaisOpcoes').textContent = '– Ocultar opções';
+    document.getElementById('btnMaisOpcoes').textContent = '– Ocultar informações avançadas';
+    avaliarAvisoCusto();
   }
 
   // --- Foto ---
@@ -958,6 +1008,23 @@ function atualizarCamposUnidade() {
 
   const hint = document.getElementById('hintUnidade');
   if (hint) hint.style.display = ehPeso ? 'block' : 'none';
+}
+
+/**
+ * Aviso não-bloqueante: se o preço de custo digitado ficar maior que o
+ * preço de venda, avisa a pessoa — mas não impede salvar (pode ser um
+ * preço promocional temporário de verdade, quem decide é o dono da loja).
+ */
+function avaliarAvisoCusto() {
+  const campoCusto = document.getElementById('fPrecoCusto');
+  const campoPreco = document.getElementById('fPreco');
+  const aviso = document.getElementById('avisoCustoVenda');
+  if (!campoCusto || !campoPreco || !aviso) return;
+
+  const custo = valorMonetarioParaNumero(campoCusto.value);
+  const preco = parseFloat(campoPreco.value);
+  const maiorQueVenda = custo !== null && !isNaN(preco) && custo > preco;
+  aviso.style.display = maiorQueVenda ? 'block' : 'none';
 }
 
 function fecharModal() {
@@ -1375,16 +1442,20 @@ async function salvarFormularioProduto() {
   const campoMinimo = document.getElementById('fMinimo');
   const campoCategoria = document.getElementById('fCategoria');
   const campoCodigo = document.getElementById('fCodigoBarras');
+  const campoPrecoCusto = document.getElementById('fPrecoCusto');
   const estoqueMinimo = campoMinimo ? parseInt(campoMinimo.value, 10) : NaN;
   const categoria = campoCategoria ? campoCategoria.value : '';
   const codigoBarras = campoCodigo ? campoCodigo.value.trim() : '';
+  // Campo mascarado ("1.234,56") — convertido pro número em reais que o
+  // resto do sistema usa. `null` quando a pessoa deixou em branco.
+  const precoCusto = campoPrecoCusto ? valorMonetarioParaNumero(campoPrecoCusto.value) : null;
   const unidade = unidadeSelecionada;
 
   try {
     if (idEmEdicao) {
-      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade });
+      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto });
     } else {
-      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade });
+      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto });
     }
     await recarregarDados();
     fecharModal();

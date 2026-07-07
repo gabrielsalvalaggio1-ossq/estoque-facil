@@ -11,11 +11,16 @@ async function listarProdutos() {
   return produtos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
-function validarProduto({ nome, preco, estoque }) {
+function validarProduto({ nome, preco, estoque, precoCusto }) {
   const erros = [];
   if (!nome || !nome.trim()) erros.push('Digite o nome do produto.');
   if (isNaN(preco) || preco < 0) erros.push('Digite um preço válido.');
   if (isNaN(estoque) || estoque < 0) erros.push('Digite uma quantidade em estoque válida.');
+  // Preço de custo é opcional (produtos antigos não têm e continuam válidos)
+  // — só validamos quando alguém de fato preencheu um valor.
+  if (precoCusto !== null && precoCusto !== undefined && (isNaN(precoCusto) || precoCusto < 0)) {
+    erros.push('Digite um preço de custo válido, ou deixe o campo em branco.');
+  }
   return erros;
 }
 
@@ -48,8 +53,22 @@ async function listarMovimentos() {
   return movimentos.sort((a, b) => new Date(b.data) - new Date(a.data));
 }
 
-async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade }) {
-  const erros = validarProduto({ nome, preco, estoque });
+/**
+ * Normaliza o preço de custo pra sempre guardar `null` (não informado) ou
+ * um número válido — nunca NaN, string vazia ou undefined soltos no banco.
+ * Produtos cadastrados antes desse campo existir simplesmente não têm essa
+ * chave, e todo o resto do código já trata isso como "sem custo" (ver
+ * calcularLucroUnitario/calcularMargemLucro abaixo).
+ */
+function normalizarPrecoCusto(precoCusto) {
+  if (precoCusto === null || precoCusto === undefined || precoCusto === '') return null;
+  const numero = Number(precoCusto);
+  return isNaN(numero) ? null : numero;
+}
+
+async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto }) {
+  const precoCustoNormalizado = normalizarPrecoCusto(precoCusto);
+  const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
 
   const agora = new Date().toISOString();
@@ -60,6 +79,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
     categoria: (categoria && categoria.trim()) ? categoria.trim() : CATEGORIA_PADRAO,
     unidade: unidade === 'kg' ? 'kg' : 'un',
     preco: Number(preco),
+    precoCusto: precoCustoNormalizado,
     estoque: estoqueInicial,
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem || null,
@@ -80,8 +100,9 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
   return produto;
 }
 
-async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade }) {
-  const erros = validarProduto({ nome, preco, estoque });
+async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto }) {
+  const precoCustoNormalizado = precoCusto !== undefined ? normalizarPrecoCusto(precoCusto) : undefined;
+  const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
 
   const existente = await DB.buscarPorId(DB.STORES.PRODUTOS, id);
@@ -98,6 +119,9 @@ async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categori
     categoria: (categoria && categoria.trim()) ? categoria.trim() : CATEGORIA_PADRAO,
     unidade: unidade === 'kg' ? 'kg' : 'un',
     preco: Number(preco),
+    // undefined = campo nem foi enviado (mantém o que já existia, se houver);
+    // isso é o que garante compatibilidade com produtos antigos sem custo.
+    precoCusto: precoCustoNormalizado !== undefined ? precoCustoNormalizado : (existente.precoCusto ?? null),
     estoque: novoEstoque,
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem !== undefined ? imagem : (existente.imagem || null),
@@ -169,6 +193,45 @@ function calcularEstatisticas(produtos) {
   return { totalItens, valorEmEstoque, estoqueBaixo };
 }
 
+/**
+ * --- Preparação para Lucro / Relatórios / Dashboard / Painel do Gestor ---
+ * Funções puras, isoladas aqui pra existir UM lugar só de onde qualquer
+ * tela futura lê "quanto esse produto dá de lucro" — em vez de cada tela
+ * reimplementar `preco - precoCusto` com sua própria lógica de "e se não
+ * tiver custo cadastrado". Nenhuma tela usa isso ainda; é só a base.
+ */
+
+/** Lucro por unidade vendida. `null` quando o produto não tem custo cadastrado. */
+function calcularLucroUnitario(produto) {
+  if (produto.precoCusto === null || produto.precoCusto === undefined) return null;
+  return produto.preco - produto.precoCusto;
+}
+
+/** Margem de lucro em %, ex: 35.5. `null` quando falta custo ou o preço é 0. */
+function calcularMargemLucro(produto) {
+  const lucro = calcularLucroUnitario(produto);
+  if (lucro === null || !produto.preco) return null;
+  return (lucro / produto.preco) * 100;
+}
+
+/**
+ * Resumo agregado pra um futuro Dashboard/Painel do Gestor: quantos
+ * produtos já têm custo cadastrado (pra saber se vale mostrar o card de
+ * lucro, ou se ainda falta a maioria cadastrar) e o lucro potencial se
+ * vender tudo que está em estoque hoje.
+ */
+function calcularResumoLucro(produtos) {
+  const comCusto = produtos.filter(p => p.precoCusto !== null && p.precoCusto !== undefined);
+  const lucroPotencialEstoque = comCusto.reduce(
+    (soma, p) => soma + (p.preco - p.precoCusto) * p.estoque, 0
+  );
+  return {
+    totalProdutos: produtos.length,
+    produtosComCusto: comCusto.length,
+    lucroPotencialEstoque
+  };
+}
+
 /** Lista de categorias distintas já usadas, para popular o filtro. */
 function listarCategorias(produtos) {
   const set = new Set(produtos.map(p => p.categoria || CATEGORIA_PADRAO));
@@ -213,14 +276,20 @@ function calcularMaisVendidos(vendas, limite = 3) {
  */
 function gerarCsvEstoque(produtos) {
   const linhas = [
-    ['Produto', 'Categoria', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas'].join(';')
+    ['Produto', 'Categoria', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas', 'Preço de venda', 'Preço de custo', 'Lucro unitário'].join(';')
   ];
   produtos.forEach(p => {
     const nome = String(p.nome || '').replace(/;/g, ',');
     const categoria = String(p.categoria || CATEGORIA_PADRAO).replace(/;/g, ',');
     const codigo = String(p.codigoBarras || '').replace(/;/g, ',');
     const unidade = p.unidade === 'kg' ? 'kg' : 'un';
-    linhas.push([nome, categoria, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0].join(';'));
+    const precoCusto = p.precoCusto !== null && p.precoCusto !== undefined ? String(p.precoCusto).replace('.', ',') : '';
+    const lucro = calcularLucroUnitario(p);
+    const lucroTexto = lucro !== null ? String(lucro.toFixed(2)).replace('.', ',') : '';
+    linhas.push([
+      nome, categoria, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0,
+      String(p.preco).replace('.', ','), precoCusto, lucroTexto
+    ].join(';'));
   });
   return linhas.join('\r\n');
 }
@@ -259,5 +328,8 @@ window.Produtos = {
   buscarPorCodigoBarras,
   listarMovimentos,
   gerarCsvEstoque,
-  gerarCsvMovimentos
+  gerarCsvMovimentos,
+  calcularLucroUnitario,
+  calcularMargemLucro,
+  calcularResumoLucro
 };

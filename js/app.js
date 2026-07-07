@@ -618,7 +618,7 @@ else if (abaAtual === 'venda') {
           class="campo-busca"
           value="${escaparHtml(buscaVenda)}"
         />
-        ${categoriasVenda.length > 1 ? `
+        ${categoriasVenda.length > 0 ? `
         <select id="seletorCategoriaVenda" class="filtro-select" onchange="aplicarFiltroVenda()">
           <option value="">Todas as categorias</option>
           ${categoriasVenda.map(c => `<option value="${escaparHtml(c)}" ${c === categoriaVenda ? 'selected' : ''}>${escaparHtml(c)}</option>`).join('')}

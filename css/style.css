@@ -1182,6 +1182,10 @@ main{
   .btn-destaque{ width:auto; padding:12px 22px; }
 
   main{ padding:16px 32px 32px; }
+  .venda-topbar{
+    background:var(--paper-dim);
+    padding:2px 0 14px;
+  }
   #listaVenda{
     width:100%;
 }

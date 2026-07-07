@@ -168,35 +168,12 @@
      dispositivo (desktop + mobile), em vez do cartão ilustrativo antigo.
      Aumenta a confiança porque mostra o produto real, não uma promessa
      desenhada. Paleta e sombras seguem os mesmos tokens do resto da página. --- */
-  .hero-visual{
-    position:relative;
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    width:100%;
-    max-width:620px;
-    margin:0 auto;
-
-    padding:20px 0 30px;
-}
+  .hero-visual{ position:relative; padding:10px 0 28px 34px; }
   .device-desktop{
-    position:relative;
-
-    width:82%;
-    max-width:560px;
-
-    background:var(--paper);
-    border-radius:14px;
-    box-shadow:var(--shadow-lg);
-    overflow:hidden;
-    border:1px solid var(--paper-line);
-
+    background:var(--paper); border-radius:14px; box-shadow:var(--shadow-lg);
+    overflow:hidden; border:1px solid var(--paper-line);
     animation:floaty 6s ease-in-out infinite;
-
-    z-index:1;
-}
+  }
   @keyframes floaty{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
   .device-desktop .browser-bar{
     display:flex; align-items:center; gap:6px;
@@ -212,27 +189,25 @@
   }
   .device-desktop img{ display:block; width:100%; height:auto; }
 
-  ..device-mobile{
-    position:absolute;
+  .device-mobile{
+    position:absolute; right:-8px; bottom:-16px; width:44%; max-width:190px;
+    background:#12281F; border-radius:22px; padding:8px 8px 10px; box-shadow:var(--shadow-lg);
+    animation:floaty 6s ease-in-out infinite; animation-delay:.4s;
+  }
+  .device-mobile .notch{
+    width:36%; height:5px; background:#0B1912; border-radius:0 0 8px 8px; margin:0 auto 6px;
+  }
+  .device-mobile .screen{
+    border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08);
+  }
+  .device-mobile img{ display:block; width:100%; height:auto; }
+  .badge-float{
+    position:absolute; top:-14px; left:14px; z-index:2;
+    background:var(--coral); color:#fff; font-weight:700; font-size:12px;
+    padding:8px 14px; border-radius:12px; box-shadow:var(--shadow-md);
+    transform:rotate(-3deg);
+  }
 
-    right:8%;
-    bottom:-12px;
-
-    width:26%;
-    max-width:140px;
-    min-width:115px;
-
-    background:#12281F;
-    border-radius:22px;
-    padding:8px;
-
-    box-shadow:var(--shadow-lg);
-
-    animation:floaty 6s ease-in-out infinite;
-    animation-delay:.4s;
-
-    z-index:3;
-}
   /* ================= TRUST STRIP ================= */
   .trust{ background:var(--paper-dim); border-bottom:1px solid var(--paper-line); padding:22px 0; }
   .trust-inner{

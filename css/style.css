@@ -1195,7 +1195,7 @@ main{
 
 #listaVenda .categoria-grid{
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
     gap: 14px;
     width: 100%;
     align-items: start;
@@ -1204,7 +1204,7 @@ main{
 
 #listaProdutos:has(.product-card){
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 14px;
   align-items: start;
 }

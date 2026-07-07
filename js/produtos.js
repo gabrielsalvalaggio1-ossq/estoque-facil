@@ -66,7 +66,30 @@ function normalizarPrecoCusto(precoCusto) {
   return isNaN(numero) ? null : numero;
 }
 
-async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto }) {
+/**
+ * Normaliza as dimensões físicas do produto (peso/altura/largura/comprimento
+ * + unidades). Preparação para o futuro cálculo de frete da Loja Virtual —
+ * nenhuma tela usa isso ainda pra cálculo, só grava e exibe. Todos os
+ * valores numéricos são opcionais; `null` = não informado.
+ */
+function normalizarDimensoes(dimensoes) {
+  if (!dimensoes) return null;
+  const numeroOuNull = (v) => (v === null || v === undefined || v === '' || isNaN(Number(v))) ? null : Number(v);
+  const { peso, altura, largura, comprimento, unidadePeso, unidadeMedida } = dimensoes;
+  const normalizado = {
+    peso: numeroOuNull(peso),
+    altura: numeroOuNull(altura),
+    largura: numeroOuNull(largura),
+    comprimento: numeroOuNull(comprimento),
+    unidadePeso: unidadePeso === 'g' ? 'g' : 'kg',
+    unidadeMedida: unidadeMedida === 'm' ? 'm' : 'cm'
+  };
+  // Se nada foi preenchido, não vale a pena guardar um objeto vazio.
+  const algumValor = normalizado.peso !== null || normalizado.altura !== null || normalizado.largura !== null || normalizado.comprimento !== null;
+  return algumValor ? normalizado : null;
+}
+
+async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes }) {
   const precoCustoNormalizado = normalizarPrecoCusto(precoCusto);
   const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
@@ -84,6 +107,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem || null,
     codigoBarras: codigoBarras ? String(codigoBarras).trim() : '',
+    dimensoes: normalizarDimensoes(dimensoes),
     // Totais acumulados, usados no cartão do produto e na exportação de estoque.
     totalEntradas: estoqueInicial,
     totalSaidas: 0,
@@ -100,7 +124,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
   return produto;
 }
 
-async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto }) {
+async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes }) {
   const precoCustoNormalizado = precoCusto !== undefined ? normalizarPrecoCusto(precoCusto) : undefined;
   const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
@@ -126,6 +150,7 @@ async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categori
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem !== undefined ? imagem : (existente.imagem || null),
     codigoBarras: codigoBarras !== undefined ? String(codigoBarras).trim() : (existente.codigoBarras || ''),
+    dimensoes: dimensoes !== undefined ? normalizarDimensoes(dimensoes) : (existente.dimensoes || null),
     totalEntradas: (existente.totalEntradas || 0) + entradasExtra,
     totalSaidas: existente.totalSaidas || 0,
     atualizadoEm: new Date().toISOString()

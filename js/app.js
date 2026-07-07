@@ -886,6 +886,52 @@ function abrirModalProduto(produto) {
             </button>
           </div>
         </div>
+
+        <div class="bloco-dimensoes">
+          <div class="dimensoes-titulo">
+            <p class="secao-avancada-titulo">Dimensões do produto</p>
+            <span class="tag-em-breve">Usado no frete da loja virtual</span>
+          </div>
+          <div class="dimensoes-grid">
+            <div class="field">
+              <label for="fPeso">Peso</label>
+              <input id="fPeso" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0,000"
+                value="${produto && produto.dimensoes && produto.dimensoes.peso != null ? produto.dimensoes.peso : ''}">
+            </div>
+            <div class="field">
+              <label for="fAltura">Altura</label>
+              <input id="fAltura" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00"
+                value="${produto && produto.dimensoes && produto.dimensoes.altura != null ? produto.dimensoes.altura : ''}">
+            </div>
+            <div class="field">
+              <label for="fLargura">Largura</label>
+              <input id="fLargura" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00"
+                value="${produto && produto.dimensoes && produto.dimensoes.largura != null ? produto.dimensoes.largura : ''}">
+            </div>
+            <div class="field">
+              <label for="fComprimento">Comprimento</label>
+              <input id="fComprimento" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00"
+                value="${produto && produto.dimensoes && produto.dimensoes.comprimento != null ? produto.dimensoes.comprimento : ''}">
+            </div>
+          </div>
+          <div class="dimensoes-unidade">
+            <div class="field">
+              <label for="fUnidadePeso">Unidade de peso</label>
+              <select id="fUnidadePeso">
+                <option value="kg" ${(!produto || !produto.dimensoes || !produto.dimensoes.unidadePeso || produto.dimensoes.unidadePeso === 'kg') ? 'selected' : ''}>kg</option>
+                <option value="g" ${(produto && produto.dimensoes && produto.dimensoes.unidadePeso === 'g') ? 'selected' : ''}>g</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="fUnidadeMedida">Unidade de medida</label>
+              <select id="fUnidadeMedida">
+                <option value="cm" ${(!produto || !produto.dimensoes || !produto.dimensoes.unidadeMedida || produto.dimensoes.unidadeMedida === 'cm') ? 'selected' : ''}>cm</option>
+                <option value="m" ${(produto && produto.dimensoes && produto.dimensoes.unidadeMedida === 'm') ? 'selected' : ''}>m</option>
+              </select>
+            </div>
+          </div>
+          <p class="hint-unidade">Opcional. Usaremos essas medidas para calcular o frete quando a Loja Virtual estiver disponível.</p>
+        </div>
       </div>
 
       <p class="erro" id="erroForm" style="display:none;"></p>
@@ -914,8 +960,8 @@ function abrirModalProduto(produto) {
     e.target.textContent = abrir ? '– Ocultar informações avançadas' : '+ Informações avançadas (custo, categoria, código de barras, aviso de estoque)';
     if (abrir) avaliarAvisoCusto();
   });
-  // Se o produto já tem custo, categoria personalizada, código de barras ou mínimo definido, mostra aberto.
-  if (produto && (produto.precoCusto != null || produto.categoria || produto.estoqueMinimo || produto.codigoBarras)) {
+  // Se o produto já tem custo, categoria personalizada, código de barras, mínimo ou dimensões definidas, mostra aberto.
+  if (produto && (produto.precoCusto != null || produto.categoria || produto.estoqueMinimo || produto.codigoBarras || (produto.dimensoes && Object.values(produto.dimensoes).some(v => v !== null && v !== undefined && v !== '')))) {
     document.getElementById('opcoesAvancadas').hidden = false;
     document.getElementById('btnMaisOpcoes').textContent = '– Ocultar informações avançadas';
     avaliarAvisoCusto();
@@ -1451,11 +1497,34 @@ async function salvarFormularioProduto() {
   const precoCusto = campoPrecoCusto ? valorMonetarioParaNumero(campoPrecoCusto.value) : null;
   const unidade = unidadeSelecionada;
 
+  // Dimensões do produto — todos os campos são opcionais (preparação para
+  // o futuro cálculo de frete da Loja Virtual). Só gravamos números válidos;
+  // campo em branco vira null, igual ao tratamento de precoCusto acima.
+  const campoPeso = document.getElementById('fPeso');
+  const campoAltura = document.getElementById('fAltura');
+  const campoLargura = document.getElementById('fLargura');
+  const campoComprimento = document.getElementById('fComprimento');
+  const campoUnidadePeso = document.getElementById('fUnidadePeso');
+  const campoUnidadeMedida = document.getElementById('fUnidadeMedida');
+  const paraNumeroOuNull = (valor) => {
+    if (valor === undefined || valor === null || String(valor).trim() === '') return null;
+    const numero = parseFloat(valor);
+    return isNaN(numero) ? null : numero;
+  };
+  const dimensoes = {
+    peso: campoPeso ? paraNumeroOuNull(campoPeso.value) : null,
+    altura: campoAltura ? paraNumeroOuNull(campoAltura.value) : null,
+    largura: campoLargura ? paraNumeroOuNull(campoLargura.value) : null,
+    comprimento: campoComprimento ? paraNumeroOuNull(campoComprimento.value) : null,
+    unidadePeso: campoUnidadePeso ? campoUnidadePeso.value : 'kg',
+    unidadeMedida: campoUnidadeMedida ? campoUnidadeMedida.value : 'cm'
+  };
+
   try {
     if (idEmEdicao) {
-      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto });
+      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
     } else {
-      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto });
+      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
     }
     await recarregarDados();
     fecharModal();

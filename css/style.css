@@ -387,6 +387,17 @@ main{
   background:#fff;
 }
 .field input:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber); }
+.field select{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:11px 12px;
+  font-size:15px;
+  font-family:'Inter',sans-serif;
+  background:#fff;
+  color:var(--ink);
+}
+.field select:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber); }
 
 /* --- Toggle "Vendido por: Unidade / Peso (kg)" --- */
 .unidade-toggle{
@@ -585,6 +596,44 @@ main{
   text-align:left;
 }
 .opcoes-avancadas{ margin-bottom:2px; }
+
+/* --- Grid de dimensões (peso/altura/largura/comprimento) dentro de
+   Informações Avançadas — usa grid de verdade (não .row2 flex) porque
+   são 4 campos numéricos + 1 seletor de unidade; flex esticava eles de
+   forma desigual. 2 colunas no mobile, 4 no desktop (regra lá embaixo). */
+.dimensoes-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px 12px;
+  margin-bottom:14px;
+}
+.dimensoes-grid .field{ margin-bottom:0; }
+.dimensoes-unidade{
+  display:flex;
+  gap:6px;
+  margin-bottom:14px;
+}
+.dimensoes-unidade .field{ flex:1; margin-bottom:0; }
+.dimensoes-titulo{
+  display:flex; align-items:center; justify-content:space-between;
+  margin:0 0 10px;
+}
+.dimensoes-titulo .secao-avancada-titulo{ margin:0; }
+.dimensoes-titulo .tag-em-breve{
+  font-family:'Inter',sans-serif;
+  font-size:10.5px;
+  font-weight:600;
+  color:var(--ink-soft);
+  background:var(--paper);
+  border:1px solid var(--line);
+  padding:2px 8px;
+  border-radius:999px;
+}
+.opcoes-avancadas .bloco-dimensoes{
+  border-top:1px solid var(--line);
+  margin-top:16px;
+  padding-top:16px;
+}
 .erro{
   color:var(--coral-deep);
   font-size:13px;
@@ -1128,8 +1177,8 @@ main{
 
 #listaVenda .categoria-grid{
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
     width: 100%;
     align-items: start;
 }
@@ -1137,7 +1186,7 @@ main{
 
 #listaProdutos:has(.product-card){
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
   align-items: start;
 }
@@ -1543,6 +1592,10 @@ body.auth-page{
     font-size:22px;
   }
   #productModalWrap .row2{ gap:18px; }
+  #productModalWrap .dimensoes-grid{
+    grid-template-columns:repeat(4, minmax(0, 1fr));
+    gap:14px;
+  }
 }
 
 /* =========================================================================

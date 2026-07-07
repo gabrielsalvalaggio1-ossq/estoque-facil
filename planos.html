@@ -164,36 +164,48 @@
   .hero-proof .stars{ color:var(--amber); letter-spacing:1px; }
   .hero-note{ margin-top:0; font-size:13px; color:#AEC0B6; }
 
-  /* --- mockup card --- */
-  .hero-visual{ position:relative; }
-  .mock{
-    background:var(--paper); border-radius:18px; box-shadow:var(--shadow-lg);
-    padding:20px; transform:rotate(1.2deg);
-    animation:floaty 5s ease-in-out infinite;
+  /* --- mockup real: capturas de tela de verdade dentro de molduras de
+     dispositivo (desktop + mobile), em vez do cartão ilustrativo antigo.
+     Aumenta a confiança porque mostra o produto real, não uma promessa
+     desenhada. Paleta e sombras seguem os mesmos tokens do resto da página. --- */
+  .hero-visual{ position:relative; padding:10px 0 28px 34px; }
+  .device-desktop{
+    background:var(--paper); border-radius:14px; box-shadow:var(--shadow-lg);
+    overflow:hidden; border:1px solid var(--paper-line);
+    animation:floaty 6s ease-in-out infinite;
   }
-  @keyframes floaty{ 0%,100%{ transform:rotate(1.2deg) translateY(0); } 50%{ transform:rotate(1.2deg) translateY(-8px); } }
-  .mock-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-  .mock-head .t{ font-weight:700; font-size:13px; color:var(--ink-soft); }
-  .mock-head .pill{ background:var(--coral-pale); color:var(--coral-deep); font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
-  .mock-row{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:11px 12px; border-radius:10px; margin-bottom:8px; background:#fff; border:1px solid var(--paper-line);
+  @keyframes floaty{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-8px); } }
+  .device-desktop .browser-bar{
+    display:flex; align-items:center; gap:6px;
+    padding:10px 12px; background:var(--paper-dim); border-bottom:1px solid var(--paper-line);
   }
-  .mock-row .name{ font-size:13.5px; font-weight:600; }
-  .mock-row .qty{ font-size:12px; color:var(--ink-soft); }
-  .mock-row.low{ border-color:var(--coral); background:var(--coral-pale); }
-  .mock-row.low .qty{ color:var(--coral-deep); font-weight:700; }
-  .mock-total{
-    margin-top:14px; display:flex; justify-content:space-between; align-items:center;
-    padding:14px; border-radius:12px; background:var(--ledger); color:var(--paper);
+  .device-desktop .browser-bar .dot{ width:9px; height:9px; border-radius:50%; background:var(--paper-line); }
+  .device-desktop .browser-bar .dot:nth-child(1){ background:#E2572B; opacity:.55; }
+  .device-desktop .browser-bar .dot:nth-child(2){ background:#D9A441; opacity:.55; }
+  .device-desktop .browser-bar .dot:nth-child(3){ background:#1B3A2F; opacity:.35; }
+  .device-desktop .browser-bar .url{
+    margin-left:8px; font-size:11px; color:var(--ink-faint); font-family:'IBM Plex Mono',monospace;
+    background:#fff; border:1px solid var(--paper-line); border-radius:999px; padding:3px 12px; flex:1; max-width:220px;
   }
-  .mock-total .label{ font-size:12.5px; color:#AEC0B6; }
-  .mock-total .val{ font-family:'Fraunces',serif; font-size:22px; font-weight:600; color:var(--amber); }
+  .device-desktop img{ display:block; width:100%; height:auto; }
+
+  .device-mobile{
+    position:absolute; right:-8px; bottom:-16px; width:44%; max-width:190px;
+    background:#12281F; border-radius:22px; padding:8px 8px 10px; box-shadow:var(--shadow-lg);
+    animation:floaty 6s ease-in-out infinite; animation-delay:.4s;
+  }
+  .device-mobile .notch{
+    width:36%; height:5px; background:#0B1912; border-radius:0 0 8px 8px; margin:0 auto 6px;
+  }
+  .device-mobile .screen{
+    border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08);
+  }
+  .device-mobile img{ display:block; width:100%; height:auto; }
   .badge-float{
-    position:absolute; top:-14px; right:-14px;
+    position:absolute; top:-14px; left:14px; z-index:2;
     background:var(--coral); color:#fff; font-weight:700; font-size:12px;
     padding:8px 14px; border-radius:12px; box-shadow:var(--shadow-md);
-    transform:rotate(-4deg);
+    transform:rotate(-3deg);
   }
 
   /* ================= TRUST STRIP ================= */
@@ -445,19 +457,18 @@
     </div>
 
     <div class="hero-visual reveal in">
-      <div class="mock">
-        <span class="badge-float">+R$ 340 vendidos hoje</span>
-        <div class="mock-head">
-          <span class="t">Estoque · Loja da Ana</span>
-          <span class="pill">Ao vivo</span>
+      <span class="badge-float">Tela real do MEV</span>
+      <div class="device-desktop">
+        <div class="browser-bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="url">app.meuestoque.com.br</span>
         </div>
-        <div class="mock-row"><span class="name">Arroz 5kg</span><span class="qty">18 un.</span></div>
-        <div class="mock-row"><span class="name">Refrigerante 2L</span><span class="qty">32 un.</span></div>
-        <div class="mock-row low"><span class="name">Detergente</span><span class="qty">Só 2 un. — repor</span></div>
-        <div class="mock-row"><span class="name">Café 500g</span><span class="qty">21 un.</span></div>
-        <div class="mock-total">
-          <span class="label">Vendido hoje</span>
-          <span class="val">R$ 1.284,00</span>
+        <img src="img/print-dashboard.png" alt="Painel do MEV mostrando o estoque com produtos, vendido hoje, vendido no mês e itens com estoque baixo" loading="lazy" width="1723" height="678">
+      </div>
+      <div class="device-mobile">
+        <div class="notch"></div>
+        <div class="screen">
+          <img src="img/print-produto-form.png" alt="Tela de cadastro de produto do MEV no celular, com preço, quantidade e informações avançadas" loading="lazy" width="597" height="745">
         </div>
       </div>
     </div>

@@ -19,7 +19,12 @@
 <body class="auth-page">
 
 <div class="auth-card">
-  <a class="auth-voltar" href="/index.html" style="color:var(--ink-soft)">← Voltar</a>
+  <button type="button" class="auth-voltar" onclick="voltar()" aria-label="Voltar">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Voltar
+  </button>
 
   <img class="auth-logo" src="icons/icon-192.png" alt="MEV">
 
@@ -60,6 +65,17 @@
 </div>
 
 <script>
+function voltar() {
+  // Se a pessoa chegou até aqui navegando dentro do próprio site, volta
+  // pra tela anterior de verdade. Se abriu o link direto (sem histórico),
+  // cai na página de planos — nunca no index.
+  if (document.referrer && document.referrer.indexOf(location.origin) === 0 && history.length > 1) {
+    history.back();
+  } else {
+    window.location.href = "/planos.html";
+  }
+}
+
 async function login() {
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;

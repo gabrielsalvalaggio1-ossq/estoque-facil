@@ -1350,7 +1350,7 @@ body.auth-page{
   border:1px solid rgba(255,255,255,.12);
   border-radius:10px;
 
-  color:#C7D3CB;
+  color:#5B6259;
   font-family:'Inter',sans-serif;
   font-size:13px;
   font-weight:600;
@@ -1374,7 +1374,7 @@ body.auth-page{
 .auth-voltar:hover{
   background:rgba(255,255,255,.08);
   border-color:rgba(255,255,255,.22);
-  color:#FBFAF3;
+  color:#B33B2A;
 }
 
 .auth-voltar:active{

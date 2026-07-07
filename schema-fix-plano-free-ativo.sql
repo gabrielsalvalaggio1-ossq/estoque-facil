@@ -19,16 +19,43 @@
 --   npx wrangler d1 execute NOME_DO_SEU_BANCO --remote --file=./schema-fix-plano-free-ativo.sql
 
 -- 1) Backfill: empresas sem NENHUMA assinatura ganham uma FREE/ACTIVE.
+--
+-- usuario_id é NOT NULL em `assinaturas`, então não basta olhar
+-- `empresas.dono_email` — em algumas contas esse e-mail não bate 100% com
+-- `usuarios.email` (ex.: diferença de maiúsculas/minúsculas, dono trocado
+-- depois de criada a empresa). Por isso, para achar o usuário responsável
+-- tentamos, nesta ordem:
+--   a) usuarios.email = empresas.dono_email (caminho normal);
+--   b) qualquer membro da empresa com papel 'dono';
+--   c) qualquer membro da empresa, seja qual for o papel.
+-- Empresas em que nenhum dos três caminhos encontra um usuário (órfãs,
+-- sem nenhum membro válido) são puladas — não têm "dono" pra associar à
+-- assinatura, e forçar um valor inventado seria pior que não gerar a linha.
 INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
 SELECT
   'sub-fix-' || e.id,
   e.id,
-  (SELECT u.id FROM usuarios u WHERE u.email = e.dono_email),
+  COALESCE(
+    (SELECT u.id FROM usuarios u WHERE u.email = e.dono_email),
+    (SELECT u.id FROM usuarios u
+       JOIN membros m ON m.usuario_email = u.email
+      WHERE m.empresa_id = e.id
+      ORDER BY (m.papel = 'dono') DESC
+      LIMIT 1)
+  ) AS usuario_id,
   'free',
   'ACTIVE',
   datetime('now')
 FROM empresas e
-WHERE NOT EXISTS (SELECT 1 FROM assinaturas a WHERE a.empresa_id = e.id);
+WHERE NOT EXISTS (SELECT 1 FROM assinaturas a WHERE a.empresa_id = e.id)
+  AND COALESCE(
+    (SELECT u.id FROM usuarios u WHERE u.email = e.dono_email),
+    (SELECT u.id FROM usuarios u
+       JOIN membros m ON m.usuario_email = u.email
+      WHERE m.empresa_id = e.id
+      ORDER BY (m.papel = 'dono') DESC
+      LIMIT 1)
+  ) IS NOT NULL;
 
 -- 2) Normaliza linhas antigas com status legado 'FREE' -> 'ACTIVE'.
 UPDATE assinaturas

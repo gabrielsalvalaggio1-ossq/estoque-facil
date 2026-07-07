@@ -5,7 +5,7 @@
  * este arquivo só garante que a INTERFACE carregue offline.
  */
 
-const CACHE_NAME = 'meu-estoque-v7';
+const CACHE_NAME = 'meu-estoque-v8';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',
@@ -18,6 +18,22 @@ const ARQUIVOS_ESSENCIAIS = [
   './js/app.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
+];
+
+// Páginas que NUNCA devem ser servidas do cache: são as páginas públicas de
+// entrada (login, cadastro, planos) e o esqueleto legado (app.html). Elas
+// não fazem sentido "offline" (não dá pra logar sem internet) e, se ficarem
+// em cache, toda atualização nelas (como o snippet do Microsoft Clarity)
+// fica sempre uma versão atrasada — quem já tinha uma cópia cacheada de
+// antes da mudança nunca vê a versão nova, só a de novo-antes-da-anterior,
+// porque a estratégia cache-first devolve o cache na hora e só atualiza o
+// cache em segundo plano pra PRÓXIMA visita. Isso foi o que fez o Clarity
+// (e qualquer outro ajuste nessas páginas) parecer que só funcionava no app.
+const PAGINAS_SEMPRE_DA_REDE = [
+  '/login.html',
+  '/cadastro.html',
+  '/planos.html',
+  '/app.html'
 ];
 
 self.addEventListener('install', (event) => {
@@ -55,6 +71,12 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/')) return; // deixa passar direto pro servidor
+
+  // Páginas públicas/de entrada: sempre buscar da rede, nunca do cache (ver
+  // comentário de PAGINAS_SEMPRE_DA_REDE acima). Isso garante que qualquer
+  // mudança nelas — como o Microsoft Clarity — apareça imediatamente em
+  // todas as páginas, não só no app.
+  if (PAGINAS_SEMPRE_DA_REDE.includes(url.pathname)) return;
 
   event.respondWith(
     (async () => {

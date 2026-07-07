@@ -1501,3 +1501,154 @@ body.auth-page{
   }
   #productModalWrap .row2{ gap:18px; }
 }
+
+/* =========================================================================
+   TELA "NOVA VENDA" — redesign
+   Cobre três pedaços que juntos formam o fluxo de vender: a aba Venda
+   (.page-venda — busca + produtos agrupados por categoria), a barra de
+   carrinho fixa (.cartbar) e o comprovante/checkout (#receiptWrap).
+   Tudo escopado nas classes/ids que app.js já usa — nenhum id, classe ou
+   atributo consultado pelo JS foi removido, renomeado ou teve seu
+   comportamento alterado. Regras de negócio (cálculo de total, limites de
+   estoque, formas de pagamento) continuam 100% em produtos.js/vendas.js/app.js.
+   ========================================================================= */
+
+/* --- Container da aba Venda: nasce sem estilo próprio hoje (só herdava
+   o que sobrava de .product-card/.campo-busca) — aqui ganha um ritmo de
+   espaçamento de verdade. --- */
+.page-venda{
+  display:flex;
+  flex-direction:column;
+  gap:22px;
+}
+.venda-topbar{
+  position:sticky;
+  top:0;
+  z-index:5;
+  background:var(--paper);
+  padding:2px 0 4px;
+}
+.venda-topbar .campo-busca{ margin-bottom:0; }
+
+.venda-categoria{ display:flex; flex-direction:column; gap:12px; }
+.venda-categoria + .venda-categoria{ margin-top:6px; }
+
+/* Só no mobile/tablet (abaixo do breakpoint de dashboard em 1000px, já
+   existente neste arquivo) — acima disso, quem manda no visual do título
+   de categoria é a regra desktop já existente (.categoria-titulo dentro
+   de @media (min-width:1000px), mais acima neste arquivo: 28px, borda de
+   2px). Escopar aqui evita que esta regra nova sobrescreva por engano
+   aquela que já existia. */
+@media (max-width:999px){
+  .categoria-titulo{
+    font-family:'Fraunces',serif;
+    font-size:17px;
+    font-weight:600;
+    color:var(--ledger);
+    margin:0;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--line);
+  }
+}
+
+/* No mobile o grid vira uma coluna só — o "grid" existe só pra ganhar
+   a versão de 2 colunas lá no breakpoint de desktop (regra já existente
+   mais abaixo no arquivo, em #listaVenda .categoria-grid). */
+.categoria-grid{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.categoria-grid .product-card{ margin-bottom:0; }
+
+/* --- Cartão de produto na tela de venda: mesma base do .product-card,
+   só com um pouco mais de conforto de toque (é o card que a pessoa mais
+   toca durante o dia) e uma transição sutil no hover em telas com mouse. --- */
+.venda-card{ padding:13px 14px; }
+.venda-card .thumb{ width:48px; height:48px; }
+.venda-card .name{ font-size:15.5px; }
+.venda-card .meta{ margin-top:5px; }
+@media (hover:hover){
+  .venda-card{ transition:border-color .15s ease, box-shadow .15s ease; }
+  .venda-card:hover{
+    border-color:var(--amber);
+    box-shadow:0 2px 10px rgba(18,40,31,.08);
+  }
+}
+
+/* Botões de quantidade um pouco maiores no card de venda especificamente
+   — o resto do app (estoque) continua com o tamanho original. */
+.venda-card .qtybtn{ width:32px; height:32px; }
+.venda-card .sellbtn{ padding:9px 18px; }
+
+/* --- Barra de carrinho: mais profundidade, pra não parecer só uma faixa
+   de cor colada no conteúdo. --- */
+.cartbar{
+  box-shadow:0 -6px 20px rgba(18,40,31,.18);
+}
+.cartbar .left{ font-family:'Inter',sans-serif; }
+.cartbar button{ padding:12px 22px; }
+
+/* --- Comprovante / checkout (#receiptWrap): mesmo tratamento do modal de
+   produto — some com o "papel colado no rodapé" no desktop e vira um
+   diálogo centralizado, com hierarquia mais clara entre itens, total e
+   ações. No mobile, continua como bottom sheet. --- */
+#receiptWrap .receipt{
+  padding:26px 24px 24px;
+}
+#receiptWrap .rlabel{ letter-spacing:.16em; }
+#receiptWrap h2{ margin:6px 0 4px; }
+#receiptWrap .rdate{ margin-bottom:20px; }
+
+#receiptWrap .ritem{
+  padding:9px 0;
+  font-size:14.5px;
+}
+#receiptWrap .rtotal{
+  margin-top:16px;
+  padding-top:16px;
+}
+
+#receiptWrap .pay-label{ margin:20px 0 9px; }
+#receiptWrap .pay-options{ gap:10px; margin-bottom:20px; }
+#receiptWrap .pay-btn{ padding:12px 8px; }
+
+#receiptWrap .field{ margin-bottom:20px; }
+#receiptWrap .field input{
+  padding:12px 14px;
+  border-radius:10px;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+#receiptWrap .field input:focus{
+  outline:none;
+  border-color:var(--amber);
+  box-shadow:0 0 0 3px rgba(217,164,65,.18);
+}
+
+#receiptWrap #btnConfirmar{ padding:14px 0; border-radius:10px; }
+#receiptWrap #btnVoltar{ padding:13px 0; border-radius:10px; margin-top:10px !important; }
+
+@media (min-width:641px){
+  /* Centraliza e padroniza a largura da própria tela de venda dentro do
+     espaço já reservado pelo dashboard desktop (ver #app main mais acima),
+     em vez de esticar o grid de produtos até a borda da tela toda. */
+  .page-venda{
+    max-width:900px;
+    margin:0 auto;
+    width:100%;
+  }
+
+  #receiptWrap{
+    align-items:center;
+    padding:32px;
+  }
+  #receiptWrap .receipt{
+    width:100%;
+    max-width:440px;
+    border-radius:20px;
+    max-height:min(760px, 85vh);
+    box-shadow:
+      0 24px 60px -16px rgba(18,40,31,.35),
+      0 0 0 1px rgba(27,58,47,.06);
+  }
+}

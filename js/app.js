@@ -14,6 +14,7 @@ let formaPagamentoEscolhida = 'dinheiro';
 let filtroEstoque = { busca: '', categoria: '', situacao: 'todos' };
 let filtroVendas = { periodo: 'todas', status: 'todas' };
 let buscaVenda = '';
+let categoriaVenda = '';
 let imagemPendente = null; // base64 da foto escolhida/tirada, ainda não salva
 let streamScannerAtivo = null;
 let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no formulário de produto
@@ -380,7 +381,9 @@ function cartaoProdutoEstoque(produto) {
 
 function aplicarFiltroVenda() {
   const campo = document.getElementById('campoBuscaVenda');
+  const seletor = document.getElementById('seletorCategoriaVenda');
   buscaVenda = campo ? campo.value : '';
+  categoriaVenda = seletor ? seletor.value : '';
   atualizarListaVenda();
 }
 
@@ -390,9 +393,11 @@ function atualizarListaVenda() {
 
   const termo = (buscaVenda || '').trim().toLowerCase();
 
-  const filtrados = termo
-    ? produtosCache.filter(p => p.nome.toLowerCase().includes(termo))
-    : produtosCache;
+  const filtrados = produtosCache.filter(p => {
+    if (termo && !p.nome.toLowerCase().includes(termo)) return false;
+    if (categoriaVenda && (p.categoria || Produtos.CATEGORIA_PADRAO) !== categoriaVenda) return false;
+    return true;
+  });
 
   if (filtrados.length === 0) {
     container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado.</div>';
@@ -601,6 +606,7 @@ function renderizarConteudo() {
   }
 
 else if (abaAtual === 'venda') {
+  const categoriasVenda = Produtos.listarCategorias(produtosCache);
   main.innerHTML = `
     <div class="page-venda">
       <div class="venda-topbar">
@@ -610,7 +616,13 @@ else if (abaAtual === 'venda') {
           placeholder="Buscar produto..."
           oninput="aplicarFiltroVenda()"
           class="campo-busca"
+          value="${escaparHtml(buscaVenda)}"
         />
+        ${categoriasVenda.length > 1 ? `
+        <select id="seletorCategoriaVenda" class="filtro-select" onchange="aplicarFiltroVenda()">
+          <option value="">Todas as categorias</option>
+          ${categoriasVenda.map(c => `<option value="${escaparHtml(c)}" ${c === categoriaVenda ? 'selected' : ''}>${escaparHtml(c)}</option>`).join('')}
+        </select>` : ''}
       </div>
 
       <div id="listaVenda"></div>

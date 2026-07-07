@@ -906,7 +906,7 @@ function abrirModalProduto(produto) {
           </div>
           <div class="dimensoes-grid">
             <div class="field">
-              <label for="fPeso">Peso</label>
+              <label for="fPeso">Peso p/ envio</label>
               <input id="fPeso" type="number" inputmode="decimal" step="0.001" min="0" placeholder="0,000"
                 value="${produto && produto.dimensoes && produto.dimensoes.peso != null ? produto.dimensoes.peso : ''}">
             </div>
@@ -942,7 +942,7 @@ function abrirModalProduto(produto) {
               </select>
             </div>
           </div>
-          <p class="hint-unidade">Opcional. Usaremos essas medidas para calcular o frete quando a Loja Virtual estiver disponível.</p>
+          <p class="hint-unidade">Peso e medidas da embalagem física, pra calcular o frete — não tem relação com "Vendido por: Peso (kg)" lá em cima, que é sobre como você cobra pelo produto. Tudo opcional, e só é usado quando a Loja Virtual estiver disponível.</p>
         </div>
       </div>
 

@@ -430,9 +430,13 @@ main{
   font-size:12px;
   color:var(--ink-soft);
   font-family:'Inter',sans-serif;
-  margin:-8px 0 14px;
+  margin:6px 0 0;
   line-height:1.4;
 }
+/* Quando o hint é o único texto de apoio de um campo (não é precedido por
+   um aviso condicional), ele fica logo abaixo do input — sem gap extra
+   de baixo, já que o .field seguinte cuida do espaçamento. */
+.field > .hint-unidade:last-child{ margin-bottom:2px; }
 
 /* --- Campo de peso no card de venda (produto vendido por kg) --- */
 .qty-peso{
@@ -1183,6 +1187,7 @@ main{
 
   main{ padding:16px 32px 32px; }
   .venda-topbar{
+    background:var(--paper-dim);
     padding:2px 0 14px;
   }
   #listaVenda{
@@ -1544,8 +1549,9 @@ body.auth-page{
 #productModalWrap .row2{ gap:14px; }
 
 #productModalWrap .hint-unidade{
-  margin:-12px 0 20px;
+  margin:6px 0 16px;
 }
+#productModalWrap .field > .hint-unidade:last-child{ margin-bottom:0; }
 
 /* --- Foto do produto: preview maior, botões em formato de pill --- */
 #productModalWrap .foto-area{
@@ -1635,6 +1641,7 @@ body.auth-page{
   position:sticky;
   top:0;
   z-index:5;
+  background:var(--paper);
   padding:2px 2px 10px;
 }
 .venda-topbar .campo-busca{ margin-bottom:8px; }

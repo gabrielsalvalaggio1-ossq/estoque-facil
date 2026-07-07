@@ -28,20 +28,6 @@
 const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 
-// Planos disponíveis e quantos membros cada um permite (incluindo o dono).
-// Isso é o que decide o que é grátis e o que precisa de upgrade — hoje só
-// limita quantidade de gente na equipe; no futuro dá pra pendurar mais
-// regras aqui (limite de produtos, exportação, etc).
-const PLANOS = {
-  gratis: { rotulo: 'Grátis', maxMembros: 1 },
-  equipe: { rotulo: 'Equipe', maxMembros: 5 },
-};
-const PLANO_PADRAO = 'gratis';
-
-function infoPlano(plano) {
-  return PLANOS[plano] || PLANOS[PLANO_PADRAO];
-}
-
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
 const ESTADOS_ASSINATURA = ['FREE', 'TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED'];
 
@@ -54,6 +40,131 @@ const MENSAGENS_BLOQUEIO_ASSINATURA = {
   CANCELED: 'Sua assinatura foi cancelada. Reative um plano para voltar a cadastrar e vender.',
   EXPIRED: 'Sua assinatura expirou. Escolha um plano para continuar usando o sistema.',
 };
+
+// -------------------------------------------------------------------------
+// Sistema central de permissões por plano. Uma única fonte de verdade:
+// a coluna `planos.recursos` (JSON) + `planos.limite_produtos` /
+// `planos.limite_membros`. Toda rota que precisa checar "meu plano deixa
+// fazer isso?" chama verificarPlano(db, empresaId, recurso) — nunca decide
+// isso com um `if` solto espalhado pelo código.
+// -------------------------------------------------------------------------
+
+// O que cada recurso bloqueado deve dizer pro usuário, e a partir de qual
+// plano ele passa a estar disponível — usado tanto na mensagem quanto pra
+// UI decidir qual botão de upgrade mostrar.
+const INFO_RECURSOS = {
+  produtos:           { rotulo: 'Cadastro de produtos além do limite',   planoMinimo: 'essencial' },
+  clientes:           { rotulo: 'Histórico e cadastro de clientes',      planoMinimo: 'essencial' },
+  relatorios:         { rotulo: 'Relatórios completos',                  planoMinimo: 'essencial' },
+  backup:             { rotulo: 'Backup e exportação de dados',          planoMinimo: 'essencial' },
+  equipe:             { rotulo: 'Convidar pessoas para a equipe',        planoMinimo: 'essencial' },
+  permissoes_papeis:  { rotulo: 'Papéis e permissões por pessoa',        planoMinimo: 'pro' },
+  auditoria:          { rotulo: 'Auditoria completa de ações',           planoMinimo: 'pro' },
+};
+
+const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
+
+/** Busca o plano + recursos vigentes da empresa, já com o JSON parseado. */
+async function carregarPlanoDaEmpresa(db, empresaId) {
+  const linha = await db
+    .prepare(`
+      SELECT a.status AS status, p.id AS planoId, p.limite_produtos AS limiteProdutos,
+             p.limite_membros AS limiteMembros, p.recursos AS recursosJson
+      FROM assinaturas a
+      JOIN planos p ON p.id = a.plano_id
+      WHERE a.empresa_id = ?
+      ORDER BY a.criado_em DESC
+      LIMIT 1
+    `)
+    .bind(empresaId)
+    .first();
+
+  if (!linha) return null;
+  let recursos = {};
+  try { recursos = JSON.parse(linha.recursosJson || '{}'); } catch { recursos = {}; }
+  return {
+    status: linha.status,
+    planoId: linha.planoId,
+    limiteProdutos: linha.limiteProdutos,
+    limiteMembros: linha.limiteMembros,
+    recursos,
+  };
+}
+
+function bloqueado(recurso, planoAtualId) {
+  const info = INFO_RECURSOS[recurso] || { rotulo: recurso, planoMinimo: 'essencial' };
+  const nomeNecessario = NOME_PLANO[info.planoMinimo] || info.planoMinimo;
+  return {
+    permitido: false,
+    status: 403,
+    error: `${info.rotulo} é um recurso do plano ${nomeNecessario}. Faça upgrade para desbloquear.`,
+    recurso,
+    planoAtual: planoAtualId,
+    planoNecessario: info.planoMinimo,
+  };
+}
+
+/**
+ * Função central de permissões. Chama pra qualquer recurso gateado por
+ * plano ANTES de executar a ação. Dois tipos de checagem:
+ *  - "produtos"/"membros": recurso com LIMITE numérico (conta quantidade
+ *    já existente e compara com planos.limite_produtos/limite_membros).
+ *  - qualquer outra chave: feature liga/desliga lida de planos.recursos.
+ *
+ * Retorna { permitido: true } quando pode seguir, ou o objeto de
+ * `bloqueado(...)` (permitido:false + mensagem amigável) quando não pode.
+ */
+async function verificarPlano(db, empresaId, recurso, extra = {}) {
+  const plano = await carregarPlanoDaEmpresa(db, empresaId);
+  if (!plano) {
+    return { permitido: false, status: 402, error: 'Não encontramos uma assinatura ativa para sua empresa.' };
+  }
+
+  if (recurso === 'produtos') {
+    if (plano.limiteProdutos == null) return { permitido: true, plano };
+    const { total } = await db
+      .prepare(`SELECT COUNT(*) AS total FROM registros WHERE empresa_id = ? AND store = 'produtos'`)
+      .bind(empresaId)
+      .first();
+    if (total >= plano.limiteProdutos) {
+      return {
+        permitido: false, status: 403,
+        error: `Você atingiu o limite de ${plano.limiteProdutos} produtos do plano ${NOME_PLANO[plano.planoId] || plano.planoId}. Faça upgrade para cadastrar produtos ilimitados.`,
+        recurso, planoAtual: plano.planoId, planoNecessario: 'essencial',
+      };
+    }
+    return { permitido: true, plano };
+  }
+
+  if (recurso === 'membros') {
+    // Recurso liga/desliga primeiro (mensagem melhor que "limite atingido"
+    // quando o plano nem oferece equipe) e só depois checa quantidade.
+    if (plano.recursos.equipe !== true) return { ...bloqueado('equipe', plano.planoId), plano };
+    const { total } = await db
+      .prepare(`SELECT COUNT(*) AS total FROM membros WHERE empresa_id = ?`)
+      .bind(empresaId)
+      .first();
+    if (total >= plano.limiteMembros) {
+      return {
+        permitido: false, status: 403,
+        error: `Você atingiu o limite de ${plano.limiteMembros} pessoas do plano ${NOME_PLANO[plano.planoId] || plano.planoId}. Faça upgrade para adicionar mais gente na equipe.`,
+        recurso: 'membros', planoAtual: plano.planoId, planoNecessario: 'pro',
+      };
+    }
+    return { permitido: true, plano };
+  }
+
+  if (recurso === 'papel_diferenciado') {
+    // Definir vendedor/estoquista (em vez de todo mundo ser "dono") exige
+    // o plano com permissoes_papeis.
+    if (plano.recursos.permissoes_papeis !== true) return { ...bloqueado('permissoes_papeis', plano.planoId), plano };
+    return { permitido: true, plano };
+  }
+
+  // Qualquer outro recurso é uma feature simples liga/desliga.
+  if (plano.recursos[recurso] !== true) return { ...bloqueado(recurso, plano.planoId), plano };
+  return { permitido: true, plano };
+}
 
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
@@ -146,9 +257,9 @@ async function criarEmpresa(db, email, request) {
   await db
     .prepare(`
       INSERT INTO empresas (id, nome, dono_email, plano, criado_em)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      VALUES (?, ?, ?, 'free', datetime('now'))
     `)
-    .bind(empresaId, nomeEmpresa, email, PLANO_PADRAO)
+    .bind(empresaId, nomeEmpresa, email)
     .run();
 
   await db
@@ -159,7 +270,23 @@ async function criarEmpresa(db, email, request) {
     .bind(empresaId, email)
     .run();
 
-  return json({ email, empresaId, papel: 'dono', nomeEmpresa, plano: PLANO_PADRAO }, 201);
+  // Toda empresa nova nasce com uma assinatura FREE — sem isso,
+  // verificarPlano() não encontra plano nenhum e bloqueia tudo (402).
+  const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
+  await db
+    .prepare(`
+      INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
+      VALUES (?, ?, ?, 'free', 'FREE', datetime('now'))
+    `)
+    .bind('sub-' + empresaId, empresaId, usuarioDono ? usuarioDono.id : null)
+    .run();
+
+  await db
+    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ? WHERE email = ?')
+    .bind('free', 'FREE', email)
+    .run();
+
+  return json({ email, empresaId, papel: 'dono', nomeEmpresa, plano: 'free' }, 201);
 }
 
 function permissaoPara(papel, store) {
@@ -234,21 +361,30 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       return json({ error: mensagem }, 409);
     }
 
-    // Respeita o limite de membros do plano atual da empresa.
-    const empresaAtual = await db
-      .prepare('SELECT plano FROM empresas WHERE id = ?')
-      .bind(empresaId)
-      .first();
-    const plano = infoPlano(empresaAtual && empresaAtual.plano);
-    const totalAtual = await db
-      .prepare('SELECT COUNT(*) AS total FROM membros WHERE empresa_id = ?')
-      .bind(empresaId)
-      .first();
-
-    if ((totalAtual ? totalAtual.total : 0) >= plano.maxMembros) {
+    // Recurso central de permissões: precisa do plano com "equipe" e ter
+    // vaga dentro do limite (verificarPlano já faz as duas checagens).
+    const checagemEquipe = await verificarPlano(db, empresaId, 'membros');
+    if (!checagemEquipe.permitido) {
       return json({
-        error: `Seu plano atual (${plano.rotulo}) permite até ${plano.maxMembros} pessoa(s) na equipe. Faça upgrade pra adicionar mais gente.`
-      }, 402);
+        error: checagemEquipe.error,
+        recurso: checagemEquipe.recurso,
+        planoAtual: checagemEquipe.planoAtual,
+        planoNecessario: checagemEquipe.planoNecessario,
+      }, checagemEquipe.status);
+    }
+
+    // Convidar alguém com papel diferente de "dono" (vendedor/estoquista com
+    // acesso limitado) exige o plano com papéis e permissões por pessoa.
+    if (papel !== 'dono') {
+      const checagemPapel = await verificarPlano(db, empresaId, 'papel_diferenciado');
+      if (!checagemPapel.permitido) {
+        return json({
+          error: checagemPapel.error,
+          recurso: checagemPapel.recurso,
+          planoAtual: checagemPapel.planoAtual,
+          planoNecessario: checagemPapel.planoNecessario,
+        }, checagemPapel.status);
+      }
     }
 
     await db
@@ -381,13 +517,18 @@ export async function onRequest(context) {
   const assinatura = await statusAssinatura(db, membro.empresaId);
 
   // GET /api/assinatura — a UI usa isso pra mostrar banner de "pagamento
-  // pendente" ou tela de upgrade, sem precisar decodificar nada sozinha.
+  // pendente" e pra decidir quais botões mostrar/esconder ou desabilitar
+  // com mensagem amigável (relatórios, clientes, backup, equipe...).
   if (primeiro === 'assinatura' && request.method === 'GET') {
+    const plano = await carregarPlanoDaEmpresa(db, membro.empresaId);
     return json({
       status: assinatura.status,
       planoId: assinatura.planoId,
       dataExpiracao: assinatura.dataExpiracao,
       podeEscrever: ESTADOS_QUE_PERMITEM_ESCRITA.has(assinatura.status),
+      limiteProdutos: plano ? plano.limiteProdutos : null,
+      limiteMembros: plano ? plano.limiteMembros : null,
+      recursos: plano ? plano.recursos : {},
     });
   }
 
@@ -408,6 +549,31 @@ export async function onRequest(context) {
     } catch (erro) {
       return json({ error: erro.message || 'Erro interno ao gerenciar a equipe.' }, 500);
     }
+  }
+
+  // GET /api/auditoria — histórico de quem criou/alterou cada registro.
+  // Recurso exclusivo do plano Pro (verificarPlano cuida da mensagem).
+  if (primeiro === 'auditoria' && request.method === 'GET') {
+    const checagemAuditoria = await verificarPlano(db, membro.empresaId, 'auditoria');
+    if (!checagemAuditoria.permitido) {
+      return json({
+        error: checagemAuditoria.error,
+        recurso: 'auditoria',
+        planoAtual: checagemAuditoria.planoAtual,
+        planoNecessario: checagemAuditoria.planoNecessario,
+      }, checagemAuditoria.status);
+    }
+    const { results } = await db
+      .prepare(`
+        SELECT id, store, usuario_email AS usuarioEmail, criado_em AS criadoEm, atualizado_em AS atualizadoEm
+        FROM registros
+        WHERE empresa_id = ?
+        ORDER BY atualizado_em DESC
+        LIMIT 200
+      `)
+      .bind(membro.empresaId)
+      .all();
+    return json(results);
   }
 
   const store = primeiro;
@@ -450,6 +616,21 @@ export async function onRequest(context) {
       if (!registro || !registro.id) {
         return json({ error: 'Registro precisa ter um campo "id".' }, 400);
       }
+
+      // Limite de produtos do plano (Free = 50). Vendas e movimentos não têm
+      // limite de quantidade em nenhum plano — só produtos.
+      if (store === 'produtos') {
+        const checagemProdutos = await verificarPlano(db, empresaId, 'produtos');
+        if (!checagemProdutos.permitido) {
+          return json({
+            error: checagemProdutos.error,
+            recurso: 'produtos',
+            planoAtual: checagemProdutos.planoAtual,
+            planoNecessario: checagemProdutos.planoNecessario,
+          }, checagemProdutos.status);
+        }
+      }
+
       // Carimba quem criou — vem do servidor (e-mail autenticado), nunca do
       // que o cliente mandar, pra não dar pra forjar quem fez a ação.
       registro.criado_por = email;

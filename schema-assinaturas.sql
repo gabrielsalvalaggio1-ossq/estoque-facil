@@ -87,15 +87,21 @@ CREATE INDEX IF NOT EXISTS idx_usuarios_gateway_customer
 
 -- =========================================================================
 -- 4. Migra o dado solto que já existia (empresas.plano é texto livre desde
---    schema-planos.sql) pra virar uma assinatura FREE de verdade, e replica
---    pro dono de cada empresa.
+--    schema-planos.sql, com valores legados do código antigo: 'gratis' e
+--    'equipe') pra virar uma assinatura FREE de verdade, e replica pro dono
+--    de cada empresa. Qualquer valor que não seja um id válido de `planos`
+--    cai em 'free' — nunca insere um plano_id que não exista (FK).
 -- =========================================================================
 INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
 SELECT
   'sub-' || e.id,
   e.id,
   u.id,
-  CASE WHEN e.plano IN ('free','gratis') THEN 'free' ELSE e.plano END,
+  CASE
+    WHEN e.plano IN (SELECT id FROM planos) THEN e.plano  -- já é um id válido (free/essencial/pro)
+    WHEN e.plano = 'equipe' THEN 'pro'                     -- nome legado do plano pago com equipe
+    ELSE 'free'                                            -- 'gratis' e qualquer outro valor desconhecido
+  END,
   'FREE',
   e.criado_em
 FROM empresas e

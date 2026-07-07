@@ -613,11 +613,23 @@ else if (abaAtual === 'venda') {
           <p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>
         </div>
 
+        ${usuarioLogadoPapel === 'dono' ? `
+        <div class="card-info">
+          <h3>Dados de demonstração</h3>
+          <p>Quer ver o sistema funcionando com produtos de exemplo? Isso não apaga nada do que você já cadastrou.</p>
+          <button type="button" class="btn ghost" id="btnCarregarExemploConta" style="width:auto;padding:9px 16px;margin-top:10px;">Carregar exemplo</button>
+        </div>` : ''}
+
         ${usuarioLogadoPapel === 'dono' ? cartaoGestaoEquipeHtml() : ''}
       </div>
     `;
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
+
+    const btnCarregarExemploConta = document.getElementById('btnCarregarExemploConta');
+    if (btnCarregarExemploConta) {
+      btnCarregarExemploConta.addEventListener('click', () => carregarDadosExemplo(btnCarregarExemploConta));
+    }
 
     if (usuarioLogadoPapel === 'dono') {
       inicializarGestaoEquipe();
@@ -1567,13 +1579,61 @@ function abrirOnboarding() {
 
   document.getElementById('btnZero').addEventListener('click', fechar);
   document.getElementById('btnExemplo').addEventListener('click', async () => {
+    const botao = document.getElementById('btnExemplo');
+    const sucesso = await carregarDadosExemplo(botao);
+    if (sucesso) fechar();
+  });
+}
+
+/**
+ * Importa os produtos de demonstração (PRODUTOS_EXEMPLO) para a conta do
+ * usuário logado. Usada tanto no modal de boas-vindas (primeiro acesso)
+ * quanto no botão "Carregar exemplo" disponível na aba Conta.
+ *
+ * Nunca sobrescreve dados reais: se já existirem produtos cadastrados,
+ * pede confirmação antes de prosseguir. Em caso de erro de rede/API,
+ * mostra mensagem amigável em vez de falhar silenciosamente.
+ *
+ * Retorna true se os dados foram importados (ou o usuário confirmou e tudo
+ * deu certo) e false se o usuário cancelou ou se ocorreu um erro.
+ */
+async function carregarDadosExemplo(botao) {
+  if (produtosCache.length > 0) {
+    const confirmar = confirm(
+      `Você já tem ${produtosCache.length} produto(s) cadastrado(s). ` +
+      `Carregar os dados de exemplo vai ADICIONAR novos produtos de demonstração ` +
+      `sem apagar os que você já tem. Deseja continuar?`
+    );
+    if (!confirmar) return false;
+  }
+
+  const textoOriginal = botao ? botao.textContent : null;
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = 'Carregando…';
+  }
+
+  try {
     for (const p of PRODUTOS_EXEMPLO) {
       await Produtos.criarProduto(p);
     }
     await recarregarDados();
     renderizarTudo();
-    fechar();
-  });
+    alert('Dados de exemplo carregados com sucesso! 🎉');
+    return true;
+  } catch (erro) {
+    alert(
+      erro && erro.message
+        ? `Não foi possível carregar os dados de exemplo: ${erro.message}`
+        : 'Não foi possível carregar os dados de exemplo. Verifique sua conexão e tente novamente.'
+    );
+    return false;
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = textoOriginal;
+    }
+  }
 }
 
 // --- Inicialização ---

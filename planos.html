@@ -190,23 +190,26 @@
   .device-desktop img{ display:block; width:100%; height:auto; }
 
   .device-mobile{
-    position:absolute; right:-8px; bottom:-16px; width:32%; max-width:160px;
-    background:#12281F; border-radius:22px; padding:8px 8px 10px; box-shadow:var(--shadow-lg);
-    animation:floaty 6s ease-in-out infinite; animation-delay:.4s;
-  }
-  .device-mobile .notch{
-    width:36%; height:5px; background:#0B1912; border-radius:0 0 8px 8px; margin:0 auto 6px;
-  }
-  .device-mobile .screen{
-    border-radius:12px; overflow:hidden; border:1px solid rgba(255,255,255,.08);
-  }
-  .device-mobile img{ display:block; width:100%; height:auto; }
-  .badge-float{
-    position:absolute; top:-14px; left:14px; z-index:2;
-    background:var(--coral); color:#fff; font-weight:700; font-size:12px;
-    padding:8px 14px; border-radius:12px; box-shadow:var(--shadow-md);
-    transform:rotate(-3deg);
-  }
+    position:absolute;
+
+    right:18px;
+    bottom:-8px;
+
+    width:28%;
+    max-width:145px;
+    min-width:120px;
+
+    background:#12281F;
+    border-radius:22px;
+    padding:8px 8px 10px;
+
+    box-shadow:var(--shadow-lg);
+
+    animation:floaty 6s ease-in-out infinite;
+    animation-delay:.4s;
+
+    z-index:2;
+}
 
   /* ================= TRUST STRIP ================= */
   .trust{ background:var(--paper-dim); border-bottom:1px solid var(--paper-line); padding:22px 0; }

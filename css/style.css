@@ -1395,3 +1395,109 @@ body.auth-page{
 @media (max-height:640px){
   body.auth-page{ align-items:flex-start; padding-top:24px; }
 }
+
+/* =========================================================================
+   MODAL DE CADASTRO/EDIÇÃO DE PRODUTO — redesign
+   Escopado só em #productModalWrap (o id que app.js já usa pra esse modal
+   específico), então nada aqui muda o scanner, o comprovante, o menu de
+   exportação, o onboarding ou as telas de login/cadastro — só o formulário
+   de produto. Nenhum id/classe usado pelo JS foi removido ou renomeado.
+   ========================================================================= */
+
+/* --- Base (vale em qualquer largura): espaçamento e alinhamento internos --- */
+#productModalWrap .modal{
+  padding:24px 24px 22px;
+}
+#productModalWrap .modal h2{
+  font-size:20px;
+  font-weight:600;
+  padding-bottom:18px;
+  margin:0 0 22px;
+  border-bottom:1px solid var(--line);
+}
+
+/* Ritmo vertical único pros campos — nada mais de valores soltos tipo
+   "-8px" ou "-6px" pra compensar espaçamento errado do vizinho. */
+#productModalWrap .field{ margin-bottom:20px; }
+#productModalWrap .field label{
+  font-size:11.5px;
+  letter-spacing:.07em;
+  margin-bottom:7px;
+}
+#productModalWrap .field input{
+  padding:12px 14px;
+  border-radius:10px;
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+#productModalWrap .field input:focus{
+  outline:none;
+  border-color:var(--amber);
+  box-shadow:0 0 0 3px rgba(217,164,65,.18);
+}
+
+#productModalWrap .row2{ gap:14px; }
+
+#productModalWrap .hint-unidade{
+  margin:-12px 0 20px;
+}
+
+/* --- Foto do produto: preview maior, botões em formato de pill --- */
+#productModalWrap .foto-area{
+  gap:14px;
+  margin-bottom:22px;
+  padding-bottom:22px;
+  border-bottom:1px solid var(--line);
+}
+#productModalWrap .foto-preview{
+  width:72px; height:72px;
+  border-radius:14px;
+}
+#productModalWrap .foto-botoes .btn-sm{
+  border-radius:999px !important;
+}
+
+/* --- Toggle Unidade/Peso e "+ Mais opções" com um pouco mais de ar --- */
+#productModalWrap .unidade-toggle{ padding:4px; }
+#productModalWrap .link-mais-opcoes{
+  padding:4px 0 18px;
+  font-weight:600;
+}
+#productModalWrap .opcoes-avancadas{
+  background:var(--paper-dim);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:18px 16px 4px;
+  margin:-4px 0 18px;
+}
+
+#productModalWrap .erro{ margin:-8px 0 18px; }
+
+/* --- Ações finais: botões um pouco mais altos e com mais respiro --- */
+#productModalWrap .modal-actions{ gap:12px; margin-top:4px; }
+#productModalWrap .btn{
+  padding:13px 0;
+  border-radius:10px;
+}
+
+/* --- Acima de ~640px: para de ser "folha que sobe do rodapé" e vira um
+   diálogo flutuante centralizado, com largura máxima confortável pra
+   leitura — o padrão visual de SaaS tipo Stripe/Linear/Notion. --- */
+@media (min-width:641px){
+  #productModalWrap{
+    align-items:center;
+    padding:32px;
+  }
+  #productModalWrap .modal{
+    max-width:560px;
+    border-radius:20px;
+    padding:32px 36px 30px;
+    max-height:min(720px, 85vh);
+    box-shadow:
+      0 24px 60px -16px rgba(18,40,31,.35),
+      0 0 0 1px rgba(27,58,47,.06);
+  }
+  #productModalWrap .modal h2{
+    font-size:22px;
+  }
+  #productModalWrap .row2{ gap:18px; }
+}

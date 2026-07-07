@@ -983,16 +983,19 @@ let membrosEquipeCache = [];
 let assinaturaCache = null;
 
 const ESTADO_ASSINATURA_UI = {
-  FREE:     { rotulo: 'Grátis',             classe: 'gratis' },
-  TRIAL:    { rotulo: 'Ativo',              classe: 'ativo' },
   ACTIVE:   { rotulo: 'Ativo',              classe: 'ativo' },
+  TRIAL:    { rotulo: 'Ativo',              classe: 'ativo' },
   PAST_DUE: { rotulo: 'Pagamento pendente', classe: 'pendente' },
   CANCELED: { rotulo: 'Cancelado',          classe: 'cancelado' },
   EXPIRED:  { rotulo: 'Cancelado',          classe: 'cancelado' },
+  // 'FREE' não é mais gravado como status (era um valor legado, confundia
+  // plano com status de ciclo de vida) — mantido aqui só pra não quebrar
+  // contas antigas que ainda tenham essa linha no banco.
+  FREE:     { rotulo: 'Ativo',              classe: 'ativo' },
 };
 
 const PLANOS_CATALOGO = [
-  { id: 'free',      nome: 'Free',      precoTexto: 'R$ 0/mês' },
+  { id: 'free',      nome: 'MEV Free',  precoTexto: 'R$ 0/mês' },
   { id: 'essencial', nome: 'Essencial', precoTexto: 'R$ 19,90/mês' },
   { id: 'pro',       nome: 'Pro',       precoTexto: 'R$ 39,90/mês' },
 ];
@@ -1017,14 +1020,23 @@ async function carregarTelaAssinatura() {
 }
 
 function telaAssinaturaHtml(a) {
-  const estado = ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' };
+  const ehPlanoGratuito = a.planoId === 'free';
+  // O plano FREE nunca deve exibir "cancelada": não há cobrança, então não
+  // existe cancelamento de verdade nesse plano — só existe "upgrade" ou
+  // "continuar no free". Isso protege a UI mesmo se algum dado antigo/
+  // inconsistente ainda tiver um status diferente de ACTIVE gravado.
+  const estado = ehPlanoGratuito
+    ? { rotulo: 'Plano Gratuito', classe: 'gratis' }
+    : (ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' });
+  const emCanceladoOuExpirado = !ehPlanoGratuito && (a.status === 'CANCELED' || a.status === 'EXPIRED');
+
   const preco = a.planoId === 'free' || !a.precoCentavos
     ? 'Grátis'
     : formatarMoeda(a.precoCentavos / 100) + '/mês';
 
   const proximaCobranca = a.planoId === 'free'
     ? 'Não se aplica (plano grátis)'
-    : (a.status === 'CANCELED' || a.status === 'EXPIRED')
+    : emCanceladoOuExpirado
       ? 'Assinatura cancelada — sem próxima cobrança'
       : formatarDataCurta(a.dataExpiracao);
 
@@ -1032,7 +1044,7 @@ function telaAssinaturaHtml(a) {
     ? 'Nenhuma — plano grátis não exige pagamento'
     : 'Cartão de crédito (gerenciado pelo seu gateway de pagamento)';
 
-  const podeAgir = a.status !== 'CANCELED';
+  const podeAgir = ehPlanoGratuito || a.status !== 'CANCELED';
 
   return `
     <div class="card-info card-plano-atual">
@@ -1054,11 +1066,11 @@ function telaAssinaturaHtml(a) {
       </div>
     </div>
 
-    ${a.status === 'PAST_DUE' ? `
+    ${(!ehPlanoGratuito && a.status === 'PAST_DUE') ? `
       <div class="aviso-assinatura aviso-pendente">
         ⚠️ Não conseguimos confirmar seu último pagamento. Regularize para não perder acesso à escrita de dados.
       </div>` : ''}
-    ${(a.status === 'CANCELED' || a.status === 'EXPIRED') ? `
+    ${emCanceladoOuExpirado ? `
       <div class="aviso-assinatura aviso-cancelado">
         Sua assinatura está cancelada. Escolha um plano abaixo para reativar o sistema.
       </div>` : ''}
@@ -1074,7 +1086,7 @@ function telaAssinaturaHtml(a) {
             </div>
             ${p.id === a.planoId && podeAgir
               ? '<span class="opcao-plano-tag">Plano atual</span>'
-              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${a.status === 'CANCELED' || a.status === 'EXPIRED' ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este')}</button>`
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este')}</button>`
             }
           </div>
         `).join('')}
@@ -1082,7 +1094,7 @@ function telaAssinaturaHtml(a) {
       <p class="erro" id="erroAssinatura" style="display:none;margin-top:10px;"></p>
     </div>
 
-    ${podeAgir ? `
+    ${(podeAgir && !ehPlanoGratuito) ? `
       <div class="card-info" id="cardCancelarAssinatura">
         <h3>Cancelar assinatura</h3>
         <p style="font-size:13.5px;color:var(--ink-soft,#5B6259);margin:0 0 12px;">
@@ -1094,7 +1106,7 @@ function telaAssinaturaHtml(a) {
   `;
 }
 
-const NOME_PLANO_FALLBACK = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
+const NOME_PLANO_FALLBACK = { free: 'MEV Free', essencial: 'Essencial', pro: 'Pro' };
 const PLANOS_ORDEM = { free: 0, essencial: 1, pro: 2 };
 
 function inicializarAcoesAssinatura() {
@@ -1171,7 +1183,7 @@ function gerarIniciaisEmail(email) {
 }
 
 function cartaoGestaoEquipeHtml() {
-  const nomePlano = (assinaturaCache && (assinaturaCache.planoNome || NOME_PLANO_FALLBACK[assinaturaCache.planoId])) || 'Free';
+  const nomePlano = (assinaturaCache && (assinaturaCache.planoNome || NOME_PLANO_FALLBACK[assinaturaCache.planoId])) || 'MEV Free';
   const maxMembros = (assinaturaCache && assinaturaCache.limiteMembros) || 1;
   return `
     <div class="card-info">

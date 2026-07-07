@@ -29,12 +29,17 @@ const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
-const ESTADOS_ASSINATURA = ['FREE', 'TRIAL', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED'];
+// Observação: 'FREE' não é um status de ciclo de vida — é um plano
+// (plano_id = 'free'). O status correto de uma assinatura do plano free é
+// 'ACTIVE' (ativa, só que sem cobrança). Mantemos 'FREE' na lista só por
+// compatibilidade com linhas antigas que ainda tiverem esse valor gravado.
+const ESTADOS_ASSINATURA = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'CANCELED', 'EXPIRED', 'FREE'];
 
 // Em quais estados a empresa ainda pode ESCREVER (vender, cadastrar produto,
 // etc). Fora desses, só leitura — ninguém perde o histórico, só para de
 // crescer o estoque/vendas até regularizar o pagamento.
-const ESTADOS_QUE_PERMITEM_ESCRITA = new Set(['FREE', 'TRIAL', 'ACTIVE', 'PAST_DUE']);
+// 'FREE' segue incluído por compatibilidade com dados antigos (ver acima).
+const ESTADOS_QUE_PERMITEM_ESCRITA = new Set(['ACTIVE', 'TRIAL', 'PAST_DUE', 'FREE']);
 
 const MENSAGENS_BLOQUEIO_ASSINATURA = {
   CANCELED: 'Sua assinatura foi cancelada. Reative um plano para voltar a cadastrar e vender.',
@@ -218,7 +223,11 @@ async function statusAssinatura(db, empresaId) {
     `)
     .bind(empresaId)
     .first();
-  return linha || { status: 'EXPIRED', planoId: 'free', dataExpiracao: null };
+  // Nenhuma assinatura encontrada não significa "cancelada" — significa que
+  // a empresa ainda não teve uma linha criada (ex.: conta antiga, migração
+  // incompleta). O padrão seguro é tratar como o plano FREE, ativo — nunca
+  // bloquear ou rotular como cancelado quem nunca assinou nada.
+  return linha || { status: 'ACTIVE', planoId: 'free', dataExpiracao: null };
 }
 
 /**
@@ -276,20 +285,21 @@ async function criarEmpresa(db, email, request) {
     .bind(empresaId, email)
     .run();
 
-  // Toda empresa nova nasce com uma assinatura FREE — sem isso,
-  // verificarPlano() não encontra plano nenhum e bloqueia tudo (402).
+  // Toda empresa nova nasce com uma assinatura FREE ativa (status ACTIVE) —
+  // sem isso, verificarPlano() não encontra plano nenhum e bloqueia tudo (402),
+  // e a tela de assinatura mostraria "cancelada" pra quem acabou de entrar.
   const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
   await db
     .prepare(`
       INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
-      VALUES (?, ?, ?, 'free', 'FREE', datetime('now'))
+      VALUES (?, ?, ?, 'free', 'ACTIVE', datetime('now'))
     `)
     .bind('sub-' + empresaId, empresaId, usuarioDono ? usuarioDono.id : null)
     .run();
 
   await db
     .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ? WHERE email = ?')
-    .bind('free', 'FREE', email)
+    .bind('free', 'ACTIVE', email)
     .run();
 
   return json({ email, empresaId, papel: 'dono', nomeEmpresa, plano: 'free' }, 201);
@@ -558,6 +568,13 @@ export async function onRequest(context) {
     const empresaId = membro.empresaId;
 
     if (acao === 'cancelar') {
+      // O plano FREE não tem cobrança, então não existe "cancelar" — isso
+      // evita que a assinatura de um usuário free vire CANCELED por engano
+      // (seja por um clique indevido, seja por uma chamada direta à API).
+      if (assinatura.planoId === 'free') {
+        return json({ error: 'O plano gratuito não pode ser cancelado — não há cobrança para interromper.' }, 400);
+      }
+
       await db
         .prepare(`
           UPDATE assinaturas
@@ -581,7 +598,9 @@ export async function onRequest(context) {
       }
 
       const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
-      const novoStatus = planoId === 'free' ? 'FREE' : 'ACTIVE';
+      // Toda assinatura (free ou paga) nasce com status ACTIVE — 'FREE'
+      // nunca foi um status de ciclo de vida válido, era o plano_id.
+      const novoStatus = 'ACTIVE';
 
       // Mensal, então "próxima cobrança" é ~30 dias a partir de agora.
       // (Isso é um cálculo local, sem gateway real integrado ainda — no dia

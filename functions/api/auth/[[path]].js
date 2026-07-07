@@ -127,6 +127,27 @@ async function garantirEmpresaEMembro(db, email, nomeSugestao) {
     .prepare("INSERT INTO membros (empresa_id, usuario_email, papel, criado_em) VALUES (?, ?, 'dono', datetime('now'))")
     .bind(empresaId, email)
     .run();
+
+  // Toda empresa nova nasce com uma assinatura do plano FREE já com status
+  // ACTIVE (o plano FREE nunca deveria estar "cancelado" — ele simplesmente
+  // não cobra nada e não vence). SEM ISSO, statusAssinatura() não encontra
+  // nenhuma linha em `assinaturas` pra essa empresa e cai no valor padrão de
+  // segurança (antes: 'EXPIRED'), fazendo a tela "Minha assinatura" mostrar
+  // "Cancelada" pra gente que acabou de criar a conta — este era o bug.
+  const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
+  await db
+    .prepare(`
+      INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
+      VALUES (?, ?, ?, 'free', 'ACTIVE', datetime('now'))
+    `)
+    .bind('sub-' + empresaId, empresaId, usuarioDono ? usuarioDono.id : null)
+    .run();
+
+  await db
+    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ? WHERE email = ?')
+    .bind('free', 'ACTIVE', email)
+    .run();
+
   return empresaId;
 }
 

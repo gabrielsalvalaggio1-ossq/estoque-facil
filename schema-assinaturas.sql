@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS planos (
 );
 
 INSERT OR IGNORE INTO planos (id, nome, preco_centavos, ciclo, limite_membros, recursos) VALUES
-  ('free',      'Free',      0,    'mensal', 1, '{"relatorios_fiado":false,"leitor_codigo_barras":false,"auditoria":false,"suporte":"email"}'),
+  ('free',      'MEV Free',  0,    'mensal', 1, '{"relatorios_fiado":false,"leitor_codigo_barras":false,"auditoria":false,"suporte":"email"}'),
   ('essencial', 'Essencial', 1990, 'mensal', 2, '{"relatorios_fiado":true,"leitor_codigo_barras":true,"auditoria":false,"suporte":"whatsapp"}'),
   ('pro',       'Pro',       3990, 'mensal', 5, '{"relatorios_fiado":true,"leitor_codigo_barras":true,"auditoria":true,"suporte":"prioritario"}');
 
@@ -76,7 +76,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_assinaturas_corrente_unica
 --    empresa da qual o usuário é dono.
 -- =========================================================================
 ALTER TABLE usuarios ADD COLUMN plano_atual            TEXT NOT NULL DEFAULT 'free';
-ALTER TABLE usuarios ADD COLUMN status_assinatura      TEXT NOT NULL DEFAULT 'FREE';
+ALTER TABLE usuarios ADD COLUMN status_assinatura      TEXT NOT NULL DEFAULT 'ACTIVE';
 ALTER TABLE usuarios ADD COLUMN data_inicio_assinatura TEXT;
 ALTER TABLE usuarios ADD COLUMN data_expiracao         TEXT;
 ALTER TABLE usuarios ADD COLUMN gateway_customer_id    TEXT;      -- id do cliente no gateway de pagamento
@@ -102,12 +102,12 @@ SELECT
     WHEN e.plano = 'equipe' THEN 'pro'                     -- nome legado do plano pago com equipe
     ELSE 'free'                                            -- 'gratis' e qualquer outro valor desconhecido
   END,
-  'FREE',
+  'ACTIVE',
   e.criado_em
 FROM empresas e
 JOIN usuarios u ON u.email = e.dono_email
 WHERE NOT EXISTS (SELECT 1 FROM assinaturas a WHERE a.empresa_id = e.id);
 
 UPDATE usuarios
-SET plano_atual = 'free', status_assinatura = 'FREE'
+SET plano_atual = 'free', status_assinatura = 'ACTIVE'
 WHERE email IN (SELECT dono_email FROM empresas);

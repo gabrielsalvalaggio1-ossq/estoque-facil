@@ -1725,14 +1725,10 @@ body.auth-page{
 #receiptWrap #btnVoltar{ padding:13px 0; border-radius:10px; margin-top:10px !important; }
 
 @media (min-width:641px){
-  /* Centraliza e padroniza a largura da própria tela de venda dentro do
-     espaço já reservado pelo dashboard desktop (ver #app main mais acima),
-     em vez de esticar o grid de produtos até a borda da tela toda. */
-  .page-venda{
-    max-width:900px;
-    margin:0 auto;
-    width:100%;
-  }
+  /* A tela de venda usa a mesma largura da tela de estoque (main já
+     controla isso) — antes tinha um max-width:900px + margin:auto aqui
+     que centralizava e encolhia o grid de produtos, deixando os cards
+     "flutuando" no meio da tela em vez de ocupar o espaço como no Estoque. */
 
   #receiptWrap{
     align-items:center;

@@ -788,7 +788,8 @@ main{
 .team-email{ font-size:13.5px; font-weight:500; color:var(--ink); word-break:break-all; }
 .team-you{ color:var(--ink-soft); font-weight:400; font-size:12px; }
 
-.team-actions{ flex-shrink:0; }
+.team-actions{ flex-shrink:0; display:flex; align-items:center; gap:2px; }
+.btn-editar-membro,
 .btn-remover-membro{
   width:32px; height:32px;
   border-radius:50%;
@@ -799,6 +800,8 @@ main{
   display:flex; align-items:center; justify-content:center;
   transition:background .15s ease, color .15s ease;
 }
+.btn-editar-membro:hover{ background:var(--paper-dim); color:var(--ledger); }
+.btn-editar-membro:focus-visible{ outline:2px solid var(--ledger); outline-offset:1px; }
 .btn-remover-membro:hover{ background:#F3DED6; color:var(--coral-deep); }
 .btn-remover-membro:focus-visible{ outline:2px solid var(--coral); outline-offset:1px; }
 
@@ -878,6 +881,24 @@ main{
 .team-confirm .btn-confirmar-sim{ background:var(--coral); color:#fff; }
 .team-confirm .btn-confirmar-sim:disabled{ opacity:0.6; }
 .team-confirm .btn-confirmar-nao{ background:var(--paper); color:var(--ink-soft); border:1px solid var(--line); }
+
+.team-edit{
+  display:flex; flex-direction:column; flex-wrap:wrap;
+  gap:8px;
+  width:100%;
+  padding:8px 2px;
+}
+.team-edit-label{ font-size:12.5px; color:var(--ink-soft); }
+.team-edit-actions{ display:flex; gap:8px; }
+.team-edit-actions button{
+  border:none; border-radius:8px;
+  padding:7px 14px;
+  font-size:12px; font-weight:600;
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+}
+.team-edit-actions .btn-salvar-membro:disabled{ opacity:0.6; }
+.btn-cancelar-edicao{ background:var(--paper); color:var(--ink-soft); border:1px solid var(--line); }
 
 /* --- Seletor de forma de pagamento (na cobrança) --- */
 .pay-label{

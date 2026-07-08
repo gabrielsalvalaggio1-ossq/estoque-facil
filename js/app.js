@@ -1408,6 +1408,9 @@ function linhaMembroHtml(membro, indice) {
       </div>
       ${ehEuMesmo ? '' : `
         <div class="team-actions">
+          <button type="button" class="btn-editar-membro" data-indice="${indice}" aria-label="Editar papel de ${escaparHtml(membro.email)}" title="Editar papel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+          </button>
           <button type="button" class="btn-remover-membro" data-indice="${indice}" aria-label="Remover ${escaparHtml(membro.email)} da equipe" title="Remover da equipe">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>
           </button>
@@ -1415,6 +1418,64 @@ function linhaMembroHtml(membro, indice) {
       `}
     </div>
   `;
+}
+
+// Papel escolhido durante a edição inline de um membro (linha "teamRowN"
+// vira um mini-formulário com toggle de papel + salvar/cancelar).
+let papelEdicaoSelecionado = 'vendedor';
+
+function pedirEdicaoPapelMembro(indice) {
+  const membro = membrosEquipeCache[indice];
+  const linha = document.getElementById(`teamRow${indice}`);
+  if (!membro || !linha) return;
+
+  papelEdicaoSelecionado = membro.papel === 'estoquista' ? 'estoquista' : 'vendedor';
+
+  linha.innerHTML = `
+    <div class="team-edit">
+      <span class="team-edit-label">Papel de ${escaparHtml(membro.email)}</span>
+      <div class="papel-toggle" id="papelEditToggle${indice}">
+        <button type="button" class="papel-opt ${papelEdicaoSelecionado === 'vendedor' ? 'selected' : ''}" data-papel="vendedor">Vendedor</button>
+        <button type="button" class="papel-opt ${papelEdicaoSelecionado === 'estoquista' ? 'selected' : ''}" data-papel="estoquista">Estoquista</button>
+      </div>
+      <div class="team-edit-actions">
+        <button type="button" class="btn primary btn-salvar-membro" data-indice="${indice}">Salvar</button>
+        <button type="button" class="btn-cancelar-edicao" data-indice="${indice}">Cancelar</button>
+      </div>
+    </div>
+  `;
+
+  linha.querySelectorAll(`#papelEditToggle${indice} .papel-opt`).forEach(botao => {
+    botao.addEventListener('click', () => {
+      papelEdicaoSelecionado = botao.dataset.papel;
+      linha.querySelectorAll(`#papelEditToggle${indice} .papel-opt`).forEach(b => {
+        b.classList.toggle('selected', b.dataset.papel === papelEdicaoSelecionado);
+      });
+    });
+  });
+
+  linha.querySelector('.btn-salvar-membro').addEventListener('click', () => confirmarEdicaoMembro(indice));
+  linha.querySelector('.btn-cancelar-edicao').addEventListener('click', () => carregarListaMembros());
+}
+
+async function confirmarEdicaoMembro(indice) {
+  const membro = membrosEquipeCache[indice];
+  if (!membro) return;
+
+  const linha = document.getElementById(`teamRow${indice}`);
+  const btnSalvar = linha ? linha.querySelector('.btn-salvar-membro') : null;
+  if (btnSalvar) {
+    btnSalvar.disabled = true;
+    btnSalvar.textContent = 'Salvando…';
+  }
+
+  try {
+    await DB.editarMembro(membro.email, papelEdicaoSelecionado);
+    await carregarListaMembros();
+  } catch (erro) {
+    mostrarErroEquipe(erro.message || 'Não foi possível editar esse membro.');
+    await carregarListaMembros();
+  }
 }
 
 async function carregarListaMembros() {
@@ -1431,6 +1492,9 @@ async function carregarListaMembros() {
     container.innerHTML = membrosEquipeCache.map((m, i) => linhaMembroHtml(m, i)).join('');
     container.querySelectorAll('.btn-remover-membro').forEach(botao => {
       botao.addEventListener('click', () => pedirConfirmacaoRemoverMembro(Number(botao.dataset.indice)));
+    });
+    container.querySelectorAll('.btn-editar-membro').forEach(botao => {
+      botao.addEventListener('click', () => pedirEdicaoPapelMembro(Number(botao.dataset.indice)));
     });
   } catch (erro) {
     container.innerHTML = `<p class="erro" style="margin:0;">${escaparHtml(erro.message || 'Não foi possível carregar a equipe.')}</p>`;
@@ -1752,6 +1816,7 @@ const ROTULOS_ACAO_ATIVIDADE = {
   atualizou: '✏️ Editou',
   excluiu: '🗑️ Excluiu',
   adicionou_membro: '👥 Adicionou à equipe',
+  editou_membro: '✏️ Editou papel na equipe',
   removeu_membro: '👤 Removeu da equipe',
   mudou_plano: '💳 Mudou de plano',
   cancelou_assinatura: '💳 Cancelou assinatura',

@@ -115,6 +115,15 @@ async function adicionarMembro(email, papel) {
   return tratarResposta(resp);
 }
 
+async function editarMembro(email, papel) {
+  const resp = await fetch(`/api/membros/${encodeURIComponent(email)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ papel })
+  });
+  return tratarResposta(resp);
+}
+
 async function removerMembro(email) {
   const resp = await fetch(`/api/membros/${encodeURIComponent(email)}`, {
     method: 'DELETE'
@@ -209,6 +218,7 @@ window.DB = {
   criarEmpresa,
   listarMembros,
   adicionarMembro,
+  editarMembro,
   removerMembro,
   buscarAssinatura,
   mudarPlano,

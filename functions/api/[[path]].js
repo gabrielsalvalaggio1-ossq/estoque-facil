@@ -432,6 +432,70 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
     return json({ email, papel }, 201);
   }
 
+  // PUT /api/membros/:email — edita o papel de um membro já existente.
+  if (request.method === 'PUT' && emailAlvo) {
+    const emailDecodificado = decodeURIComponent(emailAlvo).trim().toLowerCase();
+
+    let corpo;
+    try {
+      corpo = await request.json();
+    } catch (e) {
+      return json({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+
+    const papel = corpo && corpo.papel;
+    if (!PAPEIS_VALIDOS.includes(papel)) {
+      return json({ error: `Papel inválido. Use um destes: ${PAPEIS_VALIDOS.join(', ')}.` }, 400);
+    }
+
+    const alvo = await db
+      .prepare('SELECT papel FROM membros WHERE empresa_id = ? AND usuario_email = ?')
+      .bind(empresaId, emailDecodificado)
+      .first();
+
+    if (!alvo) {
+      return json({ error: 'Esse e-mail não é membro da sua empresa.' }, 404);
+    }
+
+    // Nunca deixar a empresa sem nenhum dono ao rebaixar o único dono.
+    if (alvo.papel === 'dono' && papel !== 'dono') {
+      const totalDonos = await contarDonos(db, empresaId);
+      if (totalDonos <= 1) {
+        return json({ error: 'Não é possível rebaixar o único dono da empresa.' }, 400);
+      }
+    }
+
+    // Promover alguém pra um papel diferente de "dono" (vendedor/estoquista
+    // com permissões limitadas) exige o mesmo plano que adicionar exige.
+    if (papel !== 'dono') {
+      const checagemPapel = await verificarPlano(db, empresaId, 'papel_diferenciado');
+      if (!checagemPapel.permitido) {
+        return json({
+          error: checagemPapel.error,
+          recurso: checagemPapel.recurso,
+          planoAtual: checagemPapel.planoAtual,
+          planoNecessario: checagemPapel.planoNecessario,
+        }, checagemPapel.status);
+      }
+    }
+
+    if (alvo.papel === papel) {
+      return json({ email: emailDecodificado, papel });
+    }
+
+    await db
+      .prepare('UPDATE membros SET papel = ? WHERE empresa_id = ? AND usuario_email = ?')
+      .bind(papel, empresaId, emailDecodificado)
+      .run();
+
+    await registrarAtividade(db, {
+      empresaId, email: emailLogado, papel: membro.papel, acao: 'editou_membro', store: 'membros', registroId: emailDecodificado,
+      descricao: `Alterou o papel de ${emailDecodificado} de ${ROTULOS_PAPEL[alvo.papel] || alvo.papel} para ${ROTULOS_PAPEL[papel] || papel}`,
+    });
+
+    return json({ email: emailDecodificado, papel });
+  }
+
   // DELETE /api/membros/:email — remove um membro.
   if (request.method === 'DELETE' && emailAlvo) {
     const emailDecodificado = decodeURIComponent(emailAlvo).trim().toLowerCase();

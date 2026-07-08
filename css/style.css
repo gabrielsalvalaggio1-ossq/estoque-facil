@@ -1835,7 +1835,7 @@ body.auth-page{
 }
 /* --- Módulo de Importação de Produtos (wizard) --- */
 .import-modal{ max-width:640px; }
-.import-modal h2{ margin-bottom:4px; }
+.import-modal h2{ margin-bottom:0px; }
 
 .import-origens{
   display:grid; grid-template-columns:1fr 1fr; gap:10px;

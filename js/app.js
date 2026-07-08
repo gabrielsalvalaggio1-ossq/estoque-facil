@@ -2970,10 +2970,15 @@ document.addEventListener('keydown', (e) => {
  * Esconde as abas que o papel da pessoa logada não deveria ver:
  * vendedor só mexe em Venda, estoquista só mexe em Estoque, dono vê tudo.
  * Conta e Contato ficam liberados pra todo mundo.
+ * Recursos pagos (aba Atividades e importação de produtos) ficam ocultos
+ * para usuários no plano gratuito.
  */
 function aplicarRestricoesDePapel(papel) {
+  const ehPlanoPago = usuarioLogadoPlano && usuarioLogadoPlano !== 'gratis' && usuarioLogadoPlano !== 'free';
+
   const abasPorPapel = {
-    dono: ['estoque', 'venda', 'historico', 'atividades', 'conta', 'assinatura', 'contato'],
+    // Aba Atividades só aparece para donos em planos pagos
+    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };
@@ -2983,9 +2988,9 @@ function aplicarRestricoesDePapel(papel) {
     botao.style.display = permitidas.includes(botao.dataset.tab) ? '' : 'none';
   });
 
-  // Importação de Produtos segue a mesma regra de acesso do cadastro de
-  // produtos: dono e estoquista podem, vendedor não vê a opção.
-  const podeImportar = papel === 'dono' || papel === 'estoquista';
+  // Importação de Produtos: dono e estoquista podem pelo papel,
+  // mas apenas em planos pagos (recurso premium).
+  const podeImportar = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
   document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
     botao.style.display = podeImportar ? '' : 'none';
   });

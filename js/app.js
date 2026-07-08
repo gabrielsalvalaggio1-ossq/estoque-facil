@@ -1879,21 +1879,48 @@ function baixarCsv(nomeArquivo, conteudo) {
 
 function abrirMenuExportar() {
   const dataArquivo = new Date().toISOString().slice(0, 10);
+  const ehPlanoPago = usuarioLogadoPlano && usuarioLogadoPlano !== 'gratis' && usuarioLogadoPlano !== 'free';
+
   const wrap = document.createElement('div');
   wrap.className = 'modal-wrap';
   wrap.id = 'exportWrap';
   wrap.innerHTML = `
-    <div class="export-menu">
+    <div class="modal">
       <h2>Exportar dados</h2>
-      <p class="hint">Escolha o que você quer baixar em planilha (CSV).</p>
-      <button class="opt" id="expEstoque">Estoque atual<span class="d">Produto, categoria, quantidade e histórico de entradas/saídas</span></button>
-      <button class="opt" id="expMovimentos">Movimentações<span class="d">Todo histórico de entradas e saídas, com data e motivo</span></button>
-      <button class="opt" id="expVendas">Vendas do período<span class="d">Respeita o filtro de período aberto na aba Histórico</span></button>
-      <button class="opt" id="expClientes">Clientes<span class="d">Total de compras e valor gasto por cliente</span></button>
-      <button class="btn ghost" id="btnFecharExport">Fechar</button>
-    </div>`;
-  document.body.appendChild(wrap);
+      <p class="hint" style="margin:-8px 0 16px;">Escolha o que você quer baixar em planilha (CSV).</p>
 
+      <button class="opt" id="expEstoque">
+        📦 Estoque atual
+        <span class="d">Produto, categoria, quantidade e histórico de entradas/saídas</span>
+      </button>
+      <button class="opt" id="expMovimentos">
+        🔄 Movimentações
+        <span class="d">Todo histórico de entradas e saídas, com data e motivo</span>
+      </button>
+      <button class="opt" id="expVendas">
+        🧾 Vendas do período
+        <span class="d">Respeita o filtro de período aberto na aba Histórico</span>
+      </button>
+      <button class="opt" id="expClientes">
+        👤 Clientes
+        <span class="d">Total de compras e valor gasto por cliente</span>
+      </button>
+
+      ${ehPlanoPago ? `
+      <div class="secao-avancada-titulo" style="margin:16px 0 10px;">Recursos do plano pago</div>
+      <button class="opt" id="expVendedor">
+        🏷️ Vendas por vendedor
+        <span class="d">Filtra e exporta as vendas de um vendedor específico</span>
+      </button>` : `
+      <div style="margin-top:16px; padding:12px 14px; background:var(--paper-dim); border:1px solid var(--line); border-radius:10px;">
+        <p style="margin:0 0 4px; font-weight:600; font-size:13px;">🔒 Vendas por vendedor</p>
+        <p style="margin:0; font-size:12px; color:var(--ink-soft);">Disponível nos planos pagos. <a href="planos.html" style="color:var(--accent);">Ver planos →</a></p>
+      </div>`}
+
+      <button class="btn ghost" id="btnFecharExport" style="width:100%; margin-top:14px;">Fechar</button>
+    </div>`;
+
+  document.body.appendChild(wrap);
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
   document.getElementById('btnFecharExport').addEventListener('click', () => wrap.remove());
 
@@ -1921,6 +1948,85 @@ function abrirMenuExportar() {
     const historico = Vendas.calcularHistoricoClientes(vendasCache);
     if (historico.length === 0) { mostrarToast('Ainda não há vendas com nome de cliente registrado.', 'info'); return; }
     baixarCsv(`clientes-${dataArquivo}.csv`, Vendas.gerarCsvClientes(vendasCache));
+    wrap.remove();
+  });
+
+  if (ehPlanoPago) {
+    document.getElementById('expVendedor').addEventListener('click', () => {
+      wrap.remove();
+      abrirExportarPorVendedor(dataArquivo);
+    });
+  }
+}
+function abrirExportarPorVendedor(dataArquivo) {
+  // Guarda de segurança: nunca executa para plano gratuito,
+  // mesmo que alguém chame a função diretamente.
+  const ehPlanoPago = usuarioLogadoPlano && usuarioLogadoPlano !== 'gratis' && usuarioLogadoPlano !== 'free';
+  if (!ehPlanoPago) {
+    mostrarToast('Recurso disponível apenas nos planos pagos.', 'info');
+    return;
+  }
+
+  const vendedores = Vendas.listarVendedores(vendasCache);
+  if (vendedores.length === 0) {
+    mostrarToast('Nenhuma venda com vendedor identificado ainda.', 'info');
+    return;
+  }
+
+  const dataRef = dataArquivo || new Date().toISOString().slice(0, 10);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap';
+  wrap.id = 'exportVendedorWrap';
+  wrap.innerHTML = `
+    <div class="modal">
+      <h2>Exportar por vendedor</h2>
+      <p class="hint" style="margin:-8px 0 16px;">Selecione o vendedor e o período para exportar.</p>
+
+      <div class="field">
+        <label for="selVendedor">Vendedor</label>
+        <select id="selVendedor" class="filtro-select" style="width:100%;">
+          <option value="">— Todos os vendedores —</option>
+          ${vendedores.map(v => `<option value="${escaparHtml(v)}">${escaparHtml(v)}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="selPeriodoVendedor">Período</label>
+        <select id="selPeriodoVendedor" class="filtro-select" style="width:100%;">
+          <option value="todas">Todo o histórico</option>
+          <option value="hoje">Hoje</option>
+          <option value="semana">Últimos 7 dias</option>
+          <option value="mes">Este mês</option>
+        </select>
+      </div>
+
+      <div class="row2" style="gap:8px; margin-top:6px;">
+        <button class="btn ghost" id="btnVoltarExport">← Voltar</button>
+        <button class="btn primary" id="btnConfirmarExportVendedor">Exportar CSV</button>
+      </div>
+    </div>`;
+
+  document.body.appendChild(wrap);
+  wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+
+  document.getElementById('btnVoltarExport').addEventListener('click', () => {
+    wrap.remove();
+    abrirMenuExportar();
+  });
+
+  document.getElementById('btnConfirmarExportVendedor').addEventListener('click', () => {
+    const vendedor = document.getElementById('selVendedor').value;
+    const periodo  = document.getElementById('selPeriodoVendedor').value;
+
+    const filtradas = Vendas.filtrarVendas(vendasCache, { periodo, vendedor });
+    if (filtradas.length === 0) {
+      mostrarToast('Nenhuma venda encontrada com esse filtro.', 'info');
+      return;
+    }
+
+    const sufixoVendedor = vendedor ? `-${vendedor.replace(/\s+/g, '_')}` : '-todos';
+    baixarCsv(`vendas${sufixoVendedor}-${dataRef}.csv`, Vendas.gerarCsvVendas(filtradas));
     wrap.remove();
   });
 }

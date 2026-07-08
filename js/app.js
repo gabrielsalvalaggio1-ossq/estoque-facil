@@ -659,7 +659,7 @@ else if (abaAtual === 'venda') {
           <p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>
         </div>
 
-        ${usuarioLogadoPapel === 'dono' ? `
+        ${usuarioLogadoPapel === 'dono' && produtosCache.length === 0 ? `
         <div class="card-info">
           <h3>Dados de demonstração</h3>
           <p>Quer ver o sistema funcionando com produtos de exemplo? Isso não apaga nada do que você já cadastrou.</p>

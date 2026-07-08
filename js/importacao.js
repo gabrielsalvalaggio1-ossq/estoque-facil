@@ -404,12 +404,12 @@ function carregarPdfJs() {
   if (_pdfJsPromise) return _pdfJsPromise;
   _pdfJsPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.min.js';
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
     script.onload = () => {
       // O worker precisa ser apontado explicitamente pro PDF.js processar
       // o PDF fora da thread principal (senão trava a UI em PDFs grandes).
       window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168/pdf.worker.min.js';
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
       resolve(window.pdfjsLib);
     };
     script.onerror = () => reject(new Error('Não foi possível carregar o leitor de PDF. Verifique sua conexão.'));

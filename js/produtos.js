@@ -184,39 +184,32 @@ async function excluirProduto(id) {
  * seguro e evita esperar uma cadeia de requisições em série.
  */
 async function darBaixaEstoque(itens) {
-  await Promise.all(itens.map(async (item) => {
-    const produto = await DB.buscarPorId(DB.STORES.PRODUTOS, item.produtoId);
-    if (!produto) return;
-    produto.estoque = Math.max(0, produto.estoque - item.quantidade);
-    produto.totalSaidas = (produto.totalSaidas || 0) + item.quantidade;
-    produto.atualizadoEm = new Date().toISOString();
-    await DB.atualizar(DB.STORES.PRODUTOS, produto);
+  // Processados em série (não em paralelo) para que vendas do mesmo produto
+  // no mesmo carrinho não colidam entre si. A atomicidade contra outros
+  // vendedores simultâneos é garantida pelo UPDATE atômico no servidor (C-03).
+  for (const item of itens) {
+    const produto = await DB.atualizarEstoque(item.produtoId, -item.quantidade, item.quantidade);
     await registrarMovimento({
-      produtoId: produto.id, nomeProduto: produto.nome,
+      produtoId: item.produtoId, nomeProduto: produto?.nome || item.produtoId,
       tipo: 'saida', quantidade: item.quantidade, motivo: 'venda'
     });
-  }));
+  }
 }
 
 /**
  * Devolve ao estoque os itens de uma venda cancelada.
  * Usado por Vendas.cancelarVenda — mantém o histórico consistente,
- * desfazendo a saída registrada no momento da venda. Mesma lógica de
- * paralelização de darBaixaEstoque, pelo mesmo motivo.
+ * desfazendo a saída registrada no momento da venda. Usa o mesmo UPDATE
+ * atômico de darBaixaEstoque para evitar race condition no cancelamento.
  */
 async function restaurarEstoque(itens) {
-  await Promise.all(itens.map(async (item) => {
-    const produto = await DB.buscarPorId(DB.STORES.PRODUTOS, item.produtoId);
-    if (!produto) return;
-    produto.estoque = produto.estoque + item.quantidade;
-    produto.totalSaidas = Math.max(0, (produto.totalSaidas || 0) - item.quantidade);
-    produto.atualizadoEm = new Date().toISOString();
-    await DB.atualizar(DB.STORES.PRODUTOS, produto);
+  for (const item of itens) {
+    const produto = await DB.atualizarEstoque(item.produtoId, item.quantidade, -item.quantidade);
     await registrarMovimento({
-      produtoId: produto.id, nomeProduto: produto.nome,
+      produtoId: item.produtoId, nomeProduto: produto?.nome || item.produtoId,
       tipo: 'entrada', quantidade: item.quantidade, motivo: 'cancelamento'
     });
-  }));
+  }
 }
 
 function calcularEstatisticas(produtos) {

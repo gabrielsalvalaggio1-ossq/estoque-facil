@@ -64,6 +64,24 @@ async function atualizar(storeName, registro) {
   return tratarResposta(resp);
 }
 
+/**
+ * Atualização atômica de estoque — substitui o padrão read-modify-write
+ * que sofria de race condition quando dois vendedores vendiam o mesmo produto
+ * simultaneamente. O UPDATE é executado no banco de forma atômica.
+ *
+ * @param {string} produtoId
+ * @param {number} delta       Negativo = saída (venda), positivo = entrada (restauração)
+ * @param {number} saidasDelta Variação em totalSaidas (positivo em saída, negativo em restauração)
+ */
+async function atualizarEstoque(produtoId, delta, saidasDelta) {
+  const resp = await fetch(`/api/produtos/${encodeURIComponent(produtoId)}/estoque`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ delta, saidasDelta }),
+  });
+  return tratarResposta(resp);
+}
+
 async function remover(storeName, id) {
   const resp = await fetch(`/api/${storeName}/${encodeURIComponent(id)}`, {
     method: 'DELETE'
@@ -211,6 +229,7 @@ window.DB = {
   gerarId,
   adicionar,
   atualizar,
+  atualizarEstoque,
   remover,
   listarTodos,
   buscarPorId,

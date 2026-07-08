@@ -717,7 +717,7 @@ async function fazerLogout() {
 }
 
 let usuarioLogadoEmail = '';
-let usuarioLogadoPapel = 'dono'; // 'dono' | 'vendedor' | 'estoquista' — padrão otimista até a API responder
+let usuarioLogadoPapel = null; // null enquanto carrega; depois: 'dono' | 'vendedor' | 'estoquista'
 let usuarioLogadoPlano = 'gratis'; // 'gratis' | 'equipe' — só importa pra quem é "dono"
 
 async function cancelarVendaComConfirmacao(id) {
@@ -3107,7 +3107,10 @@ function aplicarRestricoesDePapel(papel) {
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };
-  const permitidas = abasPorPapel[papel] || abasPorPapel.dono;
+  // null = ainda carregando: esconde todas as abas até o papel real chegar.
+  // Evita que vendedores/estoquistas vejam brevemente abas de dono durante o
+  // tempo entre o carregamento do JS e a resposta de /api/me.
+  const permitidas = papel === null ? [] : (abasPorPapel[papel] || abasPorPapel.dono);
 
   document.querySelectorAll('[data-tab]').forEach(botao => {
     botao.style.display = permitidas.includes(botao.dataset.tab) ? '' : 'none';

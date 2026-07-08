@@ -290,7 +290,13 @@ function json(dados, status = 200) {
 async function resolverMembro(db, email) {
   const linha = await db
     .prepare(`
-      SELECT m.empresa_id AS empresaId, m.papel AS papel, e.nome AS nomeEmpresa, e.plano AS plano,
+      SELECT m.empresa_id AS empresaId, m.papel AS papel, e.nome AS nomeEmpresa,
+             COALESCE(
+               (SELECT plano_id FROM assinaturas
+                WHERE empresa_id = e.id AND status IN ('ACTIVE','TRIALING')
+                ORDER BY criado_em DESC LIMIT 1),
+               e.plano, 'gratis'
+             ) AS plano,
              e.dono_email AS donoEmail,
              (SELECT u.nome FROM usuarios u WHERE u.email = e.dono_email) AS nomeDono
       FROM membros m
@@ -978,6 +984,66 @@ export async function onRequest(context) {
       .bind(...binds)
       .all();
     return json(results);
+  }
+
+  // PATCH /api/produtos/:id/estoque — atualização atômica de estoque (C-03)
+  // Substitui o padrão read-modify-write que sofria de race condition.
+  // Aceita { delta: number, saidasDelta: number }:
+  //   delta negativo = saída (venda)   | delta positivo = entrada (restauração)
+  // O UPDATE é atômico no SQLite/D1: sem race condition entre vendedores paralelos.
+  if (primeiro === 'produtos' && partes[1] && partes[2] === 'estoque' && request.method === 'PATCH') {
+    const produtoId = partes[1];
+    let corpo;
+    try { corpo = await request.json(); } catch {
+      return json({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+    const { delta, saidasDelta } = corpo;
+    if (typeof delta !== 'number' || typeof saidasDelta !== 'number') {
+      return json({ error: 'Campos "delta" e "saidasDelta" são obrigatórios (número).' }, 400);
+    }
+    // Vendedor só pode reduzir estoque (saída de venda)
+    if (membro.papel === 'vendedor' && delta > 0) {
+      return json({ error: 'Vendedor não pode adicionar estoque diretamente.' }, 403);
+    }
+
+    const empresaIdPatch = membro.empresaId;
+
+    // UPDATE atômico: a condição no WHERE garante que saídas só acontecem
+    // se houver estoque suficiente — elimina a race condition de overselling.
+    const resultado = await db.prepare(`
+      UPDATE registros
+      SET dados = json_set(dados,
+        '$.estoque',     MAX(0, CAST(json_extract(dados, '$.estoque')     AS REAL) + ?),
+        '$.totalSaidas', MAX(0, COALESCE(CAST(json_extract(dados, '$.totalSaidas') AS REAL), 0) + ?)
+      )
+      WHERE empresa_id = ? AND store = 'produtos' AND id = ?
+        AND (? >= 0 OR CAST(json_extract(dados, '$.estoque') AS REAL) >= ABS(?))
+    `).bind(delta, saidasDelta, empresaIdPatch, produtoId, delta, delta).run();
+
+    if (resultado.meta.changes === 0) {
+      // Nenhuma linha atualizada: produto não existe ou estoque insuficiente
+      const existe = await db.prepare(
+        'SELECT 1 FROM registros WHERE empresa_id = ? AND store = ? AND id = ?'
+      ).bind(empresaIdPatch, 'produtos', produtoId).first();
+      if (!existe) return json({ error: 'Produto não encontrado.' }, 404);
+      return json({ error: 'Estoque insuficiente para esta operação.' }, 409);
+    }
+
+    // Retorna o produto atualizado
+    const linha = await db.prepare(
+      'SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?'
+    ).bind(empresaIdPatch, 'produtos', produtoId).first();
+    const produtoAtualizado = JSON.parse(linha.dados);
+
+    await registrarAtividade(db, {
+      empresaId: empresaIdPatch, email, papel: membro.papel,
+      acao: delta < 0 ? 'atualizou' : 'atualizou', store: 'produtos', registroId: produtoId,
+      descricao: delta < 0
+        ? `Baixou estoque de "${produtoAtualizado.nome || produtoId}" em ${Math.abs(delta)} unidade(s) por venda`
+        : `Restaurou estoque de "${produtoAtualizado.nome || produtoId}" em ${delta} unidade(s) por cancelamento`,
+    });
+
+    return json(produtoAtualizado);
   }
 
   const store = primeiro;

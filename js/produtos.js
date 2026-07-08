@@ -271,15 +271,30 @@ function listarCategorias(produtos) {
   return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
 }
 
+/** Rótulo usado para agrupar/exibir produtos sem fornecedor definido. */
+const SEM_FORNECEDOR = 'Sem fornecedor';
+
+/** Lista de fornecedores distintos já usados, para popular o filtro/sugestões. */
+function listarFornecedores(produtos) {
+  const set = new Set(
+    produtos
+      .map(p => (p.fornecedor && String(p.fornecedor).trim()) || '')
+      .filter(f => f !== '')
+  );
+  return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
 /**
- * Aplica busca por nome + filtro de categoria + filtro de disponibilidade
- * sobre a lista de produtos. Tudo em memória, pensado para ser instantâneo.
+ * Aplica busca por nome + filtro de categoria + filtro de fornecedor +
+ * filtro de disponibilidade sobre a lista de produtos. Tudo em memória,
+ * pensado para ser instantâneo.
  */
-function filtrarProdutos(produtos, { busca = '', categoria = '', situacao = 'todos' } = {}) {
+function filtrarProdutos(produtos, { busca = '', categoria = '', fornecedor = '', situacao = 'todos' } = {}) {
   const termo = busca.trim().toLowerCase();
   return produtos.filter(p => {
     if (termo && !p.nome.toLowerCase().includes(termo)) return false;
     if (categoria && (p.categoria || CATEGORIA_PADRAO) !== categoria) return false;
+    if (fornecedor && ((p.fornecedor && String(p.fornecedor).trim()) || SEM_FORNECEDOR) !== fornecedor) return false;
     const baixo = p.estoque <= (p.estoqueMinimo || 0);
     if (situacao === 'baixo' && !baixo) return false;
     if (situacao === 'disponivel' && (p.estoque <= 0 || baixo)) return false;
@@ -309,18 +324,19 @@ function calcularMaisVendidos(vendas, limite = 3) {
  */
 function gerarCsvEstoque(produtos) {
   const linhas = [
-    ['Produto', 'Categoria', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas', 'Preço de venda', 'Preço de custo', 'Lucro unitário'].join(';')
+    ['Produto', 'Categoria', 'Fornecedor', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas', 'Preço de venda', 'Preço de custo', 'Lucro unitário'].join(';')
   ];
   produtos.forEach(p => {
     const nome = String(p.nome || '').replace(/;/g, ',');
     const categoria = String(p.categoria || CATEGORIA_PADRAO).replace(/;/g, ',');
+    const fornecedor = String(p.fornecedor || '').replace(/;/g, ',');
     const codigo = String(p.codigoBarras || '').replace(/;/g, ',');
     const unidade = p.unidade === 'kg' ? 'kg' : 'un';
     const precoCusto = p.precoCusto !== null && p.precoCusto !== undefined ? String(p.precoCusto).replace('.', ',') : '';
     const lucro = calcularLucroUnitario(p);
     const lucroTexto = lucro !== null ? String(lucro.toFixed(2)).replace('.', ',') : '';
     linhas.push([
-      nome, categoria, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0,
+      nome, categoria, fornecedor, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0,
       String(p.preco).replace('.', ','), precoCusto, lucroTexto
     ].join(';'));
   });
@@ -348,6 +364,7 @@ function gerarCsvMovimentos(movimentos) {
 
 window.Produtos = {
   CATEGORIA_PADRAO,
+  SEM_FORNECEDOR,
   listarProdutos,
   criarProduto,
   editarProduto,
@@ -356,6 +373,7 @@ window.Produtos = {
   restaurarEstoque,
   calcularEstatisticas,
   listarCategorias,
+  listarFornecedores,
   filtrarProdutos,
   calcularMaisVendidos,
   buscarPorCodigoBarras,

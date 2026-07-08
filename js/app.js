@@ -11,7 +11,7 @@ let abaAtual = 'estoque';
 let idEmEdicao = null;
 let formaPagamentoEscolhida = 'dinheiro';
 
-let filtroEstoque = { busca: '', categoria: '', situacao: 'todos' };
+let filtroEstoque = { busca: '', categoria: '', fornecedor: '', situacao: 'todos', agrupar: 'nenhum' };
 let filtroVendas = { periodo: 'todas', status: 'todas' };
 
 // Estado do wizard de Importação de Produtos (ver seção "Importação de
@@ -297,6 +297,7 @@ function renderizarAbas() {
 
 function barraFiltrosEstoque() {
   const categorias = Produtos.listarCategorias(produtosCache);
+  const fornecedores = Produtos.listarFornecedores(produtosCache);
   return `
     <div class="filtros">
       <input type="text" id="campoBusca" class="campo-busca" placeholder="Buscar produto..."
@@ -305,6 +306,17 @@ function barraFiltrosEstoque() {
       <select id="seletorCategoria" class="filtro-select" onchange="aplicarFiltroEstoque()">
         <option value="">Todas as categorias</option>
         ${categorias.map(c => `<option value="${escaparHtml(c)}" ${c === filtroEstoque.categoria ? 'selected' : ''}>${escaparHtml(c)}</option>`).join('')}
+      </select>` : ''}
+      ${fornecedores.length > 0 ? `
+      <select id="seletorFornecedor" class="filtro-select" onchange="aplicarFiltroEstoque()">
+        <option value="">Todos os fornecedores</option>
+        ${fornecedores.map(f => `<option value="${escaparHtml(f)}" ${f === filtroEstoque.fornecedor ? 'selected' : ''}>${escaparHtml(f)}</option>`).join('')}
+      </select>` : ''}
+      ${(categorias.length > 1 || fornecedores.length > 0) ? `
+      <select id="seletorAgrupar" class="filtro-select" onchange="aplicarFiltroEstoque()">
+        <option value="nenhum" ${filtroEstoque.agrupar === 'nenhum' ? 'selected' : ''}>Não agrupar</option>
+        <option value="categoria" ${filtroEstoque.agrupar === 'categoria' ? 'selected' : ''}>Agrupar por categoria</option>
+        ${fornecedores.length > 0 ? `<option value="fornecedor" ${filtroEstoque.agrupar === 'fornecedor' ? 'selected' : ''}>Agrupar por fornecedor</option>` : ''}
       </select>` : ''}
       <div class="chips">
         <button class="chip ${filtroEstoque.situacao === 'todos' ? 'active' : ''}" onclick="definirSituacaoEstoque('todos')">Todos</button>
@@ -323,8 +335,12 @@ function definirSituacaoEstoque(situacao) {
 function aplicarFiltroEstoque() {
   const campoBusca = document.getElementById('campoBusca');
   const seletorCategoria = document.getElementById('seletorCategoria');
+  const seletorFornecedor = document.getElementById('seletorFornecedor');
+  const seletorAgrupar = document.getElementById('seletorAgrupar');
   filtroEstoque.busca = campoBusca ? campoBusca.value : '';
   filtroEstoque.categoria = seletorCategoria ? seletorCategoria.value : '';
+  filtroEstoque.fornecedor = seletorFornecedor ? seletorFornecedor.value : '';
+  filtroEstoque.agrupar = seletorAgrupar ? seletorAgrupar.value : 'nenhum';
   atualizarListaProdutos();
 }
 
@@ -336,9 +352,31 @@ function atualizarListaProdutos() {
     container.innerHTML = telaVaziaEstoque();
   } else if (filtrados.length === 0) {
     container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado com esse filtro.</div>';
+  } else if (filtroEstoque.agrupar === 'categoria' || filtroEstoque.agrupar === 'fornecedor') {
+    container.innerHTML = agruparProdutosEstoqueHtml(filtrados, filtroEstoque.agrupar);
   } else {
     container.innerHTML = filtrados.map(cartaoProdutoEstoque).join('');
   }
+}
+
+/** Agrupa os produtos da aba Estoque em seções por categoria ou fornecedor,
+ *  reaproveitando os cartões normais de gestão de estoque dentro de cada grupo. */
+function agruparProdutosEstoqueHtml(produtos, tipo) {
+  const agrupado = {};
+  produtos.forEach(p => {
+    const chave = tipo === 'fornecedor'
+      ? ((p.fornecedor && String(p.fornecedor).trim()) || Produtos.SEM_FORNECEDOR)
+      : (p.categoria || Produtos.CATEGORIA_PADRAO);
+    if (!agrupado[chave]) agrupado[chave] = [];
+    agrupado[chave].push(p);
+  });
+  const chaves = Object.keys(agrupado).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  return chaves.map(chave => `
+    <div class="categoria-grupo">
+      <h3 class="categoria-titulo">${escaparHtml(chave)}</h3>
+      ${agrupado[chave].map(cartaoProdutoEstoque).join('')}
+    </div>
+  `).join('');
 }
 
 function telaVaziaEstoque() {
@@ -368,6 +406,9 @@ function formatarQuantidadeEstoque(produto) {
 function cartaoProdutoEstoque(produto) {
   const estoqueBaixo = produto.estoque <= (produto.estoqueMinimo || 0);
   const categoria = produto.categoria || Produtos.CATEGORIA_PADRAO;
+  const fornecedorTag = (produto.fornecedor && String(produto.fornecedor).trim())
+    ? `<span class="cat fornecedor-tag">${escaparHtml(produto.fornecedor)}</span>`
+    : '';
   const miniatura = produto.imagem
     ? `<img src="${produto.imagem}" alt="" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
@@ -383,6 +424,7 @@ function cartaoProdutoEstoque(produto) {
           <span class="price">${formatarMoeda(produto.preco)}${produto.unidade === 'kg' ? '/kg' : ''}</span>
           <span class="stock ${estoqueBaixo ? 'low' : ''}">${formatarQuantidadeEstoque(produto)} em estoque</span>
           <span class="cat">${escaparHtml(categoria)}</span>
+          ${fornecedorTag}
         </div>
       </div>
     </div>`;
@@ -396,6 +438,7 @@ function cartaoProdutoEstoque(produto) {
         <span class="price">${formatarMoeda(produto.preco)}${produto.unidade === 'kg' ? '/kg' : ''}</span>
         <span class="stock ${estoqueBaixo ? 'low' : ''}">${formatarQuantidadeEstoque(produto)} em estoque</span>
         <span class="cat">${escaparHtml(categoria)}</span>
+        ${fornecedorTag}
       </div>
     </div>
     <span class="edit-hint" aria-hidden="true">
@@ -845,6 +888,7 @@ function abrirModalProduto(produto) {
   imagemPendente = produto ? (produto.imagem || null) : null;
   unidadeSelecionada = produto && produto.unidade === 'kg' ? 'kg' : 'un';
   const categorias = Produtos.listarCategorias(produtosCache);
+  const fornecedores = Produtos.listarFornecedores(produtosCache);
 
   const wrap = document.createElement('div');
   wrap.className = 'modal-wrap';
@@ -891,7 +935,7 @@ function abrirModalProduto(produto) {
       </div>
       <p class="hint-unidade" id="hintUnidade" style="display:${produto && produto.unidade === 'kg' ? 'block' : 'none'};">Preço por kg. Quantidade em estoque também em kg (ex: 12.5).</p>
 
-      <button type="button" class="link-mais-opcoes" id="btnMaisOpcoes">+ Informações avançadas (custo, categoria, código de barras, aviso de estoque)</button>
+      <button type="button" class="link-mais-opcoes" id="btnMaisOpcoes">+ Informações avançadas (custo, categoria, fornecedor, código de barras, aviso de estoque)</button>
 
       <div class="opcoes-avancadas" id="opcoesAvancadas" hidden>
         <p class="secao-avancada-titulo">Informações Avançadas</p>
@@ -922,6 +966,15 @@ function abrirModalProduto(produto) {
             </datalist>
           </div>
         </div>
+        <div class="field">
+          <label for="fFornecedor">Fornecedor</label>
+          <input id="fFornecedor" type="text" list="listaFornecedores" placeholder="Ex: Distribuidora Sul"
+            value="${produto ? escaparHtml(produto.fornecedor || '') : ''}">
+          <datalist id="listaFornecedores">
+            ${fornecedores.map(f => `<option value="${escaparHtml(f)}">`).join('')}
+          </datalist>
+        </div>
+
         <div class="field">
           <label for="fCodigoBarras">Código de barras</label>
           <div class="input-com-botao">
@@ -1003,11 +1056,11 @@ function abrirModalProduto(produto) {
     const painel = document.getElementById('opcoesAvancadas');
     const abrir = painel.hidden;
     painel.hidden = !abrir;
-    e.target.textContent = abrir ? '– Ocultar informações avançadas' : '+ Informações avançadas (custo, categoria, código de barras, aviso de estoque)';
+    e.target.textContent = abrir ? '– Ocultar informações avançadas' : '+ Informações avançadas (custo, categoria, fornecedor, código de barras, aviso de estoque)';
     if (abrir) avaliarAvisoCusto();
   });
   // Se o produto já tem custo, categoria personalizada, código de barras, mínimo ou dimensões definidas, mostra aberto.
-  if (produto && (produto.precoCusto != null || produto.categoria || produto.estoqueMinimo || produto.codigoBarras || (produto.dimensoes && Object.values(produto.dimensoes).some(v => v !== null && v !== undefined && v !== '')))) {
+  if (produto && (produto.precoCusto != null || produto.categoria || produto.fornecedor || produto.estoqueMinimo || produto.codigoBarras || (produto.dimensoes && Object.values(produto.dimensoes).some(v => v !== null && v !== undefined && v !== '')))) {
     document.getElementById('opcoesAvancadas').hidden = false;
     document.getElementById('btnMaisOpcoes').textContent = '– Ocultar informações avançadas';
     avaliarAvisoCusto();
@@ -1597,10 +1650,12 @@ async function salvarFormularioProduto() {
     : parseInt(document.getElementById('fEstoque').value, 10);
   const campoMinimo = document.getElementById('fMinimo');
   const campoCategoria = document.getElementById('fCategoria');
+  const campoFornecedor = document.getElementById('fFornecedor');
   const campoCodigo = document.getElementById('fCodigoBarras');
   const campoPrecoCusto = document.getElementById('fPrecoCusto');
   const estoqueMinimo = campoMinimo ? parseInt(campoMinimo.value, 10) : NaN;
   const categoria = campoCategoria ? campoCategoria.value : '';
+  const fornecedor = campoFornecedor ? campoFornecedor.value.trim() : '';
   const codigoBarras = campoCodigo ? campoCodigo.value.trim() : '';
   // Campo mascarado ("1.234,56") — convertido pro número em reais que o
   // resto do sistema usa. `null` quando a pessoa deixou em branco.
@@ -1632,9 +1687,9 @@ async function salvarFormularioProduto() {
 
   try {
     if (idEmEdicao) {
-      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
+      await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, fornecedor, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
     } else {
-      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
+      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, fornecedor, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
     }
     await recarregarDados();
     fecharModal();

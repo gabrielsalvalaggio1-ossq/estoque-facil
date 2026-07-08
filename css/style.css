@@ -1029,6 +1029,15 @@ main{
   color:var(--ink-soft);
 }
 
+/* --- Fornecedor no cartão do produto (mesma pílula da categoria, em itálico pra diferenciar) --- */
+.product-card .meta .cat.fornecedor-tag{
+  font-style:italic;
+}
+.product-card .meta .cat.fornecedor-tag::before{
+  content:"· ";
+  font-style:normal;
+}
+
 /* --- Resumo financeiro (aba Vendas) --- */
 .resumo{
   background:var(--ledger);

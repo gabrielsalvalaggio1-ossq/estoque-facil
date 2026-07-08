@@ -298,17 +298,48 @@ export async function onRequest(context) {
         return json({ error: 'Variáveis GOOGLE_CLIENT_ID/GOOGLE_REDIRECT não configuradas neste projeto.' }, 500);
       }
 
+      // Gera um valor aleatório para proteger contra CSRF (RFC 6749 §10.12).
+      // O valor é salvo num cookie httpOnly de curta duração (5 min) e
+      // incluído na URL do Google — no callback verificamos que os dois batem.
+      const state = crypto.randomUUID();
+
       const googleUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       googleUrl.searchParams.set('client_id', clientId);
       googleUrl.searchParams.set('redirect_uri', redirectUri);
       googleUrl.searchParams.set('response_type', 'code');
       googleUrl.searchParams.set('scope', 'email profile');
+      googleUrl.searchParams.set('state', state);
 
-      return Response.redirect(googleUrl.toString(), 302);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          'Set-Cookie': `oauth_state=${state}; Path=/api/auth/; HttpOnly; Secure; SameSite=Lax; Max-Age=300`,
+          'Location': googleUrl.toString()
+        }
+      });
     }
 
     // ---------- GET /api/auth/google/callback ----------
     if (rota === 'google' && partes[1] === 'callback') {
+      // Verificação CSRF: o state que o Google devolve deve bater com o que
+      // guardamos no cookie httpOnly ao iniciar o fluxo.
+      // Apenas GET é esperado nesta rota (o Google redireciona via GET)
+      if (request.method !== 'GET') return json({ error: 'Método não permitido.' }, 405);
+
+      // Verificação CSRF: extrai o cookie com parse rigoroso (boundary exato)
+      // para evitar colisão com cookies de nome similar.
+      const stateGoogle = url.searchParams.get('state');
+      const cookieHeader = request.headers.get('Cookie') || '';
+      const stateCookie = cookieHeader
+        .split(';')
+        .map(c => c.trim())
+        .find(c => c.startsWith('oauth_state='))
+        ?.slice('oauth_state='.length);
+
+      if (!stateGoogle || !stateCookie || stateGoogle !== stateCookie) {
+        return json({ error: 'Verificação de segurança falhou (state inválido). Tente fazer login novamente.' }, 403);
+      }
+
       const code = url.searchParams.get('code');
       if (!code) return json({ error: 'Google não retornou "code".' }, 400);
 
@@ -325,7 +356,10 @@ export async function onRequest(context) {
       });
       const token = await tokenResp.json();
       if (!token.access_token) {
-        return json({ error: 'Falha ao trocar code por token.', detalhe: token }, 400);
+        // Não expõe o payload do Google ao cliente — loga internamente e devolve
+        // mensagem genérica para evitar vazamento de detalhes do provedor.
+        console.error('[OAuth] Falha na troca de code por token:', JSON.stringify(token));
+        return json({ error: 'Falha ao autenticar com o Google. Tente novamente.' }, 400);
       }
 
       const userResp = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
@@ -348,13 +382,14 @@ export async function onRequest(context) {
       await garantirEmpresaEMembro(db, googleUser.email, googleUser.name ? `Loja de ${googleUser.name}` : null);
       const tokenSessao = await criarSessao(db, usuario.id, request);
 
-      return new Response(null, {
-        status: 302,
-        headers: {
-          'Set-Cookie': cookieDeSessao(tokenSessao),
-          'Location': '/index.html'
-        }
-      });
+      // Usa dois Set-Cookie separados: um para a sessão, outro para limpar o
+      // cookie de state (evita que fique guardado além do necessário).
+      const resHeaders = new Headers();
+      resHeaders.append('Set-Cookie', cookieDeSessao(tokenSessao));
+      resHeaders.append('Set-Cookie', 'oauth_state=; Path=/api/auth/; HttpOnly; Secure; SameSite=Lax; Max-Age=0');
+      resHeaders.set('Location', '/index.html');
+
+      return new Response(null, { status: 302, headers: resHeaders });
     }
 
     // ---------- POST /api/auth/logout ----------

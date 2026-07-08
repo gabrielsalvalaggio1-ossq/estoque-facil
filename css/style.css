@@ -2038,3 +2038,44 @@ body.auth-page{
   margin:0 0 18px !important;
   line-height:1.4 !important;
 }
+
+/* ── Toast de notificação (substitui alert()) ── */
+.app-toast{
+  position:fixed;
+  bottom:80px;
+  left:50%; transform:translateX(-50%) translateY(16px);
+  background:var(--ledger);
+  color:var(--paper);
+  padding:13px 20px;
+  border-radius:12px;
+  font-size:14px; line-height:1.4;
+  max-width:calc(100vw - 32px);
+  text-align:center;
+  z-index:200;
+  box-shadow:0 4px 20px rgba(0,0,0,0.28);
+  opacity:0;
+  transition:opacity 0.18s, transform 0.18s;
+  cursor:pointer;
+  user-select:none;
+}
+.app-toast--visivel{ opacity:1; transform:translateX(-50%) translateY(0); }
+.app-toast--erro{ background:var(--coral-deep); }
+.app-toast--sucesso{ background:#1B7A4F; }
+
+/* ── Diálogo de confirmação (substitui confirm()) ── */
+.confirm-dialog{
+  background:var(--paper);
+  border-radius:16px;
+  padding:24px 20px 20px;
+  width:100%; max-width:320px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.22);
+}
+.confirm-dialog .confirm-msg{
+  margin:0 0 20px;
+  font-size:15px; line-height:1.5;
+  color:var(--ink);
+}
+.confirm-dialog .confirm-actions{
+  display:flex; gap:10px;
+}
+.confirm-dialog .confirm-actions .btn{ flex:1; }

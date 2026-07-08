@@ -103,6 +103,63 @@ function numeroParaValorMonetario(numero) {
   return Number(numero).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+/** Formata um número de bytes em KB / MB legível para o usuário. */
+function tamanhoLegivel(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// --- Notificações e diálogos do próprio app (substituem alert / confirm nativos) ---
+
+/**
+ * Exibe uma notificação temporária no fundo da tela.
+ * Não bloqueia a thread — o usuário pode continuar interagindo.
+ * tipo: 'info' | 'erro' | 'sucesso'
+ */
+function mostrarToast(mensagem, tipo = 'info') {
+  document.getElementById('appToast')?.remove();
+  const el = document.createElement('div');
+  el.id = 'appToast';
+  el.className = `app-toast app-toast--${tipo}`;
+  el.textContent = mensagem;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('app-toast--visivel'));
+  const fechar = () => {
+    el.classList.remove('app-toast--visivel');
+    el.addEventListener('transitionend', () => el.remove(), { once: true });
+  };
+  el.addEventListener('click', fechar);
+  setTimeout(fechar, 4000);
+}
+
+/**
+ * Exibe um diálogo de confirmação dentro do app (substitui confirm()).
+ * Retorna Promise<boolean> — true se o usuário confirmou, false se cancelou.
+ * opcoes: { confirmText, cancelText, tipo ('perigo' | 'default') }
+ */
+function mostrarConfirm(mensagem, { confirmText = 'Confirmar', cancelText = 'Cancelar', tipo = 'default' } = {}) {
+  return new Promise((resolver) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap modal-wrap-centro';
+    wrap.innerHTML = `
+      <div class="confirm-dialog">
+        <p class="confirm-msg">${escaparHtml(mensagem)}</p>
+        <div class="confirm-actions">
+          <button class="btn ghost" id="confirmNao">${escaparHtml(cancelText)}</button>
+          <button class="btn ${tipo === 'perigo' ? 'danger' : 'primary'}" id="confirmSim">${escaparHtml(confirmText)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+    const fechar = (resultado) => { wrap.remove(); resolver(resultado); };
+    document.getElementById('confirmNao').addEventListener('click', () => fechar(false));
+    document.getElementById('confirmSim').addEventListener('click', () => fechar(true));
+    // Clique no fundo escuro cancela (o handler global de ESC também funciona
+    // porque o wrap usa a classe .modal-wrap e o evento é target === wrap)
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) fechar(false); });
+  });
+}
+
 // --- Foto do produto ---
 
 /**
@@ -244,11 +301,11 @@ function abrirScannerParaVender() {
   abrirScanner((codigo) => {
     const produto = Produtos.buscarPorCodigoBarras(produtosCache, codigo);
     if (!produto) {
-      alert(`Nenhum produto cadastrado com o código ${codigo}.`);
+      mostrarToast(`Nenhum produto cadastrado com o código ${codigo}.`, 'erro');
       return;
     }
     if (produto.estoque <= 0) {
-      alert(`${produto.nome} está sem estoque.`);
+      mostrarToast(`${produto.nome} está sem estoque.`, 'info');
       return;
     }
     abaAtual = 'venda';
@@ -637,7 +694,7 @@ function linhaVenda(venda) {
 }
 
 async function fazerLogout() {
-  if (!confirm('Sair da sua conta?')) return;
+  if (!await mostrarConfirm('Sair da sua conta?', { confirmText: 'Sair', cancelText: 'Cancelar', tipo: 'perigo' })) return;
   try {
     // Encerra a sessão de verdade no servidor (apaga a linha em "sessoes" e
     // limpa o cookie), antes de voltar pra tela de login.
@@ -655,7 +712,7 @@ let usuarioLogadoPlano = 'gratis'; // 'gratis' | 'equipe' — só importa pra qu
 
 async function cancelarVendaComConfirmacao(id) {
   if (cancelamentoEmAndamento.has(id)) return; // já está cancelando essa venda
-  if (!confirm('Cancelar esta venda? O estoque dos produtos será devolvido.')) return;
+  if (!await mostrarConfirm('Cancelar esta venda? O estoque dos produtos será devolvido.', { confirmText: 'Cancelar venda', cancelText: 'Voltar', tipo: 'perigo' })) return;
 
   cancelamentoEmAndamento.add(id);
   try {
@@ -663,7 +720,7 @@ async function cancelarVendaComConfirmacao(id) {
     await recarregarDados();
     renderizarTudo();
   } catch (erro) {
-    alert(erro.message || 'Não foi possível cancelar a venda. Verifique sua conexão e tente novamente.');
+    mostrarToast(erro.message || 'Não foi possível cancelar a venda. Verifique sua conexão e tente novamente.', 'erro');
   } finally {
     cancelamentoEmAndamento.delete(id);
   }
@@ -1083,7 +1140,7 @@ function abrirModalProduto(produto) {
       imagemPendente = await comprimirImagem(arquivo);
       atualizarPreviewFoto();
     } catch (e) {
-      alert('Não foi possível usar essa foto. Tente outra.');
+      mostrarToast('Não foi possível usar essa foto. Tente outra.', 'erro');
     }
   };
   inputCamera.addEventListener('change', () => processarArquivoFoto(inputCamera));
@@ -1706,7 +1763,7 @@ async function salvarFormularioProduto() {
 }
 
 async function excluirProdutoComConfirmacao(id) {
-  if (!confirm('Excluir este produto do estoque?')) return;
+  if (!await mostrarConfirm('Excluir este produto do estoque?', { confirmText: 'Excluir', cancelText: 'Cancelar', tipo: 'perigo' })) return;
   await Produtos.excluirProduto(id);
   delete carrinho[id];
   await recarregarDados();
@@ -1799,7 +1856,7 @@ function abrirComprovante() {
       wrap.remove();
       renderizarTudo();
     } catch (erro) {
-      alert(erro.message || 'Não foi possível registrar a venda. Verifique sua conexão e tente novamente.');
+      mostrarToast(erro.message || 'Não foi possível registrar a venda. Verifique sua conexão e tente novamente.', 'erro');
       btn.disabled = false;
       btn.textContent = textoOriginal;
     }
@@ -1841,28 +1898,28 @@ function abrirMenuExportar() {
   document.getElementById('btnFecharExport').addEventListener('click', () => wrap.remove());
 
   document.getElementById('expEstoque').addEventListener('click', () => {
-    if (produtosCache.length === 0) { alert('Cadastre ao menos um produto para exportar.'); return; }
+    if (produtosCache.length === 0) { mostrarToast('Cadastre ao menos um produto para exportar.', 'info'); return; }
     baixarCsv(`estoque-${dataArquivo}.csv`, Produtos.gerarCsvEstoque(produtosCache));
     wrap.remove();
   });
 
   document.getElementById('expMovimentos').addEventListener('click', async () => {
     const movimentos = await Produtos.listarMovimentos();
-    if (movimentos.length === 0) { alert('Ainda não há movimentações registradas.'); return; }
+    if (movimentos.length === 0) { mostrarToast('Ainda não há movimentações registradas.', 'info'); return; }
     baixarCsv(`movimentacoes-${dataArquivo}.csv`, Produtos.gerarCsvMovimentos(movimentos));
     wrap.remove();
   });
 
   document.getElementById('expVendas').addEventListener('click', () => {
     const vendasDoPeriodo = Vendas.filtrarVendas(vendasCache, filtroVendas);
-    if (vendasDoPeriodo.length === 0) { alert('Nenhuma venda no período selecionado na aba Histórico.'); return; }
+    if (vendasDoPeriodo.length === 0) { mostrarToast('Nenhuma venda no período selecionado na aba Histórico.', 'info'); return; }
     baixarCsv(`vendas-${dataArquivo}.csv`, Vendas.gerarCsvVendas(vendasDoPeriodo));
     wrap.remove();
   });
 
   document.getElementById('expClientes').addEventListener('click', () => {
     const historico = Vendas.calcularHistoricoClientes(vendasCache);
-    if (historico.length === 0) { alert('Ainda não há vendas com nome de cliente registrado.'); return; }
+    if (historico.length === 0) { mostrarToast('Ainda não há vendas com nome de cliente registrado.', 'info'); return; }
     baixarCsv(`clientes-${dataArquivo}.csv`, Vendas.gerarCsvClientes(vendasCache));
     wrap.remove();
   });
@@ -2041,10 +2098,11 @@ function abrirOnboarding() {
  */
 async function carregarDadosExemplo(botao) {
   if (produtosCache.length > 0) {
-    const confirmar = confirm(
+    const confirmar = await mostrarConfirm(
       `Você já tem ${produtosCache.length} produto(s) cadastrado(s). ` +
       `Carregar os dados de exemplo vai ADICIONAR novos produtos de demonstração ` +
-      `sem apagar os que você já tem. Deseja continuar?`
+      `sem apagar os que você já tem. Deseja continuar?`,
+      { confirmText: 'Continuar', cancelText: 'Cancelar' }
     );
     if (!confirmar) return false;
   }
@@ -2061,13 +2119,14 @@ async function carregarDadosExemplo(botao) {
     }
     await recarregarDados();
     renderizarTudo();
-    alert('Dados de exemplo carregados com sucesso! 🎉');
+    mostrarToast('Dados de exemplo carregados com sucesso! 🎉', 'sucesso');
     return true;
   } catch (erro) {
-    alert(
+    mostrarToast(
       erro && erro.message
         ? `Não foi possível carregar os dados de exemplo: ${erro.message}`
-        : 'Não foi possível carregar os dados de exemplo. Verifique sua conexão e tente novamente.'
+        : 'Não foi possível carregar os dados de exemplo. Verifique sua conexão e tente novamente.',
+      'erro'
     );
     return false;
   } finally {
@@ -2650,7 +2709,7 @@ function conectarEventosDoPasso(passo) {
     if (btnExportar) {
       btnExportar.addEventListener('click', () => {
         Importacao.exportarErrosXlsx(estadoImportacao.resultado.erros).catch(erro => {
-          alert((erro && erro.message) || 'Não foi possível exportar os erros.');
+          mostrarToast((erro && erro.message) || 'Não foi possível exportar os erros.', 'erro');
         });
       });
     }
@@ -2854,7 +2913,7 @@ function imprimirEtiquetas(itens, modeloId, config) {
   const documentoHtml = Etiquetas.gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa);
   const janela = window.open('', '_blank');
   if (!janela) {
-    alert('Não foi possível abrir a janela de impressão. Verifique se o navegador está bloqueando pop-ups.');
+    mostrarToast('Não foi possível abrir a janela de impressão. Verifique se o navegador está bloqueando pop-ups.', 'info');
     return;
   }
   janela.document.open();

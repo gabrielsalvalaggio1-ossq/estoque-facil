@@ -1083,6 +1083,26 @@ export async function onRequest(context) {
       registro.atualizado_por = email;
       registro.atualizado_em = new Date().toISOString();
 
+      // O PUT usa UPSERT — se o ID não existe ainda, seria uma criação disfarçada.
+      // Aplicamos o mesmo check de limite do POST para fechar esse bypass.
+      if (store === 'produtos') {
+        const existe = await db
+          .prepare('SELECT id FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+          .bind(empresaId, store, id)
+          .first();
+        if (!existe) {
+          const checagem = await verificarPlano(db, empresaId, 'produtos');
+          if (!checagem.permitido) {
+            return json({
+              error: checagem.error,
+              recurso: 'produtos',
+              planoAtual: checagem.planoAtual,
+              planoNecessario: checagem.planoNecessario,
+            }, checagem.status);
+          }
+        }
+      }
+
       await db
         .prepare(`
           INSERT INTO registros (id, empresa_id, usuario_email, store, dados, atualizado_em)

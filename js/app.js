@@ -797,7 +797,7 @@ else if (abaAtual === 'venda') {
         <div class="card-info">
           <h3>Resumo rápido</h3>
           <p>Total em vendas hoje: ${formatarMoeda(Vendas.calcularVendasDoDia(vendasCache))}</p>
-          <p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>
+          ${usuarioLogadoPapel === 'dono' ? `<p>Total no mês: ${formatarMoeda(Vendas.calcularVendasDoMes(vendasCache))}</p>` : ''}
         </div>
 
         ${usuarioLogadoPapel === 'dono' && produtosCache.length === 0 ? `
@@ -3115,6 +3115,13 @@ function aplicarRestricoesDePapel(papel) {
   document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
     botao.style.display = podeImportar ? '' : 'none';
   });
+
+  // KPI "Vendido no mês" e Exportar: só o dono vê
+  const ehFuncionario = papel === 'vendedor' || papel === 'estoquista';
+  const statMesWrap = document.getElementById('statMes')?.closest('.stat');
+  if (statMesWrap) statMesWrap.style.display = ehFuncionario ? 'none' : '';
+  document.getElementById('btnExportar')?.style && (document.getElementById('btnExportar').style.display = ehFuncionario ? 'none' : '');
+  document.getElementById('btnExportarSidebar')?.style && (document.getElementById('btnExportarSidebar').style.display = ehFuncionario ? 'none' : '');
 
   if (!permitidas.includes(abaAtual)) {
     abaAtual = permitidas[0];

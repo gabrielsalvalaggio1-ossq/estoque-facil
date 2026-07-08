@@ -633,7 +633,7 @@ async function parsearPdfDanfe(arquivo) {
   };
 }
 
-window.Importacao1 = {
+window.Importacao = {
   CAMPOS_PRODUTO,
   parsearCsv,
   parsearXlsx,

@@ -34,6 +34,26 @@ const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
+// --- Validação de campos que acabam renderizados como atributo HTML no
+// front-end (produto.id, venda.id, produto.imagem). Sem isso, o servidor
+// aceitava qualquer string do cliente nesses campos, abrindo espaço para
+// XSS armazenado quando esse valor era inserido sem escape em atributos
+// como onclick/src. Restringe apenas o formato — não muda nenhum fluxo,
+// pois o `id` gerado pelo front-end (DB.gerarId() em js/db.js) e a
+// `imagem` gerada pela câmera/galeria (comprimirImagem() em js/app.js,
+// sempre "data:image/jpeg;base64,...") já respeitam essas regras.
+const ID_REGISTRO_REGEX = /^[A-Za-z0-9_-]{1,64}$/;
+const IMAGEM_DATA_URI_REGEX = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]{1,2000000}$/;
+
+function idDeRegistroValido(id) {
+  return typeof id === 'string' && ID_REGISTRO_REGEX.test(id);
+}
+
+function imagemValida(imagem) {
+  if (imagem === null || imagem === undefined || imagem === '') return true; // campo opcional
+  return typeof imagem === 'string' && IMAGEM_DATA_URI_REGEX.test(imagem);
+}
+
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
 const ESTADOS_ASSINATURA = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'CANCELED', 'EXPIRED', 'FREE'];
 
@@ -949,8 +969,14 @@ export async function onRequest(context) {
       if (!registro || !registro.id) {
         return json({ error: 'Registro precisa ter um campo "id".' }, 400);
       }
+      if (!idDeRegistroValido(registro.id)) {
+        return json({ error: 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).' }, 400);
+      }
 
       if (store === 'produtos') {
+        if (!imagemValida(registro.imagem)) {
+          return json({ error: 'Campo "imagem" inválido.' }, 400);
+        }
         const checagemProdutos = await verificarPlano(db, empresaId, 'produtos');
         if (!checagemProdutos.permitido) {
           return json({
@@ -979,11 +1005,23 @@ export async function onRequest(context) {
     }
 
     if (request.method === 'PUT' && id) {
+      if (!idDeRegistroValido(id)) {
+        return json({ error: 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).' }, 400);
+      }
       const registro = await request.json();
+      // O "id" da URL é sempre a chave de verdade do registro (usada no
+      // WHERE/ON CONFLICT abaixo). Forçamos o mesmo valor dentro do JSON
+      // salvo em `dados`, em vez de confiar num "id" que o corpo da
+      // requisição possa ter enviado divergente — é esse "id" de dentro do
+      // JSON que volta pro front-end e é renderizado em atributos HTML.
+      registro.id = id;
       registro.atualizado_por = email;
       registro.atualizado_em = new Date().toISOString();
 
       if (store === 'produtos') {
+        if (!imagemValida(registro.imagem)) {
+          return json({ error: 'Campo "imagem" inválido.' }, 400);
+        }
         const existe = await db
           .prepare('SELECT id FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
           .bind(empresaId, store, id)

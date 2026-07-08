@@ -479,12 +479,12 @@ function cartaoProdutoEstoque(produto) {
     ? `<span class="cat fornecedor-tag">${escaparHtml(produto.fornecedor)}</span>`
     : '';
   const miniatura = produto.imagem
-    ? `<img src="${produto.imagem}" alt="" class="thumb">`
+    ? `<img src="${escaparHtml(produto.imagem)}" alt="" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
 
   if (modoSelecaoEtiquetas) {
     const marcado = produtosSelecionadosEtiquetas.has(produto.id);
-    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="alternarSelecaoProdutoEtiqueta('${produto.id}')">
+    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="alternarSelecaoProdutoEtiqueta('${escaparHtml(produto.id)}')">
       <span class="selecao-check" aria-hidden="true">${marcado ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
       ${miniatura}
       <div class="info">
@@ -499,7 +499,7 @@ function cartaoProdutoEstoque(produto) {
     </div>`;
   }
 
-  return `<div class="product-card" onclick="abrirEdicao('${produto.id}')">
+  return `<div class="product-card" onclick="abrirEdicao('${escaparHtml(produto.id)}')">
     ${miniatura}
     <div class="info">
       <div class="name">${escaparHtml(produto.nome)}</div>
@@ -572,8 +572,10 @@ function cartaoProdutoVenda(produto) {
   const semMaisAdicionar = qtd >= produto.estoque;
 
   const img = produto.imagem
-    ? `<img src="${produto.imagem}" class="thumb">`
+    ? `<img src="${escaparHtml(produto.imagem)}" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
+
+  const idEscapado = escaparHtml(produto.id);
 
   let acoes;
   if (qtd > 0 && ehPeso) {
@@ -582,18 +584,18 @@ function cartaoProdutoVenda(produto) {
     acoes = `
       <div class="qty-peso">
         <input type="number" class="input-peso" inputmode="decimal" step="0.001" min="0" max="${produto.estoque}"
-          value="${qtd}" onchange="definirQuantidadeCarrinho('${produto.id}', this.value)">
+          value="${qtd}" onchange="definirQuantidadeCarrinho('${idEscapado}', this.value)">
         <span class="unid-peso">kg</span>
-        <button class="qtybtn" onclick="removerDoCarrinho('${produto.id}')" title="Remover do carrinho">×</button>
+        <button class="qtybtn" onclick="removerDoCarrinho('${idEscapado}')" title="Remover do carrinho">×</button>
       </div>`;
   } else if (qtd > 0) {
     acoes = `
-      <button class="qtybtn" onclick="alterarCarrinho('${produto.id}', -1)">−</button>
+      <button class="qtybtn" onclick="alterarCarrinho('${idEscapado}', -1)">−</button>
       <span class="qtd">${qtd}</span>
-      <button class="qtybtn add" onclick="alterarCarrinho('${produto.id}', 1)" ${semMaisAdicionar ? 'disabled' : ''}>+</button>`;
+      <button class="qtybtn add" onclick="alterarCarrinho('${idEscapado}', 1)" ${semMaisAdicionar ? 'disabled' : ''}>+</button>`;
   } else {
     acoes = `
-      <button class="sellbtn" onclick="${ehPeso ? `venderPeso('${produto.id}')` : `alterarCarrinho('${produto.id}', 1)`}" ${estoqueZerado ? 'disabled' : ''}>
+      <button class="sellbtn" onclick="${ehPeso ? `venderPeso('${idEscapado}')` : `alterarCarrinho('${idEscapado}', 1)`}" ${estoqueZerado ? 'disabled' : ''}>
         Vender
       </button>`;
   }
@@ -696,7 +698,7 @@ function linhaVenda(venda) {
     </div>
     <div class="right">
       <div class="t">${formatarMoeda(venda.total)}</div>
-      ${!cancelada ? `<button class="btnCancelarVenda" onclick="cancelarVendaComConfirmacao('${venda.id}')">Cancelar</button>` : ''}
+      ${!cancelada ? `<button class="btnCancelarVenda" onclick="cancelarVendaComConfirmacao('${escaparHtml(venda.id)}')">Cancelar</button>` : ''}
     </div>
   </div>`;
 }
@@ -968,7 +970,7 @@ function abrirModalProduto(produto) {
 
       <div class="foto-area">
         <div class="foto-preview" id="fotoPreview">
-          ${imagemPendente ? `<img src="${imagemPendente}" alt="">` : ICONE_PRODUTO_PLACEHOLDER}
+          ${imagemPendente ? `<img src="${escaparHtml(imagemPendente)}" alt="">` : ICONE_PRODUTO_PLACEHOLDER}
         </div>
         <div class="foto-botoes">
           <button type="button" class="btn ghost btn-sm" id="btnTirarFoto">📷 Tirar foto</button>
@@ -1179,7 +1181,7 @@ function abrirModalProduto(produto) {
 /** Atualiza a área de pré-visualização da foto e os botões (mostra/some "Remover"). */
 function atualizarPreviewFoto() {
   const preview = document.getElementById('fotoPreview');
-  preview.innerHTML = imagemPendente ? `<img src="${imagemPendente}" alt="">` : ICONE_PRODUTO_PLACEHOLDER;
+  preview.innerHTML = imagemPendente ? `<img src="${escaparHtml(imagemPendente)}" alt="">` : ICONE_PRODUTO_PLACEHOLDER;
 
   const botoesWrap = document.querySelector('.foto-botoes');
   const jaTemRemover = document.getElementById('btnRemoverFoto');

@@ -266,6 +266,16 @@ export async function onRequest(context) {
         return json({ ok: false, error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' }, 429);
       }
 
+      // Rate limiting por e-mail: bloqueia força-bruta distribuída (vários IPs,
+      // mesmo alvo). 20 tentativas por hora por e-mail é generoso o suficiente
+      // para uso legítimo, mas eficaz contra ataques de credential stuffing.
+      if (email) {
+        const bloqueadoPorEmail = await verificarRateLimit(db, `login:email:${String(email).toLowerCase()}`, 20, 3600);
+        if (bloqueadoPorEmail) {
+          return json({ ok: false, error: 'Muitas tentativas para esse e-mail. Aguarde uma hora ou redefina sua senha.' }, 429);
+        }
+      }
+
       const usuario = await db
         .prepare('SELECT id, nome, email, senha_hash FROM usuarios WHERE email = ?')
         .bind(email).first();
@@ -364,7 +374,7 @@ export async function onRequest(context) {
       if (!token.access_token) {
         // Não expõe o payload do Google ao cliente — loga internamente e devolve
         // mensagem genérica para evitar vazamento de detalhes do provedor.
-        console.error('[OAuth] Falha na troca de code por token:', JSON.stringify(token));
+        console.error('[OAuth] Falha na troca de code por token:', token.error || 'desconhecido', token.error_description || '');
         return json({ error: 'Falha ao autenticar com o Google. Tente novamente.' }, 400);
       }
 

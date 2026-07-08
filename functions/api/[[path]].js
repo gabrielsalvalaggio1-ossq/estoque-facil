@@ -1109,10 +1109,19 @@ export async function onRequest(context) {
         try { produtoAtual = JSON.parse(linhaAtual.dados); } catch {
           return json({ error: 'Erro interno: registro corrompido.' }, 500);
         }
+
+        // I-06: bloqueia venda quando o estoque atual (no banco) é zero.
+        // O cliente pode ter lido o estoque antes de outro vendedor dar baixa,
+        // por isso a verificação é feita aqui com o valor real do banco.
+        const novoEstoque = typeof registro.estoque === 'number' ? registro.estoque : produtoAtual.estoque;
+        if (novoEstoque < 0 || (produtoAtual.estoque <= 0 && novoEstoque <= 0)) {
+          return json({ error: `Estoque insuficiente para "${produtoAtual.nome || 'produto'}". Estoque atual: ${produtoAtual.estoque}.` }, 409);
+        }
+
         // Aplica somente os campos seguros de uma baixa de estoque
         registro = {
           ...produtoAtual,
-          estoque: typeof registro.estoque === 'number' ? registro.estoque : produtoAtual.estoque,
+          estoque: novoEstoque,
           totalSaidas: typeof registro.totalSaidas === 'number' ? registro.totalSaidas : produtoAtual.totalSaidas,
         };
       }

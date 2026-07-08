@@ -226,7 +226,7 @@ main{
 }
 .product-card .meta{
   display:flex;
-  gap:10px;
+  gap:20px;
   margin-top:3px;
   font-family:'IBM Plex Mono',monospace;
   font-size:12px;

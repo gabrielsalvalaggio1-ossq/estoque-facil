@@ -2423,7 +2423,7 @@ const ORIGENS_IMPORTACAO = [
   { id: 'xlsx',    rotulo: 'Excel (.xlsx)',  emoji: '📊', disponivel: true },
   { id: 'csv',     rotulo: 'CSV (.csv)',     emoji: '📄', disponivel: true },
   { id: 'xml_nfe', rotulo: 'XML da NF-e',    emoji: '🧾', disponivel: true },
-  { id: 'danfe',   rotulo: 'DANFE',          emoji: '📃', disponivel: false },
+  { id: 'danfe',   rotulo: 'DANFE (PDF)',    emoji: '📃', disponivel: true },
 ];
 
 function abrirWizardImportacao() {
@@ -2489,7 +2489,7 @@ function passoOrigemHtml() {
 function passoUploadHtml() {
   const s = estadoImportacao;
   const rotuloOrigem = ORIGENS_IMPORTACAO.find(o => o.id === s.origem)?.rotulo || '';
-  const aceita = { xlsx: '.xlsx,.xls', csv: '.csv', xml_nfe: '.xml' }[s.origem] || '';
+  const aceita = { xlsx: '.xlsx,.xls', csv: '.csv', xml_nfe: '.xml', danfe: '.pdf' }[s.origem] || '';
 
   return `
     <h2>📥 Importar Produtos</h2>
@@ -2551,6 +2551,8 @@ async function processarArquivoSelecionado(arquivo) {
     } else if (s.origem === 'xml_nfe') {
       const texto = await arquivo.text();
       resultado = Importacao.parsearXmlNfe(texto);
+    } else if (s.origem === 'danfe') {
+      resultado = await Importacao.parsearPdfDanfe(arquivo);
     }
 
     if (!resultado.linhas.length) {
@@ -2728,8 +2730,8 @@ function conectarEventosDoPasso(passo) {
       if (input.files && input.files[0]) processarArquivoSelecionado(input.files[0]);
     });
     document.getElementById('btnAvancarUpload').addEventListener('click', async () => {
-      if (estadoImportacao.origem === 'xml_nfe') {
-        // XML da NF-e já vem mapeado — pula direto pra validação/pré-visualização.
+      if (estadoImportacao.origem === 'xml_nfe' || estadoImportacao.origem === 'danfe') {
+        // XML da NF-e e PDF da DANFE já vêm mapeados — pula direto pra validação/pré-visualização.
         estadoImportacao.linhasValidadas = Importacao.validarTodasAsLinhas(estadoImportacao.linhasBrutas, produtosCache);
         estadoImportacao.passo = 4;
       } else {

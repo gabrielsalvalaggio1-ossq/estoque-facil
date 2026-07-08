@@ -224,6 +224,12 @@ export async function onRequest(context) {
     if (rota === 'register' && request.method === 'POST') {
       const { nome, nomeEmpresa, email, senha } = await request.json();
       if (!email || !senha) return json({ ok: false, error: 'E-mail e senha são obrigatórios.' }, 400);
+      if (typeof email !== 'string' || !email.includes('@') || !email.includes('.') || email.length > 254) {
+        return json({ ok: false, error: 'Informe um e-mail válido.' }, 400);
+      }
+      if (typeof senha !== 'string' || senha.length < 8) {
+        return json({ ok: false, error: 'A senha deve ter pelo menos 8 caracteres.' }, 400);
+      }
 
       // Rate limiting: 5 cadastros por IP a cada hora
       const ip = request.headers.get('CF-Connecting-IP') || 'unknown';

@@ -632,11 +632,7 @@ async function parsearPdfDanfe(arquivo) {
 
   const itensBrutos = extrairItensPdf(linhas);
   if (!itensBrutos.length) {
-    // Ajuda a depurar layouts diferentes: abra o Console do navegador (F12)
-    // e rode `copy(window.__debugLinhasPdf.join('\n'))` pra copiar as linhas
-    // extraídas do PDF (fica na área de transferência, pronto pra colar).
-    window.__debugLinhasPdf = linhas;
-    console.warn('[Importacao PDF] Nenhum item reconhecido. Rode copy(window.__debugLinhasPdf.join(\'\\n\')) no Console pra copiar as linhas extraídas.', linhas);
+    // Nenhum item reconhecido no layout deste PDF — layout diferente do esperado.
     throw new Error('Não foi possível identificar a tabela de produtos neste PDF. O layout desta DANFE pode ser diferente do esperado — tente exportar/solicitar o XML da nota, que é 100% confiável, ou cadastre os produtos manualmente.');
   }
 

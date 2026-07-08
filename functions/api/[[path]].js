@@ -54,6 +54,22 @@ function imagemValida(imagem) {
   return typeof imagem === 'string' && IMAGEM_DATA_URI_REGEX.test(imagem);
 }
 
+// Limites de comprimento para campos de texto livre — evita payloads gigantes
+// que consumiriam espaço no D1 e tornaria as listagens lentas.
+const LIMITES_TEXTO = {
+  nome: 200, categoria: 100, fornecedor: 150, marca: 100,
+  codigoBarras: 80, codigo: 80, unidade: 10,
+  cliente: 150, vendedor: 150, motivo: 300,
+};
+
+function validarTexto(valor, campo) {
+  if (valor === undefined || valor === null) return null;
+  if (typeof valor !== 'string') return `Campo "${campo}" deve ser texto.`;
+  const limite = LIMITES_TEXTO[campo];
+  if (limite && valor.length > limite) return `Campo "${campo}" excede ${limite} caracteres.`;
+  return null;
+}
+
 function validarRegistro(store, registro) {
   if (!registro || !idDeRegistroValido(registro.id)) {
     return 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).';
@@ -62,6 +78,18 @@ function validarRegistro(store, registro) {
     if (!registro.nome || typeof registro.nome !== 'string' || !registro.nome.trim()) {
       return 'Campo "nome" é obrigatório.';
     }
+    const erroNome = validarTexto(registro.nome, 'nome');
+    if (erroNome) return erroNome;
+    const erroCategoria = validarTexto(registro.categoria, 'categoria');
+    if (erroCategoria) return erroCategoria;
+    const erroFornecedor = validarTexto(registro.fornecedor, 'fornecedor');
+    if (erroFornecedor) return erroFornecedor;
+    const erroMarca = validarTexto(registro.marca, 'marca');
+    if (erroMarca) return erroMarca;
+    const erroCodBarras = validarTexto(registro.codigoBarras, 'codigoBarras');
+    if (erroCodBarras) return erroCodBarras;
+    const erroCodigo = validarTexto(registro.codigo, 'codigo');
+    if (erroCodigo) return erroCodigo;
     if (typeof registro.preco !== 'number' || registro.preco < 0) {
       return 'Campo "preco" deve ser um número >= 0.';
     }
@@ -86,6 +114,10 @@ function validarRegistro(store, registro) {
     if (!Array.isArray(registro.itens)) {
       return 'Campo "itens" deve ser um array.';
     }
+    const erroCliente = validarTexto(registro.cliente, 'cliente');
+    if (erroCliente) return erroCliente;
+    const erroVendedor = validarTexto(registro.vendedor, 'vendedor');
+    if (erroVendedor) return erroVendedor;
   } else if (store === 'movimentos') {
     if (!idDeRegistroValido(registro.produtoId)) {
       return 'Campo "produtoId" inválido.';
@@ -96,6 +128,8 @@ function validarRegistro(store, registro) {
     if (!['entrada', 'saída', 'saida'].includes(registro.tipo)) {
       return 'Campo "tipo" deve ser "entrada", "saída" ou "saida".';
     }
+    const erroMotivo = validarTexto(registro.motivo, 'motivo');
+    if (erroMotivo) return erroMotivo;
   }
   return null;
 }
@@ -227,22 +261,21 @@ const PERMISSOES = {
  * estoque originada por uma venda (e não uma edição manual de produto).
  *
  * O frontend (darBaixaEstoque em produtos.js) SEMPRE inclui o campo
- * `totalSaidas` quando dá baixa por venda. Edições normais de produto
- * (abrirModalProduto → salvarFormularioProduto) nunca chegam aqui com
- * permissão de vendedor — o modal de edição nem aparece pra eles.
+ * `totalSaidas` quando dá baixa por venda e envia APENAS os campos abaixo.
+ * Edições normais de produto têm campos adicionais (nome, preco, categoria…).
  *
- * Critérios: corpo deve ter `totalSaidas` (número) e `estoque` (número),
- * e NÃO deve ter campos típicos de edição manual como `categoria` ou
- * `codigoBarras` sozinhos — mas para simplicidade e robustez, o campo
- * `totalSaidas` já é marcador suficiente, pois só darBaixaEstoque o envia.
+ * Segurança: verificamos que o corpo contém SOMENTE os campos esperados de
+ * uma baixa. Qualquer campo extra (nome, preco, categoria, etc.) indica uma
+ * tentativa de edição disfarçada e a requisição é rejeitada.
  */
+const CAMPOS_BAIXA_ESTOQUE = new Set(['id', 'estoque', 'totalSaidas', 'atualizadoEm']);
+
 function ehBaixaDeEstoquePorVenda(corpo) {
-  return (
-    corpo !== null &&
-    typeof corpo === 'object' &&
-    typeof corpo.totalSaidas === 'number' &&
-    typeof corpo.estoque === 'number'
-  );
+  if (corpo === null || typeof corpo !== 'object') return false;
+  if (typeof corpo.totalSaidas !== 'number') return false;
+  if (typeof corpo.estoque !== 'number') return false;
+  // Garante que não há campos extras além dos esperados numa baixa de estoque
+  return Object.keys(corpo).every(k => CAMPOS_BAIXA_ESTOQUE.has(k));
 }
 
 function json(dados, status = 200) {
@@ -624,7 +657,7 @@ async function tratarRotaImportacoes(db, membro, email, request, url, permissaoP
     if (!origem) {
       return json({ error: 'Informe uma origem válida (xlsx, csv ou xml_nfe).' }, 400);
     }
-    const nomeArquivo = ((corpo && corpo.nomeArquivo) || '').trim() || 'arquivo';
+    const nomeArquivo = ((corpo && corpo.nomeArquivo) || '').trim().slice(0, 200).replace(/[<>"'&]/g, '_') || 'arquivo';
     const totalRegistros = Number(corpo && corpo.totalRegistros) || 0;
     const criados = Number(corpo && corpo.criados) || 0;
     const atualizados = Number(corpo && corpo.atualizados) || 0;

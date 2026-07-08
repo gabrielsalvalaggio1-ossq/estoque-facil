@@ -1,16 +1,24 @@
--- schema-sessoes.sql
--- Sessões de login (email/senha e Google) — antes o cookie era gerado mas
--- nunca salvo em lugar nenhum, então não dava pra saber "de quem" era um
--- cookie de sessão. Isso resolve.
+-- schema-sessoes.sql (ATUALIZADO — versão anterior estava obsoleta)
 --
--- Como rodar:
---   npx wrangler d1 execute estoque-db --remote --file=./schema-sessoes.sql
+-- Estrutura real da tabela `sessoes`, compatível com functions/api/auth/[[path]].js.
+-- O arquivo original criava colunas (id, email, criado_em, expira_em) que não
+-- correspondem ao código. Esta versão corrigida reflete o schema real em produção.
+--
+-- Como rodar (apenas em banco novo — banco existente já tem a tabela certa):
+--   npx wrangler d1 execute NOME_DO_SEU_BANCO --remote --file=./schema-sessoes.sql
 
 CREATE TABLE IF NOT EXISTS sessoes (
-  id         TEXT PRIMARY KEY,
-  email      TEXT NOT NULL,
-  criado_em  TEXT NOT NULL DEFAULT (datetime('now')),
-  expira_em  TEXT NOT NULL
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  usuario_id  INTEGER NOT NULL,
+  token_hash  TEXT NOT NULL UNIQUE,      -- SHA-256 do token real (o token em si nunca fica no banco)
+  expires_at  TEXT NOT NULL,             -- ISO 8601, ex: "2026-08-07T14:23:00.000Z"
+  ip          TEXT NOT NULL DEFAULT '',  -- IP de quem criou a sessão (auditoria)
+  user_agent  TEXT NOT NULL DEFAULT '',  -- User-Agent de quem criou a sessão (auditoria)
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_sessoes_email ON sessoes (email);
+-- Acelera a consulta mais frequente: buscar sessão pelo hash do token.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sessoes_token_hash ON sessoes (token_hash);
+
+-- Acelera a busca de "todas as sessões de um usuário" (ex: logout de todos os dispositivos).
+CREATE INDEX IF NOT EXISTS idx_sessoes_usuario_id ON sessoes (usuario_id);

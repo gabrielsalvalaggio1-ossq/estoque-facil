@@ -160,6 +160,41 @@ async function cancelarAssinatura(motivo) {
   return tratarResposta(resp);
 }
 
+// --- Importação de Produtos (/api/importacoes e /api/mapeamentos-importacao) ---
+// Só dono/estoquista têm acesso (o servidor confere de novo; ver PERMISSOES
+// em functions/api/[[path]].js). O processamento do arquivo acontece todo
+// no navegador (js/importacao.js); o servidor só guarda o resumo da execução
+// e os mapeamentos de coluna salvos.
+
+async function listarImportacoes(limite) {
+  const qs = limite ? `?limite=${encodeURIComponent(limite)}` : '';
+  const resp = await fetch(`/api/importacoes${qs}`);
+  return tratarResposta(resp);
+}
+
+async function registrarImportacao(resumo) {
+  const resp = await fetch('/api/importacoes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(resumo)
+  });
+  return tratarResposta(resp);
+}
+
+async function buscarMapeamentoImportacao(origem) {
+  const resp = await fetch(`/api/mapeamentos-importacao?origem=${encodeURIComponent(origem)}`);
+  return tratarResposta(resp);
+}
+
+async function salvarMapeamentoImportacao(origem, mapeamento) {
+  const resp = await fetch('/api/mapeamentos-importacao', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ origem, mapeamento })
+  });
+  return tratarResposta(resp);
+}
+
 // Exposto globalmente porque o projeto usa scripts simples (sem bundler),
 // mantendo a filosofia de "zero dependências, zero build step".
 window.DB = {
@@ -178,5 +213,9 @@ window.DB = {
   buscarAssinatura,
   mudarPlano,
   cancelarAssinatura,
-  listarAtividades
+  listarAtividades,
+  listarImportacoes,
+  registrarImportacao,
+  buscarMapeamentoImportacao,
+  salvarMapeamentoImportacao
 };

@@ -89,7 +89,7 @@ function normalizarDimensoes(dimensoes) {
   return algumValor ? normalizado : null;
 }
 
-async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes }) {
+async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes, codigo, fornecedor, marca }) {
   const precoCustoNormalizado = normalizarPrecoCusto(precoCusto);
   const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
@@ -107,6 +107,11 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem || null,
     codigoBarras: codigoBarras ? String(codigoBarras).trim() : '',
+    // Campos opcionais (usados sobretudo pela Importação de Produtos; telas
+    // antigas de cadastro simplesmente não os enviam e continuam OK).
+    codigo: codigo ? String(codigo).trim() : '',
+    fornecedor: fornecedor ? String(fornecedor).trim() : '',
+    marca: marca ? String(marca).trim() : '',
     dimensoes: normalizarDimensoes(dimensoes),
     // Totais acumulados, usados no cartão do produto e na exportação de estoque.
     totalEntradas: estoqueInicial,
@@ -124,7 +129,7 @@ async function criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, im
   return produto;
 }
 
-async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes }) {
+async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categoria, imagem, codigoBarras, unidade, precoCusto, dimensoes, codigo, fornecedor, marca }) {
   const precoCustoNormalizado = precoCusto !== undefined ? normalizarPrecoCusto(precoCusto) : undefined;
   const erros = validarProduto({ nome, preco, estoque, precoCusto: precoCustoNormalizado });
   if (erros.length) throw new Error(erros[0]);
@@ -150,6 +155,9 @@ async function editarProduto(id, { nome, preco, estoque, estoqueMinimo, categori
     estoqueMinimo: isNaN(estoqueMinimo) ? 0 : Number(estoqueMinimo),
     imagem: imagem !== undefined ? imagem : (existente.imagem || null),
     codigoBarras: codigoBarras !== undefined ? String(codigoBarras).trim() : (existente.codigoBarras || ''),
+    codigo: codigo !== undefined ? String(codigo).trim() : (existente.codigo || ''),
+    fornecedor: fornecedor !== undefined ? String(fornecedor).trim() : (existente.fornecedor || ''),
+    marca: marca !== undefined ? String(marca).trim() : (existente.marca || ''),
     dimensoes: dimensoes !== undefined ? normalizarDimensoes(dimensoes) : (existente.dimensoes || null),
     totalEntradas: (existente.totalEntradas || 0) + entradasExtra,
     totalSaidas: existente.totalSaidas || 0,

@@ -527,6 +527,127 @@ async function registrarAtividade(db, { empresaId, email, papel, acao, store = n
   }
 }
 
+const ORIGENS_IMPORTACAO_VALIDAS = ['xlsx', 'csv', 'xml_nfe'];
+
+/**
+ * GET  /api/importacoes            -> histórico de importações da empresa (mais recentes primeiro)
+ * POST /api/importacoes            -> registra o resultado de uma execução do wizard (o processamento
+ *                                      do arquivo em si acontece no navegador; o servidor só grava o
+ *                                      resumo, os produtos já chegam via POST/PUT normal em /api/produtos)
+ * A escrita (POST) já vem bloqueada mais acima por gateEscritaPorAssinatura quando a assinatura não
+ * permite mais escrita — igual qualquer outro cadastro.
+ */
+async function tratarRotaImportacoes(db, membro, email, request, url, permissaoProdutos) {
+  const empresaId = membro.empresaId;
+
+  if (request.method === 'GET') {
+    const limiteBruto = parseInt(url.searchParams.get('limite'), 10);
+    const limite = Number.isFinite(limiteBruto) ? Math.min(Math.max(limiteBruto, 1), 100) : 20;
+    const { results } = await db
+      .prepare(`
+        SELECT id, usuario_email AS usuarioEmail, origem, nome_arquivo AS nomeArquivo,
+               total_registros AS totalRegistros, criados, atualizados, ignorados,
+               com_erro AS comErro, status, criado_em AS criadoEm
+        FROM historico_importacoes
+        WHERE empresa_id = ?
+        ORDER BY criado_em DESC
+        LIMIT ${limite}
+      `)
+      .bind(empresaId)
+      .all();
+    return json(results);
+  }
+
+  if (request.method === 'POST') {
+    if (permissaoProdutos !== 'total') {
+      return json({ error: `Seu papel (${membro.papel}) só tem acesso de leitura a produtos, não pode importar.` }, 403);
+    }
+    const corpo = await request.json();
+    const origem = ORIGENS_IMPORTACAO_VALIDAS.includes(corpo && corpo.origem) ? corpo.origem : null;
+    if (!origem) {
+      return json({ error: 'Informe uma origem válida (xlsx, csv ou xml_nfe).' }, 400);
+    }
+    const nomeArquivo = ((corpo && corpo.nomeArquivo) || '').trim() || 'arquivo';
+    const totalRegistros = Number(corpo && corpo.totalRegistros) || 0;
+    const criados = Number(corpo && corpo.criados) || 0;
+    const atualizados = Number(corpo && corpo.atualizados) || 0;
+    const ignorados = Number(corpo && corpo.ignorados) || 0;
+    const comErro = Number(corpo && corpo.comErro) || 0;
+    const status = comErro > 0 ? 'concluida_com_erros' : 'concluida';
+    const id = `imp-${crypto.randomUUID()}`;
+    const detalhesErros = (corpo && Array.isArray(corpo.erros) && corpo.erros.length)
+      ? JSON.stringify(corpo.erros).slice(0, 200000) // limite defensivo de tamanho da coluna
+      : null;
+
+    await db
+      .prepare(`
+        INSERT INTO historico_importacoes
+          (id, empresa_id, usuario_email, origem, nome_arquivo, total_registros, criados, atualizados, ignorados, com_erro, status, detalhes_erros, criado_em)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `)
+      .bind(id, empresaId, email, origem, nomeArquivo, totalRegistros, criados, atualizados, ignorados, comErro, status, detalhesErros)
+      .run();
+
+    await registrarAtividade(db, {
+      empresaId, email, papel: membro.papel, acao: 'importou_produtos', store: 'produtos', registroId: id,
+      descricao: `Importou produtos de ${nomeArquivo} (${criados} criados, ${atualizados} atualizados, ${ignorados} ignorados, ${comErro} com erro)`,
+    });
+
+    return json({ id, status }, 201);
+  }
+
+  return json({ error: 'Método não suportado em /api/importacoes.' }, 405);
+}
+
+/**
+ * GET  /api/mapeamentos-importacao?origem=xlsx  -> mapeamento salvo (ou null se nunca salvou)
+ * POST /api/mapeamentos-importacao              -> salva/substitui o mapeamento de colunas da empresa
+ *                                                   para aquela origem, pra próxima importação já vir preenchida.
+ */
+async function tratarRotaMapeamentosImportacao(db, membro, request, url) {
+  const empresaId = membro.empresaId;
+
+  if (request.method === 'GET') {
+    const origem = url.searchParams.get('origem');
+    if (!ORIGENS_IMPORTACAO_VALIDAS.includes(origem)) {
+      return json({ error: 'Informe uma origem válida (xlsx ou csv).' }, 400);
+    }
+    const linha = await db
+      .prepare('SELECT mapeamento FROM mapeamentos_importacao WHERE empresa_id = ? AND origem = ?')
+      .bind(empresaId, origem)
+      .first();
+    if (!linha) return json(null);
+    try {
+      return json(JSON.parse(linha.mapeamento));
+    } catch (e) {
+      return json(null);
+    }
+  }
+
+  if (request.method === 'POST') {
+    const corpo = await request.json();
+    const origem = corpo && corpo.origem;
+    if (!ORIGENS_IMPORTACAO_VALIDAS.includes(origem)) {
+      return json({ error: 'Informe uma origem válida (xlsx ou csv).' }, 400);
+    }
+    if (!corpo.mapeamento || typeof corpo.mapeamento !== 'object') {
+      return json({ error: 'Informe o mapeamento de colunas.' }, 400);
+    }
+    await db
+      .prepare(`
+        INSERT INTO mapeamentos_importacao (empresa_id, origem, mapeamento, atualizado_em)
+        VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(empresa_id, origem)
+        DO UPDATE SET mapeamento = excluded.mapeamento, atualizado_em = datetime('now')
+      `)
+      .bind(empresaId, origem, JSON.stringify(corpo.mapeamento))
+      .run();
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Método não suportado em /api/mapeamentos-importacao.' }, 405);
+}
+
 const ROTULO_STORE_LOG = { produtos: 'produto', vendas: 'venda', movimentos: 'movimento' };
 
 /** Monta uma descrição legível (pt-BR) pra uma ação sobre um registro de store. */
@@ -747,6 +868,26 @@ export async function onRequest(context) {
       return await tratarRotaMembros(db, email, membro, partes[1], request);
     } catch (erro) {
       return json({ error: erro.message || 'Erro interno ao gerenciar a equipe.' }, 500);
+    }
+  }
+
+  // /api/importacoes e /api/mapeamentos-importacao — módulo de Importação
+  // de Produtos. Mesma regra de acesso do cadastro de produtos (store
+  // "produtos"): dono e estoquista podem importar, vendedor não tem acesso
+  // nenhum (nem leitura do histórico). Reaproveita PERMISSOES já existente
+  // em vez de criar uma tabela de permissões nova.
+  if (primeiro === 'importacoes' || primeiro === 'mapeamentos-importacao') {
+    const permissaoProdutos = permissaoPara(membro.papel, 'produtos');
+    if (!permissaoProdutos) {
+      return json({ error: `Seu papel (${membro.papel}) não tem acesso à importação de produtos.` }, 403);
+    }
+    try {
+      if (primeiro === 'mapeamentos-importacao') {
+        return await tratarRotaMapeamentosImportacao(db, membro, request, url);
+      }
+      return await tratarRotaImportacoes(db, membro, email, request, url, permissaoProdutos);
+    } catch (erro) {
+      return json({ error: erro.message || 'Erro interno na importação de produtos.' }, 500);
     }
   }
 

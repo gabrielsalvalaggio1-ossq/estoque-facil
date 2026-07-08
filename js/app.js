@@ -1723,6 +1723,10 @@ const PRODUTOS_EXEMPLO = [
 ];
 
 function abrirOnboarding() {
+  // Segurança extra: nunca oferecer os exemplos se já existe produto
+  // cadastrado, mesmo que a função seja chamada de outro ponto no futuro.
+  if (produtosCache.length > 0) return;
+
   const wrap = document.createElement('div');
   wrap.className = 'modal-wrap modal-wrap-centro';
   wrap.id = 'onboardWrap';
@@ -1889,7 +1893,7 @@ async function iniciar() {
   renderizarTudo();
 
   const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);
-  if (!jaViuOnboarding && produtosCache.length === 0 && vendasCache.length === 0) {
+  if (!jaViuOnboarding && produtosCache.length === 0) {
     abrirOnboarding();
   }
 

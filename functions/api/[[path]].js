@@ -35,16 +35,8 @@ const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
-// Observação: 'FREE' não é um status de ciclo de vida — é um plano
-// (plano_id = 'free'). O status correto de uma assinatura do plano free é
-// 'ACTIVE' (ativa, só que sem cobrança). Mantemos 'FREE' na lista só por
-// compatibilidade com linhas antigas que ainda tiverem esse valor gravado.
 const ESTADOS_ASSINATURA = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'CANCELED', 'EXPIRED', 'FREE'];
 
-// Em quais estados a empresa ainda pode ESCREVER (vender, cadastrar produto,
-// etc). Fora desses, só leitura — ninguém perde o histórico, só para de
-// crescer o estoque/vendas até regularizar o pagamento.
-// 'FREE' segue incluído por compatibilidade com dados antigos (ver acima).
 const ESTADOS_QUE_PERMITEM_ESCRITA = new Set(['ACTIVE', 'TRIAL', 'PAST_DUE', 'FREE']);
 
 const MENSAGENS_BLOQUEIO_ASSINATURA = {
@@ -52,17 +44,6 @@ const MENSAGENS_BLOQUEIO_ASSINATURA = {
   EXPIRED: 'Sua assinatura expirou. Escolha um plano para continuar usando o sistema.',
 };
 
-// -------------------------------------------------------------------------
-// Sistema central de permissões por plano. Uma única fonte de verdade:
-// a coluna `planos.recursos` (JSON) + `planos.limite_produtos` /
-// `planos.limite_membros`. Toda rota que precisa checar "meu plano deixa
-// fazer isso?" chama verificarPlano(db, empresaId, recurso) — nunca decide
-// isso com um `if` solto espalhado pelo código.
-// -------------------------------------------------------------------------
-
-// O que cada recurso bloqueado deve dizer pro usuário, e a partir de qual
-// plano ele passa a estar disponível — usado tanto na mensagem quanto pra
-// UI decidir qual botão de upgrade mostrar.
 const INFO_RECURSOS = {
   produtos:           { rotulo: 'Cadastro de produtos além do limite',   planoMinimo: 'essencial' },
   clientes:           { rotulo: 'Histórico e cadastro de clientes',      planoMinimo: 'essencial' },
@@ -75,7 +56,6 @@ const INFO_RECURSOS = {
 
 const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
 
-/** Busca o plano + recursos vigentes da empresa, já com o JSON parseado. */
 async function carregarPlanoDaEmpresa(db, empresaId) {
   const linha = await db
     .prepare(`
@@ -121,16 +101,6 @@ function bloqueado(recurso, planoAtualId) {
   };
 }
 
-/**
- * Função central de permissões. Chama pra qualquer recurso gateado por
- * plano ANTES de executar a ação. Dois tipos de checagem:
- *  - "produtos"/"membros": recurso com LIMITE numérico (conta quantidade
- *    já existente e compara com planos.limite_produtos/limite_membros).
- *  - qualquer outra chave: feature liga/desliga lida de planos.recursos.
- *
- * Retorna { permitido: true } quando pode seguir, ou o objeto de
- * `bloqueado(...)` (permitido:false + mensagem amigável) quando não pode.
- */
 async function verificarPlano(db, empresaId, recurso, extra = {}) {
   const plano = await carregarPlanoDaEmpresa(db, empresaId);
   if (!plano) {
@@ -154,8 +124,6 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
   }
 
   if (recurso === 'membros') {
-    // Recurso liga/desliga primeiro (mensagem melhor que "limite atingido"
-    // quando o plano nem oferece equipe) e só depois checa quantidade.
     if (plano.recursos.equipe !== true) return { ...bloqueado('equipe', plano.planoId), plano };
     const { total } = await db
       .prepare(`SELECT COUNT(*) AS total FROM membros WHERE empresa_id = ?`)
@@ -172,13 +140,10 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
   }
 
   if (recurso === 'papel_diferenciado') {
-    // Definir vendedor/estoquista (em vez de todo mundo ser "dono") exige
-    // o plano com permissoes_papeis.
     if (plano.recursos.permissoes_papeis !== true) return { ...bloqueado('permissoes_papeis', plano.planoId), plano };
     return { permitido: true, plano };
   }
 
-  // Qualquer outro recurso é uma feature simples liga/desliga.
   if (plano.recursos[recurso] !== true) return { ...bloqueado(recurso, plano.planoId), plano };
   return { permitido: true, plano };
 }
@@ -191,6 +156,29 @@ const PERMISSOES = {
   estoquista: { produtos: 'total',  vendas: null,      movimentos: 'total' },
 };
 
+/**
+ * Detecta se um PUT em /api/produtos vindo de um vendedor é uma baixa de
+ * estoque originada por uma venda (e não uma edição manual de produto).
+ *
+ * O frontend (darBaixaEstoque em produtos.js) SEMPRE inclui o campo
+ * `totalSaidas` quando dá baixa por venda. Edições normais de produto
+ * (abrirModalProduto → salvarFormularioProduto) nunca chegam aqui com
+ * permissão de vendedor — o modal de edição nem aparece pra eles.
+ *
+ * Critérios: corpo deve ter `totalSaidas` (número) e `estoque` (número),
+ * e NÃO deve ter campos típicos de edição manual como `categoria` ou
+ * `codigoBarras` sozinhos — mas para simplicidade e robustez, o campo
+ * `totalSaidas` já é marcador suficiente, pois só darBaixaEstoque o envia.
+ */
+function ehBaixaDeEstoquePorVenda(corpo) {
+  return (
+    corpo !== null &&
+    typeof corpo === 'object' &&
+    typeof corpo.totalSaidas === 'number' &&
+    typeof corpo.estoque === 'number'
+  );
+}
+
 function json(dados, status = 200) {
   return new Response(JSON.stringify(dados), {
     status,
@@ -198,7 +186,6 @@ function json(dados, status = 200) {
   });
 }
 
-/** Descobre a qual empresa e com qual papel esse e-mail pertence. */
 async function resolverMembro(db, email) {
   const linha = await db
     .prepare(`
@@ -215,11 +202,6 @@ async function resolverMembro(db, email) {
   return linha || null;
 }
 
-/**
- * Busca o status corrente da assinatura da empresa (schema-assinaturas.sql).
- * Roda em toda request autenticada que já tem empresa — uma query simples,
- * indexada por empresa_id.
- */
 async function statusAssinatura(db, empresaId) {
   const linha = await db
     .prepare(`
@@ -231,29 +213,15 @@ async function statusAssinatura(db, empresaId) {
     `)
     .bind(empresaId)
     .first();
-  // Nenhuma assinatura encontrada não significa "cancelada" — significa que
-  // a empresa ainda não teve uma linha criada (ex.: conta antiga, migração
-  // incompleta). O padrão seguro é tratar como o plano FREE, ativo — nunca
-  // bloquear ou rotular como cancelado quem nunca assinou nada.
   return linha || { status: 'ACTIVE', planoId: 'free', dataExpiracao: null };
 }
 
-/**
- * Decide se o método da requisição pode passar dado o status da assinatura.
- * GET sempre passa (leitura/exportação continuam disponíveis mesmo vencida).
- * Retorna null quando pode seguir, ou um objeto de erro pra devolver 402.
- */
 function gateEscritaPorAssinatura(method, status) {
   if (method === 'GET') return null;
   if (ESTADOS_QUE_PERMITEM_ESCRITA.has(status)) return null;
   return { error: MENSAGENS_BLOQUEIO_ASSINATURA[status] || 'Assinatura inativa.', status };
 }
 
-/**
- * POST /api/empresas — cadastro self-service. Quem chama ainda não precisa
- * pertencer a nenhuma empresa; é justamente essa a rota que resolve isso.
- * Quem cria vira automaticamente "dono" no plano grátis.
- */
 async function criarEmpresa(db, email, request) {
   const jaEhMembro = await db
     .prepare('SELECT empresa_id FROM membros WHERE usuario_email = ?')
@@ -293,9 +261,6 @@ async function criarEmpresa(db, email, request) {
     .bind(empresaId, email)
     .run();
 
-  // Toda empresa nova nasce com uma assinatura FREE ativa (status ACTIVE) —
-  // sem isso, verificarPlano() não encontra plano nenhum e bloqueia tudo (402),
-  // e a tela de assinatura mostraria "cancelada" pra quem acabou de entrar.
   const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
   await db
     .prepare(`
@@ -324,7 +289,6 @@ function permissaoPara(papel, store) {
   return regras[store] || null;
 }
 
-/** Quantos "donos" a empresa tem — usado pra nunca deixar zero. */
 async function contarDonos(db, empresaId) {
   const linha = await db
     .prepare(`SELECT COUNT(*) AS total FROM membros WHERE empresa_id = ? AND papel = 'dono'`)
@@ -333,10 +297,6 @@ async function contarDonos(db, empresaId) {
   return linha ? linha.total : 0;
 }
 
-/**
- * Trata todas as rotas /api/membros. Só quem é "dono" da própria empresa
- * pode gerenciar a equipe — todo o resto recebe 403.
- */
 async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
   if (membro.papel !== 'dono') {
     return json({ error: 'Só o dono da empresa pode gerenciar a equipe.' }, 403);
@@ -344,7 +304,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
 
   const empresaId = membro.empresaId;
 
-  // GET /api/membros — lista os membros da empresa.
   if (request.method === 'GET' && !emailAlvo) {
     const { results } = await db
       .prepare(`
@@ -358,7 +317,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
     return json(results);
   }
 
-  // POST /api/membros — adiciona um novo membro.
   if (request.method === 'POST' && !emailAlvo) {
     let corpo;
     try {
@@ -377,7 +335,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       return json({ error: `Papel inválido. Use um destes: ${PAPEIS_VALIDOS.join(', ')}.` }, 400);
     }
 
-    // Por enquanto, um e-mail só pode pertencer a uma empresa.
     const existente = await db
       .prepare('SELECT empresa_id AS empresaId FROM membros WHERE usuario_email = ?')
       .bind(email)
@@ -390,8 +347,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       return json({ error: mensagem }, 409);
     }
 
-    // Recurso central de permissões: precisa do plano com "equipe" e ter
-    // vaga dentro do limite (verificarPlano já faz as duas checagens).
     const checagemEquipe = await verificarPlano(db, empresaId, 'membros');
     if (!checagemEquipe.permitido) {
       return json({
@@ -402,8 +357,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       }, checagemEquipe.status);
     }
 
-    // Convidar alguém com papel diferente de "dono" (vendedor/estoquista com
-    // acesso limitado) exige o plano com papéis e permissões por pessoa.
     if (papel !== 'dono') {
       const checagemPapel = await verificarPlano(db, empresaId, 'papel_diferenciado');
       if (!checagemPapel.permitido) {
@@ -432,7 +385,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
     return json({ email, papel }, 201);
   }
 
-  // PUT /api/membros/:email — edita o papel de um membro já existente.
   if (request.method === 'PUT' && emailAlvo) {
     const emailDecodificado = decodeURIComponent(emailAlvo).trim().toLowerCase();
 
@@ -457,7 +409,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       return json({ error: 'Esse e-mail não é membro da sua empresa.' }, 404);
     }
 
-    // Nunca deixar a empresa sem nenhum dono ao rebaixar o único dono.
     if (alvo.papel === 'dono' && papel !== 'dono') {
       const totalDonos = await contarDonos(db, empresaId);
       if (totalDonos <= 1) {
@@ -465,8 +416,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       }
     }
 
-    // Promover alguém pra um papel diferente de "dono" (vendedor/estoquista
-    // com permissões limitadas) exige o mesmo plano que adicionar exige.
     if (papel !== 'dono') {
       const checagemPapel = await verificarPlano(db, empresaId, 'papel_diferenciado');
       if (!checagemPapel.permitido) {
@@ -496,7 +445,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
     return json({ email: emailDecodificado, papel });
   }
 
-  // DELETE /api/membros/:email — remove um membro.
   if (request.method === 'DELETE' && emailAlvo) {
     const emailDecodificado = decodeURIComponent(emailAlvo).trim().toLowerCase();
 
@@ -513,7 +461,6 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       return json({ error: 'Esse e-mail não é membro da sua empresa.' }, 404);
     }
 
-    // Nunca deixar a empresa sem nenhum dono.
     if (alvo.papel === 'dono') {
       const totalDonos = await contarDonos(db, empresaId);
       if (totalDonos <= 1) {
@@ -543,7 +490,6 @@ async function sha256Hex(texto) {
   return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Lê o cookie "session" (token cru) e descobre o e-mail do usuário, validando o hash contra a tabela sessoes. */
 async function resolverEmailDaSessao(db, request) {
   const cookieHeader = request.headers.get('Cookie') || '';
   const match = cookieHeader.match(/session=([^;]+)/);
@@ -561,24 +507,11 @@ async function resolverEmailDaSessao(db, request) {
     .first();
 
   if (!linha) return null;
-  if (new Date(linha.expiresAt) < new Date()) return null; // sessão expirada
+  if (new Date(linha.expiresAt) < new Date()) return null;
 
   return linha.email;
 }
 
-// -------------------------------------------------------------------------
-// Histórico de atividades — grava quem fez cada ação relevante na empresa
-// (criar/editar/excluir registros, mexer na equipe, mudar de plano). Serve
-// exclusivamente pra leitura/auditoria: nunca decide permissão, e uma falha
-// aqui nunca pode derrubar a operação principal que a originou.
-// -------------------------------------------------------------------------
-
-/**
- * Insere uma linha em `atividades`. Chamada em "fire and forget" lógico: o
- * INSERT é aguardado (pra garantir ordem no histórico), mas qualquer erro é
- * engolido — o pior cenário aceitável é faltar uma linha no histórico, nunca
- * quebrar a ação de verdade (criar produto, registrar venda etc.).
- */
 async function registrarAtividade(db, { empresaId, email, papel, acao, store = null, registroId = null, descricao }) {
   try {
     await db
@@ -589,20 +522,12 @@ async function registrarAtividade(db, { empresaId, email, papel, acao, store = n
       .bind(`atv-${crypto.randomUUID()}`, empresaId, email, papel || null, acao, store, registroId, descricao)
       .run();
   } catch (erro) {
-    // Intencional: ver comentário acima. Histórico é auxiliar, não crítico.
+    // Intencional: histórico é auxiliar, não crítico.
   }
 }
 
 const ORIGENS_IMPORTACAO_VALIDAS = ['xlsx', 'csv', 'xml_nfe'];
 
-/**
- * GET  /api/importacoes            -> histórico de importações da empresa (mais recentes primeiro)
- * POST /api/importacoes            -> registra o resultado de uma execução do wizard (o processamento
- *                                      do arquivo em si acontece no navegador; o servidor só grava o
- *                                      resumo, os produtos já chegam via POST/PUT normal em /api/produtos)
- * A escrita (POST) já vem bloqueada mais acima por gateEscritaPorAssinatura quando a assinatura não
- * permite mais escrita — igual qualquer outro cadastro.
- */
 async function tratarRotaImportacoes(db, membro, email, request, url, permissaoProdutos) {
   const empresaId = membro.empresaId;
 
@@ -642,7 +567,7 @@ async function tratarRotaImportacoes(db, membro, email, request, url, permissaoP
     const status = comErro > 0 ? 'concluida_com_erros' : 'concluida';
     const id = `imp-${crypto.randomUUID()}`;
     const detalhesErros = (corpo && Array.isArray(corpo.erros) && corpo.erros.length)
-      ? JSON.stringify(corpo.erros).slice(0, 200000) // limite defensivo de tamanho da coluna
+      ? JSON.stringify(corpo.erros).slice(0, 200000)
       : null;
 
     await db
@@ -665,11 +590,6 @@ async function tratarRotaImportacoes(db, membro, email, request, url, permissaoP
   return json({ error: 'Método não suportado em /api/importacoes.' }, 405);
 }
 
-/**
- * GET  /api/mapeamentos-importacao?origem=xlsx  -> mapeamento salvo (ou null se nunca salvou)
- * POST /api/mapeamentos-importacao              -> salva/substitui o mapeamento de colunas da empresa
- *                                                   para aquela origem, pra próxima importação já vir preenchida.
- */
 async function tratarRotaMapeamentosImportacao(db, membro, request, url) {
   const empresaId = membro.empresaId;
 
@@ -716,7 +636,6 @@ async function tratarRotaMapeamentosImportacao(db, membro, request, url) {
 
 const ROTULO_STORE_LOG = { produtos: 'produto', vendas: 'venda', movimentos: 'movimento' };
 
-/** Monta uma descrição legível (pt-BR) pra uma ação sobre um registro de store. */
 function descreverAcaoRegistro(store, dados, acao) {
   const rotulo = ROTULO_STORE_LOG[store] || store;
   let detalhe = '';
@@ -730,8 +649,6 @@ function descreverAcaoRegistro(store, dados, acao) {
     detalhe = `de "${dados.nomeProduto}"`;
   }
 
-  // Cancelar venda é um PUT por baixo dos panos, mas merece um verbo próprio
-  // no histórico em vez do genérico "editou".
   if (store === 'vendas' && acao === 'atualizou' && dados && dados.status === 'cancelada') {
     return `Cancelou venda${detalhe ? ' ' + detalhe : ''}`.trim();
   }
@@ -758,8 +675,6 @@ export async function onRequest(context) {
   const partes = url.pathname.replace(/^\/api\//, '').split('/').filter(Boolean);
   const primeiro = partes[0];
 
-  // POST /api/empresas — cadastro self-service. Único caso em que a pessoa
-  // ainda NÃO precisa pertencer a nenhuma empresa pra poder chamar a rota.
   if (primeiro === 'empresas' && request.method === 'POST') {
     try {
       return await criarEmpresa(db, email, request);
@@ -770,9 +685,6 @@ export async function onRequest(context) {
 
   const membro = await resolverMembro(db, email);
 
-  // GET /api/me — a UI usa isso pra saber o que mostrar/esconder pra essa
-  // pessoa. Funciona mesmo sem empresa: é assim que o front descobre que
-  // precisa mostrar a tela de "criar sua empresa".
   if (primeiro === 'me' && request.method === 'GET') {
     if (!membro) {
       return json({ email, empresaId: null, papel: null, nomeEmpresa: null, nomeDono: null, plano: null });
@@ -791,13 +703,8 @@ export async function onRequest(context) {
     return json({ error: 'Este e-mail ainda não foi associado a nenhuma empresa. Peça para o dono te convidar.' }, 403);
   }
 
-  // Status de billing da empresa — calculado uma vez por request e reusado
-  // tanto pelo gate de escrita quanto pela rota /api/assinatura.
   const assinatura = await statusAssinatura(db, membro.empresaId);
 
-  // GET /api/assinatura — a UI usa isso pra montar a tela "Minha assinatura"
-  // (plano, preço, status, próxima cobrança) e pra decidir quais botões
-  // mostrar/esconder ou desabilitar com mensagem amigável em outras telas.
   if (primeiro === 'assinatura' && request.method === 'GET') {
     const plano = await carregarPlanoDaEmpresa(db, membro.empresaId);
     return json({
@@ -815,10 +722,6 @@ export async function onRequest(context) {
     });
   }
 
-  // POST /api/assinatura — trocar de plano (upgrade/downgrade) ou cancelar.
-  // Fica de propósito ANTES do gate de escrita: reativar/trocar de plano é
-  // exatamente a ação que uma empresa CANCELED/EXPIRED precisa poder fazer.
-  // Só o dono mexe em billing da empresa.
   if (primeiro === 'assinatura' && request.method === 'POST') {
     if (membro.papel !== 'dono') {
       return json({ error: 'Só o dono da empresa pode alterar a assinatura.' }, 403);
@@ -831,9 +734,6 @@ export async function onRequest(context) {
     const empresaId = membro.empresaId;
 
     if (acao === 'cancelar') {
-      // O plano FREE não tem cobrança, então não existe "cancelar" — isso
-      // evita que a assinatura de um usuário free vire CANCELED por engano
-      // (seja por um clique indevido, seja por uma chamada direta à API).
       if (assinatura.planoId === 'free') {
         return json({ error: 'O plano gratuito não pode ser cancelado — não há cobrança para interromper.' }, 400);
       }
@@ -866,13 +766,8 @@ export async function onRequest(context) {
       }
 
       const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
-      // Toda assinatura (free ou paga) nasce com status ACTIVE — 'FREE'
-      // nunca foi um status de ciclo de vida válido, era o plano_id.
       const novoStatus = 'ACTIVE';
 
-      // Mensal, então "próxima cobrança" é ~30 dias a partir de agora.
-      // (Isso é um cálculo local, sem gateway real integrado ainda — no dia
-      // que plugar Stripe/Pagar.me, essa data passa a vir do webhook deles.)
       let dataExpiracao = null;
       if (planoId !== 'free') {
         const data = new Date();
@@ -880,8 +775,6 @@ export async function onRequest(context) {
         dataExpiracao = data.toISOString();
       }
 
-      // Fecha o período corrente antes de abrir um novo — mantém o
-      // histórico completo em vez de sobrescrever a linha existente.
       await db
         .prepare(`
           UPDATE assinaturas
@@ -905,7 +798,6 @@ export async function onRequest(context) {
         .bind(planoId, novoStatus, dataExpiracao, email)
         .run();
 
-      // Mantém a coluna legada em sincronia, pra quem ainda lê empresas.plano.
       await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
 
       await registrarAtividade(db, {
@@ -919,17 +811,11 @@ export async function onRequest(context) {
     return json({ error: 'Ação inválida. Use "mudar_plano" ou "cancelar".' }, 400);
   }
 
-  // Bloqueia escrita (POST/PUT/DELETE) em QUALQUER rota abaixo — membros e
-  // stores — se a assinatura da empresa não estiver num estado que permite.
-  // Isolamento por empresa_id já garante que uma conta nunca vê dado de
-  // outra; isto garante que uma conta inadimplente não continua operando
-  // além do que o plano permite na própria conta.
   const bloqueioAssinatura = gateEscritaPorAssinatura(request.method, assinatura.status);
   if (bloqueioAssinatura) {
-    return json(bloqueioAssinatura, 402); // 402 Payment Required
+    return json(bloqueioAssinatura, 402);
   }
 
-  // /api/membros e /api/membros/:email — gestão de equipe (só dono).
   if (primeiro === 'membros') {
     try {
       return await tratarRotaMembros(db, email, membro, partes[1], request);
@@ -938,11 +824,6 @@ export async function onRequest(context) {
     }
   }
 
-  // /api/importacoes e /api/mapeamentos-importacao — módulo de Importação
-  // de Produtos. Mesma regra de acesso do cadastro de produtos (store
-  // "produtos"): dono e estoquista podem importar, vendedor não tem acesso
-  // nenhum (nem leitura do histórico). Reaproveita PERMISSOES já existente
-  // em vez de criar uma tabela de permissões nova.
   if (primeiro === 'importacoes' || primeiro === 'mapeamentos-importacao') {
     const permissaoProdutos = permissaoPara(membro.papel, 'produtos');
     if (!permissaoProdutos) {
@@ -958,11 +839,6 @@ export async function onRequest(context) {
     }
   }
 
-  // GET /api/atividades — histórico completo de quem fez cada ação na
-  // empresa (criar/editar/excluir produtos, vendas e movimentos; mexer na
-  // equipe; mudar de plano). Só o dono vê — é ele quem precisa auditar o
-  // que a equipe fez. Recurso exclusivo do plano Pro (verificarPlano cuida
-  // da mensagem de upgrade).
   if (primeiro === 'atividades' && request.method === 'GET') {
     if (membro.papel !== 'dono') {
       return json({ error: 'Só o dono da empresa pode ver o histórico de atividades.' }, 403);
@@ -977,8 +853,6 @@ export async function onRequest(context) {
       }, checagemAtividades.status);
     }
 
-    // Filtro opcional por área (?store=produtos|vendas|movimentos|membros|assinatura|empresa)
-    // e limite opcional (?limite=1..200, padrão 100) — sempre dentro da própria empresa.
     const storeFiltro = url.searchParams.get('store');
     const storesFiltraveis = STORES_VALIDOS.concat(['membros', 'assinatura', 'empresa']);
     const limiteBruto = parseInt(url.searchParams.get('limite'), 10);
@@ -1016,9 +890,39 @@ export async function onRequest(context) {
   if (!permissao) {
     return json({ error: `Seu papel (${membro.papel}) não tem acesso a "${store}".` }, 403);
   }
+
   const metodoEscrita = ['POST', 'PUT', 'DELETE'].includes(request.method);
+
+  // --- CORREÇÃO: vendedor pode fazer PUT em produtos APENAS para baixa de
+  // estoque por venda (darBaixaEstoque). Qualquer outra escrita em produtos
+  // continua bloqueada para o papel vendedor.
   if (metodoEscrita && permissao !== 'total') {
-    return json({ error: `Seu papel (${membro.papel}) só tem acesso de leitura a "${store}".` }, 403);
+    // Exceção: vendedor fazendo PUT em produtos — verifica se é baixa de estoque
+    const ehExcecaoBaixa = (
+      membro.papel === 'vendedor' &&
+      store === 'produtos' &&
+      request.method === 'PUT'
+    );
+
+    if (!ehExcecaoBaixa) {
+      return json({ error: `Seu papel (${membro.papel}) só tem acesso de leitura a "${store}".` }, 403);
+    }
+
+    // É a exceção de baixa — mas ainda precisamos confirmar pelo corpo
+    // que é realmente uma baixa de estoque e não uma edição disfarçada.
+    // Clonamos o request para poder ler o corpo aqui E depois no PUT abaixo.
+    const requestClone = request.clone();
+    let corpoVerificacao;
+    try {
+      corpoVerificacao = await requestClone.json();
+    } catch (e) {
+      return json({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+
+    if (!ehBaixaDeEstoquePorVenda(corpoVerificacao)) {
+      return json({ error: `Seu papel (${membro.papel}) só pode atualizar produtos ao registrar uma venda.` }, 403);
+    }
+    // Verificação passou: deixa seguir para o bloco PUT abaixo.
   }
 
   const empresaId = membro.empresaId;
@@ -1046,8 +950,6 @@ export async function onRequest(context) {
         return json({ error: 'Registro precisa ter um campo "id".' }, 400);
       }
 
-      // Limite de produtos do plano (Free = 50). Vendas e movimentos não têm
-      // limite de quantidade em nenhum plano — só produtos.
       if (store === 'produtos') {
         const checagemProdutos = await verificarPlano(db, empresaId, 'produtos');
         if (!checagemProdutos.permitido) {
@@ -1060,8 +962,6 @@ export async function onRequest(context) {
         }
       }
 
-      // Carimba quem criou — vem do servidor (e-mail autenticado), nunca do
-      // que o cliente mandar, pra não dar pra forjar quem fez a ação.
       registro.criado_por = email;
       registro.criado_em = new Date().toISOString();
 
@@ -1083,14 +983,16 @@ export async function onRequest(context) {
       registro.atualizado_por = email;
       registro.atualizado_em = new Date().toISOString();
 
-      // O PUT usa UPSERT — se o ID não existe ainda, seria uma criação disfarçada.
-      // Aplicamos o mesmo check de limite do POST para fechar esse bypass.
       if (store === 'produtos') {
         const existe = await db
           .prepare('SELECT id FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
           .bind(empresaId, store, id)
           .first();
         if (!existe) {
+          // Vendedor nunca pode criar produto novo via UPSERT
+          if (membro.papel === 'vendedor') {
+            return json({ error: `Seu papel (${membro.papel}) não pode criar produtos.` }, 403);
+          }
           const checagem = await verificarPlano(db, empresaId, 'produtos');
           if (!checagem.permitido) {
             return json({
@@ -1122,9 +1024,6 @@ export async function onRequest(context) {
     }
 
     if (request.method === 'DELETE' && id) {
-      // Busca os dados antes de apagar só pra montar uma descrição legível
-      // no histórico (ex.: "Excluiu produto \"Coca-Cola\"") — a exclusão em
-      // si não muda em nada.
       const linhaExistente = await db
         .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
         .bind(empresaId, store, id)

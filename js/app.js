@@ -2336,9 +2336,8 @@ function montarCardsInsights() {
     cards.push({ id: 'minhasVendasHoje', icone: '💰', label: 'Suas vendas hoje', valor: formatarMoeda(minhasHoje), nota: '' });
     cards.push({ id: 'minhasVendasTotal', icone: '🧾', label: 'Suas vendas registradas', valor: String(minhasVendas.length), nota: 'no total' });
   } else if (usuarioLogadoPapel === 'estoquista') {
-    const { totalItens, valorEmEstoque, estoqueBaixo } = Produtos.calcularEstatisticas(produtosCache);
+    const { totalItens, estoqueBaixo } = Produtos.calcularEstatisticas(produtosCache);
     cards.push({ id: 'totalProdutos', icone: '📦', label: 'Produtos cadastrados', valor: String(totalItens), nota: '' });
-    cards.push({ id: 'valorEstoque', icone: '💵', label: 'Valor em estoque', valor: formatarMoeda(valorEmEstoque), nota: '' });
     cards.push({
       id: 'estoqueBaixo', icone: '⚠️', label: 'Estoque baixo', valor: String(estoqueBaixo),
       nota: estoqueBaixo > 0 ? 'Toque para ver quais' : 'Tudo certo por aqui',
@@ -3052,7 +3051,15 @@ document.querySelectorAll('[data-tab]').forEach(botao => {
   });
 });
 
-document.getElementById('btnAddProduct').addEventListener('click', () => abrirModalProduto(null));
+document.getElementById('btnAddProduct').addEventListener('click', () => {
+  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
+  const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);
+  if (podeVerEstoque && produtosCache.length === 0 && !jaViuOnboarding) {
+    abrirOnboarding();
+  } else {
+    abrirModalProduto(null);
+  }
+});
 document.getElementById('btnEscanearVender').addEventListener('click', abrirScannerParaVender);
 document.getElementById('btnCobrar').addEventListener('click', abrirComprovante);
 document.getElementById('btnExportar').addEventListener('click', abrirMenuExportar);
@@ -3167,10 +3174,7 @@ async function iniciar() {
 
   renderizarTudo();
 
-  const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);
-  if (!jaViuOnboarding && produtosCache.length === 0) {
-    abrirOnboarding();
-  } else if (produtosCache.length > 0) {
+  if (produtosCache.length > 0) {
     const hojeStr = new Date().toISOString().slice(0, 10);
     const ultimoDiaComInsights = localStorage.getItem(CHAVE_INSIGHTS_ULTIMO_DIA);
     if (ultimoDiaComInsights !== hojeStr) {

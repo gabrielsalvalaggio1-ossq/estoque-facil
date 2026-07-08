@@ -23,6 +23,9 @@ let imagemPendente = null; // base64 da foto escolhida/tirada, ainda não salva
 let streamScannerAtivo = null;
 let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no formulário de produto
 
+// Set de IDs de vendas cujo cancelamento já está em andamento — evita duplo clique.
+const cancelamentoEmAndamento = new Set();
+
 // --- Impressão de etiquetas (ver js/etiquetas.js pro motor de geração) ---
 let modoSelecaoEtiquetas = false;
 let produtosSelecionadosEtiquetas = new Set(); // ids dos produtos marcados

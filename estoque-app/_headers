@@ -1,0 +1,22 @@
+/service-worker.js
+  Cache-Control: no-cache
+
+/manifest.json
+  Cache-Control: public, max-age=3600
+
+# Bloqueia acesso externo aos scripts de migração one-time
+/migrar-para-empresas.js
+  X-Robots-Tag: noindex
+  Content-Type: text/plain
+
+/migrar-para-empresas-v2.js
+  X-Robots-Tag: noindex
+  Content-Type: text/plain
+
+/migracao-manual.sql
+  X-Robots-Tag: noindex
+  Content-Type: text/plain
+
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN

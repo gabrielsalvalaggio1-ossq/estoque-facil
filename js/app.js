@@ -1716,7 +1716,7 @@ function abrirMenuExportar() {
 const CHAVE_ONBOARDING = 'estoqueFacilOnboardingVisto';
 
 const PRODUTOS_EXEMPLO = [
-  { nome: 'Coca-Cola lata', preco: 6, estoque: 24, estoqueMinimo: 6, categoria: 'Bebidas' },
+  { nome: 'Coca-Cola lata', preco: 6, estoque: 24, estoqueMinimo: 6, categoria: 'Bebidas', imagem:'img/agua500ml.png'},
   { nome: 'Salgado assado', preco: 7, estoque: 15, estoqueMinimo: 5, categoria: 'Salgados' },
   { nome: 'Água mineral 500ml', preco: 3, estoque: 30, estoqueMinimo: 8, categoria: 'Bebidas' },
   { nome: 'Brigadeiro', preco: 2.5, estoque: 20, estoqueMinimo: 5, categoria: 'Doces' }

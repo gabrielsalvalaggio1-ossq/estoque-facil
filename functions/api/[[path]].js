@@ -152,8 +152,8 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
 const PERMISSOES = {
   dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total' },
-  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: null },
-  estoquista: { produtos: 'total',  vendas: null,      movimentos: 'total' },
+  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'leitura' },
+  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total' },
 };
 
 /**

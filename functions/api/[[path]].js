@@ -54,6 +54,52 @@ function imagemValida(imagem) {
   return typeof imagem === 'string' && IMAGEM_DATA_URI_REGEX.test(imagem);
 }
 
+function validarRegistro(store, registro) {
+  if (!registro || !idDeRegistroValido(registro.id)) {
+    return 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).';
+  }
+  if (store === 'produtos') {
+    if (!registro.nome || typeof registro.nome !== 'string' || !registro.nome.trim()) {
+      return 'Campo "nome" é obrigatório.';
+    }
+    if (typeof registro.preco !== 'number' || registro.preco < 0) {
+      return 'Campo "preco" deve ser um número >= 0.';
+    }
+    if (typeof registro.estoque !== 'number' || registro.estoque < 0) {
+      return 'Campo "estoque" deve ser um número >= 0.';
+    }
+    if (registro.estoqueMinimo !== undefined && registro.estoqueMinimo !== null &&
+        (typeof registro.estoqueMinimo !== 'number' || registro.estoqueMinimo < 0)) {
+      return 'Campo "estoqueMinimo" deve ser um número >= 0.';
+    }
+    if (registro.precoCusto !== undefined && registro.precoCusto !== null &&
+        (typeof registro.precoCusto !== 'number' || registro.precoCusto < 0)) {
+      return 'Campo "precoCusto" deve ser um número >= 0.';
+    }
+    if (!imagemValida(registro.imagem)) {
+      return 'Campo "imagem" inválido.';
+    }
+  } else if (store === 'vendas') {
+    if (typeof registro.total !== 'number' || registro.total < 0) {
+      return 'Campo "total" deve ser um número >= 0.';
+    }
+    if (!Array.isArray(registro.itens)) {
+      return 'Campo "itens" deve ser um array.';
+    }
+  } else if (store === 'movimentos') {
+    if (!idDeRegistroValido(registro.produtoId)) {
+      return 'Campo "produtoId" inválido.';
+    }
+    if (typeof registro.quantidade !== 'number' || registro.quantidade <= 0) {
+      return 'Campo "quantidade" deve ser um número > 0.';
+    }
+    if (!['entrada', 'saída', 'saida'].includes(registro.tipo)) {
+      return 'Campo "tipo" deve ser "entrada", "saída" ou "saida".';
+    }
+  }
+  return null;
+}
+
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
 const ESTADOS_ASSINATURA = ['ACTIVE', 'TRIAL', 'PAST_DUE', 'CANCELED', 'EXPIRED', 'FREE'];
 
@@ -966,17 +1012,12 @@ export async function onRequest(context) {
 
     if (request.method === 'POST' && !id) {
       const registro = await request.json();
-      if (!registro || !registro.id) {
-        return json({ error: 'Registro precisa ter um campo "id".' }, 400);
-      }
-      if (!idDeRegistroValido(registro.id)) {
-        return json({ error: 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).' }, 400);
+      const erro = validarRegistro(store, registro);
+      if (erro) {
+        return json({ error: erro }, 400);
       }
 
       if (store === 'produtos') {
-        if (!imagemValida(registro.imagem)) {
-          return json({ error: 'Campo "imagem" inválido.' }, 400);
-        }
         const checagemProdutos = await verificarPlano(db, empresaId, 'produtos');
         if (!checagemProdutos.permitido) {
           return json({
@@ -1005,10 +1046,15 @@ export async function onRequest(context) {
     }
 
     if (request.method === 'PUT' && id) {
-      if (!idDeRegistroValido(id)) {
-        return json({ error: 'Campo "id" inválido. Use apenas letras, números, "_" e "-" (máximo 64 caracteres).' }, 400);
+      let registro;
+      try {
+        registro = await request.json();
+      } catch (e) {
+        return json({ error: 'Corpo da requisição inválido.' }, 400);
       }
-      const registro = await request.json();
+      if (!registro || typeof registro !== 'object' || Array.isArray(registro)) {
+        return json({ error: 'Corpo da requisição deve ser um objeto JSON.' }, 400);
+      }
       // O "id" da URL é sempre a chave de verdade do registro (usada no
       // WHERE/ON CONFLICT abaixo). Forçamos o mesmo valor dentro do JSON
       // salvo em `dados`, em vez de confiar num "id" que o corpo da
@@ -1018,10 +1064,12 @@ export async function onRequest(context) {
       registro.atualizado_por = email;
       registro.atualizado_em = new Date().toISOString();
 
+      const erro = validarRegistro(store, registro);
+      if (erro) {
+        return json({ error: erro }, 400);
+      }
+
       if (store === 'produtos') {
-        if (!imagemValida(registro.imagem)) {
-          return json({ error: 'Campo "imagem" inválido.' }, 400);
-        }
         const existe = await db
           .prepare('SELECT id FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
           .bind(empresaId, store, id)

@@ -77,7 +77,11 @@ function parsearLinhaCsv(linha, separador) {
 }
 
 function parsearCsv(texto) {
-  const linhas = texto.split(/\r\n|\r|\n/).filter(l => l.trim() !== '');
+  // Remove BOM UTF-8 (\uFEFF) que o Excel no Windows adiciona ao início do
+  // arquivo — sem isso, o primeiro campo do cabeçalho fica como "\uFEFFnome"
+  // e quebra o mapeamento automático de colunas.
+  const textoLimpo = texto.charCodeAt(0) === 0xFEFF ? texto.slice(1) : texto;
+  const linhas = textoLimpo.split(/\r\n|\r|\n/).filter(l => l.trim() !== '');
   if (!linhas.length) return { cabecalho: [], linhas: [] };
   const separador = detectarSeparadorCsv(linhas[0]);
   const cabecalho = parsearLinhaCsv(linhas[0], separador);

@@ -29,6 +29,44 @@
 
 const DURACAO_SESSAO_DIAS = 30;
 
+// ---------------------------------------------------------------------------
+// Rate limiting simples via D1 — protege /login e /register contra força bruta
+// Cria a tabela automaticamente se ainda não existir.
+// ---------------------------------------------------------------------------
+async function verificarRateLimit(db, chave, limite, janelaSegundos) {
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS tentativas_auth (
+        chave        TEXT PRIMARY KEY,
+        tentativas   INTEGER NOT NULL DEFAULT 0,
+        janela_inicio INTEGER NOT NULL
+      )
+    `).run();
+
+    const agora = Date.now();
+    const janelaInicio = agora - janelaSegundos * 1000;
+
+    const reg = await db
+      .prepare('SELECT tentativas, janela_inicio FROM tentativas_auth WHERE chave = ?')
+      .bind(chave).first();
+
+    if (!reg || reg.janela_inicio < janelaInicio) {
+      // Janela expirou ou é a primeira tentativa — reinicia contador
+      await db.prepare(
+        'INSERT OR REPLACE INTO tentativas_auth (chave, tentativas, janela_inicio) VALUES (?, 1, ?)'
+      ).bind(chave, agora).run();
+      return false; // não bloqueado
+    }
+
+    const novas = reg.tentativas + 1;
+    await db.prepare('UPDATE tentativas_auth SET tentativas = ? WHERE chave = ?')
+      .bind(novas, chave).run();
+    return novas > limite; // true = bloqueado
+  } catch {
+    return false; // em caso de erro de banco, deixa passar
+  }
+}
+
 function json(dados, status = 200, headersExtra = {}) {
   return new Response(JSON.stringify(dados), {
     status,
@@ -120,7 +158,7 @@ async function garantirEmpresaEMembro(db, email, nomeSugestao) {
 
   const empresaId = 'empresa-' + crypto.randomUUID().slice(0, 12);
   await db
-    .prepare("INSERT INTO empresas (id, nome, dono_email, plano, criado_em) VALUES (?, ?, ?, 'gratis', datetime('now'))")
+    .prepare("INSERT INTO empresas (id, nome, dono_email, plano, criado_em) VALUES (?, ?, ?, 'free', datetime('now'))")
     .bind(empresaId, nomeSugestao || `Loja de ${email}`, email)
     .run();
   await db
@@ -187,6 +225,13 @@ export async function onRequest(context) {
       const { nome, nomeEmpresa, email, senha } = await request.json();
       if (!email || !senha) return json({ ok: false, error: 'E-mail e senha são obrigatórios.' }, 400);
 
+      // Rate limiting: 5 cadastros por IP a cada hora
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const bloqueado = await verificarRateLimit(db, `register:${ip}`, 5, 3600);
+      if (bloqueado) {
+        return json({ ok: false, error: 'Muitas tentativas de cadastro. Aguarde alguns minutos.' }, 429);
+      }
+
       const jaExiste = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
       if (jaExiste) return json({ ok: false, error: 'Esse e-mail já tem cadastro.' }, 409);
 
@@ -207,14 +252,27 @@ export async function onRequest(context) {
     // ---------- POST /api/auth/login ----------
     if (rota === 'login' && request.method === 'POST') {
       const { email, senha } = await request.json();
-      const usuario = await db.prepare('SELECT * FROM usuarios WHERE email = ?').bind(email).first();
 
-      if (!usuario) return json({ ok: false, error: 'Usuário não encontrado.' }, 401);
+      // Rate limiting: 10 tentativas por IP a cada 15 minutos
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const bloqueado = await verificarRateLimit(db, `login:${ip}`, 10, 900);
+      if (bloqueado) {
+        return json({ ok: false, error: 'Muitas tentativas de login. Aguarde alguns minutos e tente novamente.' }, 429);
+      }
+
+      const usuario = await db
+        .prepare('SELECT id, nome, email, senha_hash FROM usuarios WHERE email = ?')
+        .bind(email).first();
+
+      // Mensagem genérica para não revelar se o e-mail existe (evita enumeração)
+      const erroCredenciais = { ok: false, error: 'E-mail ou senha inválidos.' };
+
+      if (!usuario) return json(erroCredenciais, 401);
       if (usuario.senha_hash === 'google') {
         return json({ ok: false, error: 'Essa conta usa login com Google — use o botão "Entrar com Google".' }, 401);
       }
       if (!(await senhaConfere(senha, usuario.senha_hash))) {
-        return json({ ok: false, error: 'Senha inválida.' }, 401);
+        return json(erroCredenciais, 401);
       }
 
       // Login certo com um hash do formato antigo (SHA-256 simples): migra

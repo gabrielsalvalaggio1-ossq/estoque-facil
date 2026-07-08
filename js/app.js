@@ -332,7 +332,10 @@ function definirSituacaoEstoque(situacao) {
   renderizarConteudo();
 }
 
+let _timerfiltroEstoque = null;
 function aplicarFiltroEstoque() {
+  // Lê os filtros de selects imediatamente (sem debounce) — só a re-renderização
+  // é adiada, pra não travar com catálogos grandes enquanto o usuário digita.
   const campoBusca = document.getElementById('campoBusca');
   const seletorCategoria = document.getElementById('seletorCategoria');
   const seletorFornecedor = document.getElementById('seletorFornecedor');
@@ -341,7 +344,8 @@ function aplicarFiltroEstoque() {
   filtroEstoque.categoria = seletorCategoria ? seletorCategoria.value : '';
   filtroEstoque.fornecedor = seletorFornecedor ? seletorFornecedor.value : '';
   filtroEstoque.agrupar = seletorAgrupar ? seletorAgrupar.value : 'nenhum';
-  atualizarListaProdutos();
+  clearTimeout(_timerfiltroEstoque);
+  _timerfiltroEstoque = setTimeout(atualizarListaProdutos, 200);
 }
 
 function atualizarListaProdutos() {
@@ -2343,12 +2347,21 @@ function tamanhoLegivel(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+const TAMANHO_MAXIMO_IMPORT_MB = 10;
+
 async function processarArquivoSelecionado(arquivo) {
   const s = estadoImportacao;
   const infoEl = document.getElementById('importArquivoInfo');
   const erroEl = document.getElementById('importUploadErro');
   const btnAvancar = document.getElementById('btnAvancarUpload');
   erroEl.innerHTML = '';
+
+  // Valida tamanho antes de tentar ler — arquivos muito grandes travam o browser
+  if (arquivo.size > TAMANHO_MAXIMO_IMPORT_MB * 1024 * 1024) {
+    erroEl.innerHTML = `<p class="erro" style="margin:8px 0 0;">Arquivo muito grande (${tamanhoLegivel(arquivo.size)}). O limite é ${TAMANHO_MAXIMO_IMPORT_MB} MB. Divida o arquivo em partes menores e importe em lotes.</p>`;
+    btnAvancar.disabled = true;
+    return;
+  }
   infoEl.innerHTML = `
     <div class="import-arquivo-card">
       <p><strong>${escaparHtml(arquivo.name)}</strong> · ${tamanhoLegivel(arquivo.size)}</p>
@@ -2878,6 +2891,21 @@ document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
 document.getElementById('btnSelecionarEtiquetas').addEventListener('click', ativarModoSelecaoEtiquetas);
 document.getElementById('btnCancelarSelecaoEtiquetas').addEventListener('click', cancelarSelecaoEtiquetas);
 document.getElementById('btnImprimirEtiquetasSelecionadas').addEventListener('click', abrirConfigEtiquetas);
+
+// Fecha o modal mais recente ao pressionar ESC.
+// Para o scanner (que tem lógica de parar câmera), procura o botão de fechar.
+// Para os demais modais, simula um clique no fundo escuro (mesma lógica do
+// "clique fora pra fechar" que cada modal já possui).
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  // Scanner tem cleanup de câmera — delega pro botão de cancelar
+  const btnScanner = document.getElementById('btnFecharScanner');
+  if (btnScanner) { btnScanner.click(); return; }
+  // Demais modais: aciona o handler de click-fora já existente em cada wrap
+  const modais = document.querySelectorAll('.modal-wrap');
+  if (!modais.length) return;
+  modais[modais.length - 1].dispatchEvent(new MouseEvent('click', { bubbles: false }));
+});
 
 /**
  * Esconde as abas que o papel da pessoa logada não deveria ver:

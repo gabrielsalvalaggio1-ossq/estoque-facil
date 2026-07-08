@@ -5,8 +5,8 @@
 -- Como rodar (depois de schema.sql, schema-empresas.sql e schema-empresas-parte2.sql):
 --   npx wrangler d1 execute NOME_DO_SEU_BANCO --remote --file=./schema-planos.sql
 
-ALTER TABLE empresas ADD COLUMN plano TEXT NOT NULL DEFAULT 'gratis';
+ALTER TABLE empresas ADD COLUMN plano TEXT NOT NULL DEFAULT 'free';
 
 -- Garante que empresas já existentes (criadas via SQL manual antes dessa
--- feature) fiquem explicitamente no plano grátis.
-UPDATE empresas SET plano = 'gratis' WHERE plano IS NULL OR plano = '';
+-- feature) fiquem explicitamente no plano free.
+UPDATE empresas SET plano = 'free' WHERE plano IS NULL OR plano = '' OR plano = 'gratis';

@@ -260,22 +260,24 @@ const PERMISSOES = {
  * Detecta se um PUT em /api/produtos vindo de um vendedor é uma baixa de
  * estoque originada por uma venda (e não uma edição manual de produto).
  *
- * O frontend (darBaixaEstoque em produtos.js) SEMPRE inclui o campo
- * `totalSaidas` quando dá baixa por venda e envia APENAS os campos abaixo.
- * Edições normais de produto têm campos adicionais (nome, preco, categoria…).
+ * O campo `totalSaidas` (número) é enviado apenas por darBaixaEstoque() no
+ * frontend. Edições manuais de produto nunca chegam aqui com papel vendedor
+ * (o modal de edição não é exibido pra eles).
  *
- * Segurança: verificamos que o corpo contém SOMENTE os campos esperados de
- * uma baixa. Qualquer campo extra (nome, preco, categoria, etc.) indica uma
- * tentativa de edição disfarçada e a requisição é rejeitada.
+ * Nota de segurança: esta função só faz a triagem inicial. A proteção real
+ * é feita no bloco PUT abaixo: quando o papel é "vendedor", o servidor lê o
+ * produto do banco e aplica SOMENTE os campos seguros (estoque, totalSaidas,
+ * atualizadoEm), descartando tudo o mais que o cliente tenha enviado.
+ * Isso garante que um payload malicioso com campos extras (nome, preco, etc.)
+ * seja ignorado pelo servidor, mesmo que passe por esta verificação.
  */
-const CAMPOS_BAIXA_ESTOQUE = new Set(['id', 'estoque', 'totalSaidas', 'atualizadoEm']);
-
 function ehBaixaDeEstoquePorVenda(corpo) {
-  if (corpo === null || typeof corpo !== 'object') return false;
-  if (typeof corpo.totalSaidas !== 'number') return false;
-  if (typeof corpo.estoque !== 'number') return false;
-  // Garante que não há campos extras além dos esperados numa baixa de estoque
-  return Object.keys(corpo).every(k => CAMPOS_BAIXA_ESTOQUE.has(k));
+  return (
+    corpo !== null &&
+    typeof corpo === 'object' &&
+    typeof corpo.totalSaidas === 'number' &&
+    typeof corpo.estoque === 'number'
+  );
 }
 
 function json(dados, status = 200) {
@@ -1088,6 +1090,33 @@ export async function onRequest(context) {
       if (!registro || typeof registro !== 'object' || Array.isArray(registro)) {
         return json({ error: 'Corpo da requisição deve ser um objeto JSON.' }, 400);
       }
+
+      // SEGURANÇA — vendedor fazendo PUT em produto (baixa de estoque por venda):
+      // O servidor lê o produto atual do banco e aplica SOMENTE os três campos
+      // que uma baixa de estoque pode alterar (estoque, totalSaidas, atualizadoEm).
+      // Todo o resto (nome, preco, categoria, imagem, etc.) vem do banco, não do
+      // cliente — assim um payload malicioso com campos extras é simplesmente
+      // descartado, independente do que o cliente tenha enviado.
+      if (membro.papel === 'vendedor' && store === 'produtos') {
+        const linhaAtual = await db
+          .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+          .bind(empresaId, store, id)
+          .first();
+        if (!linhaAtual) {
+          return json({ error: 'Produto não encontrado.' }, 404);
+        }
+        let produtoAtual;
+        try { produtoAtual = JSON.parse(linhaAtual.dados); } catch {
+          return json({ error: 'Erro interno: registro corrompido.' }, 500);
+        }
+        // Aplica somente os campos seguros de uma baixa de estoque
+        registro = {
+          ...produtoAtual,
+          estoque: typeof registro.estoque === 'number' ? registro.estoque : produtoAtual.estoque,
+          totalSaidas: typeof registro.totalSaidas === 'number' ? registro.totalSaidas : produtoAtual.totalSaidas,
+        };
+      }
+
       // O "id" da URL é sempre a chave de verdade do registro (usada no
       // WHERE/ON CONFLICT abaixo). Forçamos o mesmo valor dentro do JSON
       // salvo em `dados`, em vez de confiar num "id" que o corpo da

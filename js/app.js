@@ -59,10 +59,15 @@ function dataDeHoje() {
 }
 
 async function recarregarDados() {
-  [produtosCache, vendasCache] = await Promise.all([
-    Produtos.listarProdutos(),
-    Vendas.listarVendas()
+  const precisaProdutos = usuarioLogadoPapel !== 'vendedor';
+  const precisaVendas   = usuarioLogadoPapel !== 'estoquista';
+
+  const [produtos, vendas] = await Promise.all([
+    precisaProdutos ? Produtos.listarProdutos() : Promise.resolve(produtosCache),
+    precisaVendas   ? Vendas.listarVendas()     : Promise.resolve(vendasCache),
   ]);
+  produtosCache = produtos;
+  vendasCache   = vendas;
 
   // Carrega a assinatura em segundo plano só pra quem é dono — é quem vê o
   // pill de plano na Equipe e a aba Minha Assinatura. Erro aqui não deve

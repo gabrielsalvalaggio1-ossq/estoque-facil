@@ -776,7 +776,7 @@ else if (abaAtual === 'venda') {
 
         <div class="card-info">
           <p>Suporte do sistema</p>
-          <p><strong>Email:</strong> gabriel.salvasantos@gmail.com</p>
+          <p><strong>Email:</strong> mevmeuestoqueevendas@gmail.com</p>
           <p><strong>WhatsApp:</strong> (51) 99445-9862</p>
         </div>
 

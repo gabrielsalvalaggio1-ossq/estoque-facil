@@ -1841,3 +1841,109 @@ body.auth-page{
 .import-resultado-item strong{ display:block; font-size:24px; font-family:'Fraunces',serif; color:var(--ledger); }
 .import-resultado-item span{ font-size:12px; color:var(--ink-soft); }
 .import-resultado-item.erro strong{ color:var(--coral-deep); }
+/* =========================================================================
+   IMPRESSÃO DE ETIQUETAS
+   Segue exatamente os padrões já usados no resto do app: mesmas cores,
+   mesmo raio de borda dos cards/botões, mesma estrutura de modal-wrap.
+   ========================================================================= */
+
+.btn-selecionar-etiquetas{
+  flex-shrink:0;
+  display:flex; align-items:center; gap:6px;
+  background:var(--paper);
+  color:var(--ledger);
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:0 14px;
+  font-family:'Inter',sans-serif;
+  font-weight:600;
+  font-size:13.5px;
+  cursor:pointer;
+}
+.btn-selecionar-etiquetas:active{ transform:scale(0.97); }
+
+/* --- Modo de seleção nos cards do Estoque --- */
+.product-card.modo-selecao{ cursor:pointer; position:relative; padding-left:44px; }
+.product-card.modo-selecao .info{ cursor:pointer; }
+.product-card.modo-selecao.selecionado{
+  border-color:var(--amber);
+  background:#FFF9EC;
+}
+.selecao-check{
+  position:absolute; left:14px; top:50%; transform:translateY(-50%);
+  width:22px; height:22px;
+  border-radius:6px;
+  border:2px solid var(--line);
+  background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  color:#fff;
+  flex-shrink:0;
+}
+.product-card.modo-selecao.selecionado .selecao-check{
+  background:var(--amber);
+  border-color:var(--amber-deep);
+}
+
+/* --- Barra flutuante (mesmo padrão visual do .cartbar) --- */
+.selecao-etiquetas-bar{
+  position:sticky;
+  bottom:0; left:0; right:0;
+  background:var(--ledger);
+  color:var(--paper);
+  padding:14px 16px;
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  z-index:20;
+}
+.selecao-etiquetas-bar .left{ font-size:13.5px; color:#C7D3CB; }
+.selecao-etiquetas-bar .acoes{ display:flex; gap:8px; }
+.selecao-etiquetas-bar .btn{ padding:10px 16px; font-size:13.5px; white-space:nowrap; }
+.selecao-etiquetas-bar .btn.ghost{ background:rgba(251,250,243,0.08); color:var(--paper); border:1px solid rgba(251,250,243,0.25); border-radius:8px; }
+.selecao-etiquetas-bar .btn.primary{ background:var(--coral); color:#fff; border:none; border-radius:8px; }
+.selecao-etiquetas-bar .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+
+/* --- Modal de configuração --- */
+.etiquetas-checks{ display:flex; flex-direction:column; gap:8px; }
+.check-linha{
+  display:flex; align-items:center; gap:8px;
+  font-family:'Inter',sans-serif; font-size:14px; color:var(--ink);
+  text-transform:none; letter-spacing:normal;
+  cursor:pointer;
+}
+.check-linha input[type="checkbox"]{ width:17px; height:17px; accent-color:var(--ledger); cursor:pointer; }
+
+.etiquetas-lista-qtd{
+  display:flex; flex-direction:column; gap:8px;
+  max-height:220px; overflow-y:auto;
+  border:1px solid var(--line); border-radius:10px; padding:8px;
+}
+.etiqueta-qtd-linha{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+}
+.etiqueta-qtd-linha .nome{
+  font-size:13.5px; font-weight:600; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.input-qtd-etiqueta{
+  width:64px; flex-shrink:0;
+  border:1px solid var(--line); border-radius:8px;
+  padding:7px 8px; font-size:14px; text-align:center;
+  font-family:'Inter',sans-serif;
+}
+.input-qtd-etiqueta:focus{ outline:2px solid var(--amber); outline-offset:0; border-color:var(--amber); }
+
+/* --- Preview (tamanho real em mm, mas exibido em escala reduzida na tela
+   via zoom — não altera o tamanho físico que sai na impressão) --- */
+.modal-preview-etiquetas{ max-width:520px; }
+.etiquetas-preview-scroll{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  padding:10px;
+  max-height:340px;
+  overflow:auto;
+  margin-bottom:6px;
+}
+.etiquetas-preview-folha{ zoom:1.35; transform-origin:top left; }

@@ -23,6 +23,11 @@ let imagemPendente = null; // base64 da foto escolhida/tirada, ainda não salva
 let streamScannerAtivo = null;
 let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no formulário de produto
 
+// --- Impressão de etiquetas (ver js/etiquetas.js pro motor de geração) ---
+let modoSelecaoEtiquetas = false;
+let produtosSelecionadosEtiquetas = new Set(); // ids dos produtos marcados
+let usuarioLogadoNomeEmpresa = ''; // usado no campo opcional "nome da empresa" da etiqueta
+
 const ROTULOS_PAGAMENTO = {
   dinheiro: '💵 Dinheiro',
   pix: '🔑 Pix',
@@ -357,13 +362,30 @@ function formatarQuantidadeEstoque(produto) {
   return produto.estoque + ' un';
 }
 
-/** Card de gestão (aba Estoque): mostra quantidade, sem botão de vender — toque para editar. */
+/** Card de gestão (aba Estoque): mostra quantidade, sem botão de vender — toque para editar.
+ *  Em modo de seleção (impressão de etiquetas), o toque marca/desmarca em vez de abrir edição. */
 function cartaoProdutoEstoque(produto) {
   const estoqueBaixo = produto.estoque <= (produto.estoqueMinimo || 0);
   const categoria = produto.categoria || Produtos.CATEGORIA_PADRAO;
   const miniatura = produto.imagem
     ? `<img src="${produto.imagem}" alt="" class="thumb">`
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
+
+  if (modoSelecaoEtiquetas) {
+    const marcado = produtosSelecionadosEtiquetas.has(produto.id);
+    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="alternarSelecaoProdutoEtiqueta('${produto.id}')">
+      <span class="selecao-check" aria-hidden="true">${marcado ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
+      ${miniatura}
+      <div class="info">
+        <div class="name">${escaparHtml(produto.nome)}</div>
+        <div class="meta">
+          <span class="price">${formatarMoeda(produto.preco)}${produto.unidade === 'kg' ? '/kg' : ''}</span>
+          <span class="stock ${estoqueBaixo ? 'low' : ''}">${formatarQuantidadeEstoque(produto)} em estoque</span>
+          <span class="cat">${escaparHtml(categoria)}</span>
+        </div>
+      </div>
+    </div>`;
+  }
 
   return `<div class="product-card" onclick="abrirEdicao('${produto.id}')">
     ${miniatura}
@@ -2354,10 +2376,206 @@ function voltarPassoImportacao() {
   renderizarPassoImportacao();
 }
 
+// --- Impressão de etiquetas ---
+//
+// Fluxo: 1) "Etiquetas" na toolbar entra em modo de seleção (cards da tela
+// Estoque viram checkboxes) → 2) barra flutuante mostra quantos foram
+// marcados e libera "Imprimir Etiquetas" → 3) modal de configuração (qtd.
+// por produto, modelo, quais informações mostrar) → 4) preview → 5) janela
+// de impressão. A geração de HTML/SVG fica isolada em js/etiquetas.js.
+
+function ativarModoSelecaoEtiquetas() {
+  modoSelecaoEtiquetas = true;
+  produtosSelecionadosEtiquetas = new Set();
+  document.getElementById('selecaoEtiquetasBar').style.display = 'flex';
+  document.getElementById('btnAddProduct').style.display = 'none';
+  document.getElementById('btnEscanearVender').style.display = 'none';
+  document.getElementById('btnSelecionarEtiquetas').style.display = 'none';
+  atualizarBarraSelecaoEtiquetas();
+  atualizarListaProdutos();
+}
+
+function cancelarSelecaoEtiquetas() {
+  modoSelecaoEtiquetas = false;
+  produtosSelecionadosEtiquetas = new Set();
+  document.getElementById('selecaoEtiquetasBar').style.display = 'none';
+  document.getElementById('btnAddProduct').style.display = '';
+  document.getElementById('btnEscanearVender').style.display = '';
+  document.getElementById('btnSelecionarEtiquetas').style.display = '';
+  atualizarListaProdutos();
+}
+
+function alternarSelecaoProdutoEtiqueta(id) {
+  if (produtosSelecionadosEtiquetas.has(id)) {
+    produtosSelecionadosEtiquetas.delete(id);
+  } else {
+    produtosSelecionadosEtiquetas.add(id);
+  }
+  atualizarBarraSelecaoEtiquetas();
+  atualizarListaProdutos();
+}
+
+function atualizarBarraSelecaoEtiquetas() {
+  const n = produtosSelecionadosEtiquetas.size;
+  document.getElementById('selecaoEtiquetasCount').textContent =
+    n === 0 ? 'Nenhum produto selecionado' : `${n} produto${n > 1 ? 's' : ''} selecionado${n > 1 ? 's' : ''}`;
+  document.getElementById('btnImprimirEtiquetasSelecionadas').disabled = n === 0;
+}
+
+/** Modal de configuração: quantidade por produto, modelo de etiqueta e quais informações exibir. */
+function abrirConfigEtiquetas() {
+  const idsSelecionados = Array.from(produtosSelecionadosEtiquetas);
+  const produtosSelecionadosLista = produtosCache.filter(p => idsSelecionados.includes(p.id));
+  if (!produtosSelecionadosLista.length) return;
+
+  const modelos = Etiquetas.listarModelosEtiqueta();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap';
+  wrap.id = 'etiquetasModalWrap';
+  wrap.innerHTML = `
+    <div class="modal">
+      <h2>Configurar etiquetas</h2>
+
+      <div class="field">
+        <label for="fModeloEtiqueta">Modelo de etiqueta</label>
+        <select id="fModeloEtiqueta" class="filtro-select">
+          ${modelos.map(m => `<option value="${m.id}" ${m.id === 'padrao_50x30' ? 'selected' : ''}>${escaparHtml(m.nome)}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Informações na etiqueta</label>
+        <div class="etiquetas-checks" id="etiquetasChecks">
+          <label class="check-linha"><input type="checkbox" id="checkNome" checked> Nome do produto</label>
+          <label class="check-linha"><input type="checkbox" id="checkCodigoInterno" checked> Código interno</label>
+          <label class="check-linha"><input type="checkbox" id="checkCodigoBarras" checked> Código de barras</label>
+          <label class="check-linha"><input type="checkbox" id="checkPreco" checked> Preço de venda</label>
+          <label class="check-linha"><input type="checkbox" id="checkEmpresa"> Nome da empresa${usuarioLogadoNomeEmpresa ? '' : ' (não configurado)'}</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Quantidade por produto</label>
+        <div class="etiquetas-lista-qtd" id="etiquetasListaQtd">
+          ${produtosSelecionadosLista.map(p => `
+            <div class="etiqueta-qtd-linha" data-produto-id="${p.id}">
+              <span class="nome">${escaparHtml(p.nome)}</span>
+              <input type="number" min="1" step="1" value="1" class="input-qtd-etiqueta" data-produto-id="${p.id}">
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <p class="erro" id="erroEtiquetas" style="display:none;"></p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="btnCancelarConfigEtiquetas">Cancelar</button>
+        <button class="btn primary" id="btnPreVisualizarEtiquetas">Pré-visualizar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  wrap.addEventListener('click', e => { if (e.target === wrap) fecharModalEtiquetas(); });
+  document.getElementById('btnCancelarConfigEtiquetas').addEventListener('click', fecharModalEtiquetas);
+  document.getElementById('btnPreVisualizarEtiquetas').addEventListener('click', () => {
+    abrirPreviewEtiquetas(produtosSelecionadosLista);
+  });
+}
+
+function fecharModalEtiquetas() {
+  const el = document.getElementById('etiquetasModalWrap');
+  if (el) el.remove();
+}
+
+function fecharPreviewEtiquetas() {
+  const el = document.getElementById('etiquetasPreviewWrap');
+  if (el) el.remove();
+}
+
+function _coletarConfigEtiquetas() {
+  return {
+    exibir: {
+      nome: document.getElementById('checkNome').checked,
+      codigoInterno: document.getElementById('checkCodigoInterno').checked,
+      codigoBarras: document.getElementById('checkCodigoBarras').checked,
+      preco: document.getElementById('checkPreco').checked,
+      empresa: document.getElementById('checkEmpresa').checked
+    }
+  };
+}
+
+function _coletarItensEtiquetas(produtosSelecionadosLista) {
+  return produtosSelecionadosLista.map(p => {
+    const input = document.querySelector(`.input-qtd-etiqueta[data-produto-id="${p.id}"]`);
+    const quantidade = input ? Math.max(1, parseInt(input.value, 10) || 1) : 1;
+    return { produto: p, quantidade };
+  });
+}
+
+/** Preview: mostra a folha em miniatura (escala reduzida na tela, tamanho real na impressão). */
+function abrirPreviewEtiquetas(produtosSelecionadosLista) {
+  const modeloId = document.getElementById('fModeloEtiqueta').value;
+  const config = _coletarConfigEtiquetas();
+  const itens = _coletarItensEtiquetas(produtosSelecionadosLista);
+  const totalEtiquetas = itens.reduce((soma, i) => soma + i.quantidade, 0);
+
+  const { modelo, html } = Etiquetas.gerarHtmlFolhaEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa);
+
+  fecharModalEtiquetas();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap';
+  wrap.id = 'etiquetasPreviewWrap';
+  wrap.innerHTML = `
+    <div class="modal modal-preview-etiquetas">
+      <h2>Pré-visualização</h2>
+      <p class="hint" style="margin:-8px 0 14px;">${totalEtiquetas} etiqueta${totalEtiquetas > 1 ? 's' : ''} · ${escaparHtml(modelo.nome)}</p>
+      <div class="etiquetas-preview-scroll">
+        <style>${Etiquetas._cssEtiquetas(modelo)}</style>
+        <div class="folha-etiquetas etiquetas-preview-folha">${html}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="btnVoltarConfigEtiquetas">Voltar</button>
+        <button class="btn primary" id="btnImprimirEtiquetasFinal">🖨 Imprimir</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  wrap.addEventListener('click', e => { if (e.target === wrap) fecharPreviewEtiquetas(); });
+  document.getElementById('btnVoltarConfigEtiquetas').addEventListener('click', () => {
+    fecharPreviewEtiquetas();
+    abrirConfigEtiquetas();
+  });
+  document.getElementById('btnImprimirEtiquetasFinal').addEventListener('click', () => {
+    imprimirEtiquetas(itens, modeloId, config);
+  });
+}
+
+/** Abre uma aba nova só com a folha de etiquetas (CSS de impressão isolado do resto do app) e dispara o print(). */
+function imprimirEtiquetas(itens, modeloId, config) {
+  const documentoHtml = Etiquetas.gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa);
+  const janela = window.open('', '_blank');
+  if (!janela) {
+    alert('Não foi possível abrir a janela de impressão. Verifique se o navegador está bloqueando pop-ups.');
+    return;
+  }
+  janela.document.open();
+  janela.document.write(documentoHtml);
+  janela.document.close();
+  janela.onload = () => {
+    janela.focus();
+    janela.print();
+  };
+
+  fecharPreviewEtiquetas();
+  cancelarSelecaoEtiquetas();
+}
+
 // --- Inicialização ---
 
 document.querySelectorAll('[data-tab]').forEach(botao => {
   botao.addEventListener('click', () => {
+    if (modoSelecaoEtiquetas && botao.dataset.tab !== 'estoque') cancelarSelecaoEtiquetas();
     abaAtual = botao.dataset.tab;
     renderizarTudo();
   });
@@ -2371,6 +2589,10 @@ document.getElementById('btnExportarSidebar').addEventListener('click', abrirMen
 document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
   botao.addEventListener('click', abrirWizardImportacao);
 });
+
+document.getElementById('btnSelecionarEtiquetas').addEventListener('click', ativarModoSelecaoEtiquetas);
+document.getElementById('btnCancelarSelecaoEtiquetas').addEventListener('click', cancelarSelecaoEtiquetas);
+document.getElementById('btnImprimirEtiquetasSelecionadas').addEventListener('click', abrirConfigEtiquetas);
 
 /**
  * Esconde as abas que o papel da pessoa logada não deveria ver:
@@ -2438,6 +2660,7 @@ async function iniciar() {
 
   usuarioLogadoPapel = usuario.papel || 'dono';
   usuarioLogadoPlano = usuario.plano || 'gratis';
+  usuarioLogadoNomeEmpresa = usuario.nomeEmpresa || '';
   aplicarRestricoesDePapel(usuarioLogadoPapel);
 
   try {

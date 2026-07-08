@@ -340,7 +340,7 @@ main{
 .modal-wrap{
   position:fixed; inset:0;
   background:rgba(18,40,31,0.55);
-  display:flex; align-items:flex-end; justify-content:center;
+  display:flex; align-items:center; justify-content:center;
   z-index:50;
 }
 /* Variante usada só no popup de boas-vindas: centralizado na tela,

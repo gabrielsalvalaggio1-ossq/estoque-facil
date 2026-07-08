@@ -1951,6 +1951,168 @@ async function carregarDadosExemplo(botao) {
   }
 }
 
+// --- Tela de boas-vindas com insights ---
+//
+// Diferente do onboarding acima (que só existe pra conta vazia, no
+// primeiro acesso), esta tela aparece pra quem JÁ tem dados — uma vez por
+// dia, no primeiro login do dia — com um resumo rápido do negócio antes de
+// cair na tela de Estoque. O conteúdo muda de acordo com o papel da
+// pessoa: dono/administrador vê o negócio inteiro, vendedor vê só as
+// próprias vendas, estoquista vê só o lado de estoque.
+
+const CHAVE_INSIGHTS_ULTIMO_DIA = 'mevInsightsUltimoDia';
+
+function saudacaoPorHorario() {
+  const hora = new Date().getHours();
+  if (hora < 12) return 'Bom dia';
+  if (hora < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
+/** Início (00:00) de hoje e de ontem, como objetos Date — pra comparar "hoje vs ontem". */
+function _limitesHojeOntem() {
+  const inicioHoje = new Date();
+  inicioHoje.setHours(0, 0, 0, 0);
+  const inicioOntem = new Date(inicioHoje);
+  inicioOntem.setDate(inicioOntem.getDate() - 1);
+  return { inicioHoje, inicioOntem };
+}
+
+/** Total vendido ontem (não existe um "período: ontem" em Vendas.filtrarVendas, então calcula direto aqui). */
+function calcularVendidoOntem(vendas) {
+  const { inicioHoje, inicioOntem } = _limitesHojeOntem();
+  return vendas
+    .filter(v => v.status !== 'cancelada')
+    .filter(v => { const d = new Date(v.data); return d >= inicioOntem && d < inicioHoje; })
+    .reduce((soma, v) => soma + v.total, 0);
+}
+
+/** Produto campeão de vendas nos últimos 7 dias (não a vida toda — mais útil pro dia a dia). */
+function calcularMaisVendidoUltimos7Dias(vendas) {
+  const limite = new Date();
+  limite.setDate(limite.getDate() - 7);
+  const recentes = vendas.filter(v => v.status !== 'cancelada' && new Date(v.data) >= limite);
+  const topLista = Produtos.calcularMaisVendidos(recentes, 1);
+  return topLista[0] || null;
+}
+
+/** Monta os cartões de insight de acordo com o papel de quem está logado. */
+function montarCardsInsights() {
+  const cards = [];
+
+  if (usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'administrador') {
+    const vendidoHoje = Vendas.calcularVendasDoDia(vendasCache);
+    const vendidoOntem = calcularVendidoOntem(vendasCache);
+    let nota = '';
+    if (vendidoOntem > 0) {
+      const variacao = ((vendidoHoje - vendidoOntem) / vendidoOntem) * 100;
+      nota = `${variacao >= 0 ? '↑' : '↓'} ${Math.abs(variacao).toFixed(0)}% vs ontem`;
+    }
+    cards.push({ id: 'vendidoHoje', icone: '💰', label: 'Vendido hoje', valor: formatarMoeda(vendidoHoje), nota });
+    cards.push({ id: 'vendidoMes', icone: '📅', label: 'Vendido no mês', valor: formatarMoeda(Vendas.calcularVendasDoMes(vendasCache)), nota: '' });
+
+    const top = calcularMaisVendidoUltimos7Dias(vendasCache);
+    cards.push({
+      id: 'maisVendido', icone: '🔥', label: 'Mais vendido (7 dias)',
+      valor: top ? top.nome : '—',
+      nota: top ? `${top.quantidade} ${top.quantidade === 1 ? 'unidade' : 'unidades'}` : 'Ainda sem vendas suficientes'
+    });
+
+    const { estoqueBaixo } = Produtos.calcularEstatisticas(produtosCache);
+    cards.push({
+      id: 'estoqueBaixo', icone: '📦', label: 'Estoque baixo', valor: String(estoqueBaixo),
+      nota: estoqueBaixo > 0 ? 'Toque para ver quais' : 'Tudo certo por aqui',
+      acao: estoqueBaixo > 0 ? irParaEstoqueBaixoDoInsight : null
+    });
+  } else if (usuarioLogadoPapel === 'vendedor') {
+    const { inicioHoje } = _limitesHojeOntem();
+    const minhasVendas = vendasCache.filter(v =>
+      v.status !== 'cancelada' && (v.vendedor || '').toLowerCase() === usuarioLogadoEmail.toLowerCase()
+    );
+    const minhasHoje = minhasVendas
+      .filter(v => new Date(v.data) >= inicioHoje)
+      .reduce((soma, v) => soma + v.total, 0);
+
+    cards.push({ id: 'minhasVendasHoje', icone: '💰', label: 'Suas vendas hoje', valor: formatarMoeda(minhasHoje), nota: '' });
+    cards.push({ id: 'minhasVendasTotal', icone: '🧾', label: 'Suas vendas registradas', valor: String(minhasVendas.length), nota: 'no total' });
+  } else if (usuarioLogadoPapel === 'estoquista') {
+    const { totalItens, valorEmEstoque, estoqueBaixo } = Produtos.calcularEstatisticas(produtosCache);
+    cards.push({ id: 'totalProdutos', icone: '📦', label: 'Produtos cadastrados', valor: String(totalItens), nota: '' });
+    cards.push({ id: 'valorEstoque', icone: '💵', label: 'Valor em estoque', valor: formatarMoeda(valorEmEstoque), nota: '' });
+    cards.push({
+      id: 'estoqueBaixo', icone: '⚠️', label: 'Estoque baixo', valor: String(estoqueBaixo),
+      nota: estoqueBaixo > 0 ? 'Toque para ver quais' : 'Tudo certo por aqui',
+      acao: estoqueBaixo > 0 ? irParaEstoqueBaixoDoInsight : null
+    });
+  }
+
+  return cards;
+}
+
+/** Uma frase curta e útil, escolhida a partir dos cartões já calculados (sem refazer nenhuma conta). */
+function montarDicaDoDiaInsights(cards) {
+  const estoqueCard = cards.find(c => c.id === 'estoqueBaixo');
+  if (estoqueCard && parseInt(estoqueCard.valor, 10) > 0) {
+    return `Você tem ${estoqueCard.valor} produto${estoqueCard.valor === '1' ? '' : 's'} perto de acabar. Bom repor antes que faltem.`;
+  }
+  const vendidoHojeCard = cards.find(c => c.id === 'vendidoHoje' || c.id === 'minhasVendasHoje');
+  if (vendidoHojeCard && /^R\$\s?0,00$/.test(vendidoHojeCard.valor)) {
+    return 'Ainda sem vendas hoje — que tal registrar a primeira?';
+  }
+  return 'Continue assim — seu negócio está em dia. 🎉';
+}
+
+function irParaEstoqueBaixoDoInsight() {
+  fecharTelaInsights();
+  irParaEstoqueBaixo();
+}
+
+function fecharTelaInsights() {
+  const el = document.getElementById('insightsWrap');
+  if (el) el.remove();
+}
+
+function abrirTelaInsights() {
+  const cards = montarCardsInsights();
+  if (!cards.length) return; // papel sem insight definido: não mostra nada
+  const dica = montarDicaDoDiaInsights(cards);
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap modal-wrap-centro';
+  wrap.id = 'insightsWrap';
+  wrap.innerHTML = `
+    <div class="onboard insights-tela">
+      <div class="emoji">👋</div>
+      <h2>${escaparHtml(saudacaoPorHorario())}${usuarioLogadoNomeEmpresa ? ', ' + escaparHtml(usuarioLogadoNomeEmpresa) : ''}!</h2>
+      <p class="insights-data">${escaparHtml(dataDeHoje())}</p>
+      <div class="insights-grid">
+        ${cards.map((c, i) => `
+          <div class="insight-card ${c.acao ? 'clicavel' : ''}" data-indice="${i}" ${c.acao ? 'role="button" tabindex="0"' : ''}>
+            <span class="insight-icone">${c.icone}</span>
+            <span class="insight-label">${escaparHtml(c.label)}</span>
+            <span class="insight-valor">${escaparHtml(c.valor)}</span>
+            ${c.nota ? `<span class="insight-nota">${escaparHtml(c.nota)}</span>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <p class="insights-dica">💡 ${escaparHtml(dica)}</p>
+      <button class="btn primary" id="btnFecharInsights">Vamos lá</button>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  wrap.querySelectorAll('.insight-card.clicavel').forEach(el => {
+    const acao = cards[Number(el.dataset.indice)].acao;
+    el.addEventListener('click', acao);
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); acao(); } });
+  });
+
+  const marcarComoVistaHoje = () => localStorage.setItem(CHAVE_INSIGHTS_ULTIMO_DIA, new Date().toISOString().slice(0, 10));
+  document.getElementById('btnFecharInsights').addEventListener('click', () => {
+    marcarComoVistaHoje();
+    fecharTelaInsights();
+  });
+}
+
 // --- Importação de Produtos (wizard) ---
 // Regras de parsing/validação/execução vivem em js/importacao.js
 // (window.Importacao) — aqui só desenhamos as telas e conectamos eventos,
@@ -2678,6 +2840,12 @@ async function iniciar() {
   const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);
   if (!jaViuOnboarding && produtosCache.length === 0) {
     abrirOnboarding();
+  } else if (produtosCache.length > 0) {
+    const hojeStr = new Date().toISOString().slice(0, 10);
+    const ultimoDiaComInsights = localStorage.getItem(CHAVE_INSIGHTS_ULTIMO_DIA);
+    if (ultimoDiaComInsights !== hojeStr) {
+      abrirTelaInsights();
+    }
   }
 
   if ('serviceWorker' in navigator) {

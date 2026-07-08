@@ -59,7 +59,7 @@ function dataDeHoje() {
 }
 
 async function recarregarDados() {
-  const precisaProdutos = usuarioLogadoPapel !== 'vendedor';
+  const precisaProdutos = true;
   const precisaVendas   = usuarioLogadoPapel !== 'estoquista';
 
   const [produtos, vendas] = await Promise.all([

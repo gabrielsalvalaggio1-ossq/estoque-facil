@@ -682,6 +682,11 @@ else if (abaAtual === 'venda') {
     }
   }
 
+  else if (abaAtual === 'atividades') {
+    main.innerHTML = telaAtividadesHtml();
+    carregarTelaAtividades();
+  }
+
   else if (abaAtual === 'assinatura') {
     main.innerHTML = `
       <div class="page">
@@ -1711,6 +1716,122 @@ function abrirMenuExportar() {
   });
 }
 
+// --- Histórico de atividades (só dono, recurso do plano Pro) ---
+
+const ROTULOS_ACAO_ATIVIDADE = {
+  criou: '➕ Cadastrou',
+  atualizou: '✏️ Editou',
+  excluiu: '🗑️ Excluiu',
+  adicionou_membro: '👥 Adicionou à equipe',
+  removeu_membro: '👤 Removeu da equipe',
+  mudou_plano: '💳 Mudou de plano',
+  cancelou_assinatura: '💳 Cancelou assinatura',
+  criou_empresa: '🏢 Criou a empresa',
+};
+
+const ROTULOS_STORE_ATIVIDADE = {
+  produtos: 'Produtos',
+  vendas: 'Vendas',
+  movimentos: 'Movimentos',
+  membros: 'Equipe',
+  assinatura: 'Assinatura',
+  empresa: 'Empresa',
+};
+
+let filtroAtividades = { store: '' };
+
+/** Monta um card avisando que o recurso pertence a um plano superior, com link pra upgrade. */
+function cartaoRecursoBloqueadoHtml(erro) {
+  const nomeNecessario = NOME_PLANO_FALLBACK[erro.planoNecessario] || erro.planoNecessario || 'Pro';
+  return `
+    <div class="card-info">
+      <h3>🔒 Recurso do plano ${escaparHtml(nomeNecessario)}</h3>
+      <p>${escaparHtml(erro.message || 'Esse recurso não está disponível no seu plano atual.')}</p>
+      <a href="planos.html" class="btn primary" style="display:inline-block;width:auto;padding:9px 16px;margin-top:10px;text-decoration:none;">Ver planos</a>
+    </div>
+  `;
+}
+
+function telaAtividadesHtml() {
+  return `
+    <div class="page">
+      <h2>📜 Histórico de atividades</h2>
+      <p class="hint">Veja quem fez cada ação dentro da sua empresa.</p>
+
+      <div class="field" style="max-width:260px;margin:12px 0;">
+        <label for="filtroAtividadeStore">Filtrar por área</label>
+        <select id="filtroAtividadeStore" class="filtro-select">
+          <option value="">Todas as áreas</option>
+          <option value="produtos">Produtos</option>
+          <option value="vendas">Vendas</option>
+          <option value="movimentos">Movimentos</option>
+          <option value="membros">Equipe</option>
+          <option value="assinatura">Assinatura</option>
+          <option value="empresa">Empresa</option>
+        </select>
+      </div>
+
+      <div id="listaAtividades" class="team-list"><p class="team-msg">Carregando…</p></div>
+    </div>
+  `;
+}
+
+/** Formata "YYYY-MM-DD HH:MM:SS" (UTC, como o SQLite grava) pro horário local em pt-BR. */
+function formatarDataHoraAtividade(dataSql) {
+  const data = new Date(String(dataSql).replace(' ', 'T') + 'Z');
+  if (isNaN(data.getTime())) return dataSql;
+  return data.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function linhaAtividadeHtml(atividade) {
+  const rotuloStore = ROTULOS_STORE_ATIVIDADE[atividade.store] || '';
+  const rotuloPapel = ROTULOS_PAPEL[atividade.papel] || atividade.papel || '';
+  const metaPartes = [atividade.usuarioEmail, rotuloPapel, rotuloStore, formatarDataHoraAtividade(atividade.criadoEm)]
+    .filter(Boolean)
+    .map(escaparHtml);
+
+  return `
+    <div class="team-row">
+      <span class="team-avatar" aria-hidden="true">${escaparHtml(gerarIniciaisEmail(atividade.usuarioEmail))}</span>
+      <div class="team-info">
+        <span class="team-email">${escaparHtml(atividade.descricao)}</span>
+        <span class="hint" style="font-size:12px;">${metaPartes.join(' · ')}</span>
+      </div>
+    </div>
+  `;
+}
+
+async function carregarTelaAtividades() {
+  const seletor = document.getElementById('filtroAtividadeStore');
+  if (seletor) {
+    seletor.value = filtroAtividades.store;
+    seletor.addEventListener('change', () => {
+      filtroAtividades.store = seletor.value;
+      carregarListaAtividades();
+    });
+  }
+  await carregarListaAtividades();
+}
+
+async function carregarListaAtividades() {
+  const container = document.getElementById('listaAtividades');
+  if (!container) return;
+  container.innerHTML = '<p class="team-msg">Carregando…</p>';
+
+  try {
+    const atividades = await DB.listarAtividades({ store: filtroAtividades.store || undefined });
+    if (atividades.length === 0) {
+      container.innerHTML = '<p class="team-msg">Nenhuma atividade registrada ainda.</p>';
+      return;
+    }
+    container.innerHTML = atividades.map(linhaAtividadeHtml).join('');
+  } catch (erro) {
+    container.innerHTML = erro && erro.recurso
+      ? cartaoRecursoBloqueadoHtml(erro)
+      : `<p class="erro" style="margin:0;">${escaparHtml((erro && erro.message) || 'Não foi possível carregar o histórico de atividades.')}</p>`;
+  }
+}
+
 // --- Onboarding (primeira utilização) ---
 
 const CHAVE_ONBOARDING = 'estoqueFacilOnboardingVisto';
@@ -1826,7 +1947,7 @@ document.getElementById('btnExportarSidebar').addEventListener('click', abrirMen
  */
 function aplicarRestricoesDePapel(papel) {
   const abasPorPapel = {
-    dono: ['estoque', 'venda', 'historico', 'conta', 'assinatura', 'contato'],
+    dono: ['estoque', 'venda', 'historico', 'atividades', 'conta', 'assinatura', 'contato'],
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };

@@ -21,12 +21,18 @@
  *   POST /api/:store                 -> cria um registro
  *   PUT  /api/:store/:id             -> atualiza um registro
  *   DELETE /api/:store/:id           -> remove um registro
+ *   GET  /api/atividades             -> histórico de atividades da empresa (só dono, recurso do plano Pro)
+ *
+ * Toda escrita relevante (criar/editar/excluir registro, adicionar/remover
+ * membro, mudar/cancelar plano) também grava uma linha em `atividades`
+ * (ver registrarAtividade), pra o dono saber exatamente quem fez o quê.
  *
  * Requer o binding D1 "DB", igual antes.
  */
 
 const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
+const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
 // Observação: 'FREE' não é um status de ciclo de vida — é um plano
@@ -302,6 +308,11 @@ async function criarEmpresa(db, email, request) {
     .bind('free', 'ACTIVE', email)
     .run();
 
+  await registrarAtividade(db, {
+    empresaId, email, papel: 'dono', acao: 'criou_empresa', store: 'empresa', registroId: empresaId,
+    descricao: `Criou a empresa "${nomeEmpresa}"`,
+  });
+
   return json({ email, empresaId, papel: 'dono', nomeEmpresa, plano: 'free' }, 201);
 }
 
@@ -411,6 +422,11 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       .bind(empresaId, email, papel)
       .run();
 
+    await registrarAtividade(db, {
+      empresaId, email: emailLogado, papel: membro.papel, acao: 'adicionou_membro', store: 'membros', registroId: email,
+      descricao: `Adicionou ${email} à equipe como ${ROTULOS_PAPEL[papel] || papel}`,
+    });
+
     return json({ email, papel }, 201);
   }
 
@@ -443,6 +459,11 @@ async function tratarRotaMembros(db, emailLogado, membro, emailAlvo, request) {
       .prepare('DELETE FROM membros WHERE empresa_id = ? AND usuario_email = ?')
       .bind(empresaId, emailDecodificado)
       .run();
+
+    await registrarAtividade(db, {
+      empresaId, email: emailLogado, papel: membro.papel, acao: 'removeu_membro', store: 'membros', registroId: emailDecodificado,
+      descricao: `Removeu ${emailDecodificado} da equipe`,
+    });
 
     return json({ ok: true });
   }
@@ -477,6 +498,60 @@ async function resolverEmailDaSessao(db, request) {
   if (new Date(linha.expiresAt) < new Date()) return null; // sessão expirada
 
   return linha.email;
+}
+
+// -------------------------------------------------------------------------
+// Histórico de atividades — grava quem fez cada ação relevante na empresa
+// (criar/editar/excluir registros, mexer na equipe, mudar de plano). Serve
+// exclusivamente pra leitura/auditoria: nunca decide permissão, e uma falha
+// aqui nunca pode derrubar a operação principal que a originou.
+// -------------------------------------------------------------------------
+
+/**
+ * Insere uma linha em `atividades`. Chamada em "fire and forget" lógico: o
+ * INSERT é aguardado (pra garantir ordem no histórico), mas qualquer erro é
+ * engolido — o pior cenário aceitável é faltar uma linha no histórico, nunca
+ * quebrar a ação de verdade (criar produto, registrar venda etc.).
+ */
+async function registrarAtividade(db, { empresaId, email, papel, acao, store = null, registroId = null, descricao }) {
+  try {
+    await db
+      .prepare(`
+        INSERT INTO atividades (id, empresa_id, usuario_email, papel, acao, store, registro_id, descricao, criado_em)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `)
+      .bind(`atv-${crypto.randomUUID()}`, empresaId, email, papel || null, acao, store, registroId, descricao)
+      .run();
+  } catch (erro) {
+    // Intencional: ver comentário acima. Histórico é auxiliar, não crítico.
+  }
+}
+
+const ROTULO_STORE_LOG = { produtos: 'produto', vendas: 'venda', movimentos: 'movimento' };
+
+/** Monta uma descrição legível (pt-BR) pra uma ação sobre um registro de store. */
+function descreverAcaoRegistro(store, dados, acao) {
+  const rotulo = ROTULO_STORE_LOG[store] || store;
+  let detalhe = '';
+
+  if (store === 'produtos' && dados && dados.nome) {
+    detalhe = `"${dados.nome}"`;
+  } else if (store === 'vendas' && dados) {
+    const valor = dados.total != null ? `R$ ${Number(dados.total).toFixed(2)}` : '';
+    detalhe = dados.cliente ? `para ${dados.cliente}${valor ? ` (${valor})` : ''}` : valor;
+  } else if (store === 'movimentos' && dados && dados.nomeProduto) {
+    detalhe = `de "${dados.nomeProduto}"`;
+  }
+
+  // Cancelar venda é um PUT por baixo dos panos, mas merece um verbo próprio
+  // no histórico em vez do genérico "editou".
+  if (store === 'vendas' && acao === 'atualizou' && dados && dados.status === 'cancelada') {
+    return `Cancelou venda${detalhe ? ' ' + detalhe : ''}`.trim();
+  }
+
+  const verbos = { criou: 'Cadastrou', atualizou: 'Editou', excluiu: 'Excluiu' };
+  const verbo = verbos[acao] || acao;
+  return `${verbo} ${rotulo}${detalhe ? ' ' + detalhe : ''}`.trim();
 }
 
 export async function onRequest(context) {
@@ -587,6 +662,11 @@ export async function onRequest(context) {
 
       await db.prepare('UPDATE usuarios SET status_assinatura = ? WHERE email = ?').bind('CANCELED', email).run();
 
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel, acao: 'cancelou_assinatura', store: 'assinatura', registroId: empresaId,
+        descricao: `Cancelou a assinatura do plano ${NOME_PLANO[assinatura.planoId] || assinatura.planoId}`,
+      });
+
       return json({ ok: true, status: 'CANCELED' });
     }
 
@@ -640,6 +720,11 @@ export async function onRequest(context) {
       // Mantém a coluna legada em sincronia, pra quem ainda lê empresas.plano.
       await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
 
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel, acao: 'mudou_plano', store: 'assinatura', registroId: empresaId,
+        descricao: `Alterou o plano para ${NOME_PLANO[planoId] || planoId}`,
+      });
+
       return json({ ok: true, planoId, status: novoStatus, dataExpiracao });
     }
 
@@ -665,27 +750,49 @@ export async function onRequest(context) {
     }
   }
 
-  // GET /api/auditoria — histórico de quem criou/alterou cada registro.
-  // Recurso exclusivo do plano Pro (verificarPlano cuida da mensagem).
-  if (primeiro === 'auditoria' && request.method === 'GET') {
-    const checagemAuditoria = await verificarPlano(db, membro.empresaId, 'auditoria');
-    if (!checagemAuditoria.permitido) {
-      return json({
-        error: checagemAuditoria.error,
-        recurso: 'auditoria',
-        planoAtual: checagemAuditoria.planoAtual,
-        planoNecessario: checagemAuditoria.planoNecessario,
-      }, checagemAuditoria.status);
+  // GET /api/atividades — histórico completo de quem fez cada ação na
+  // empresa (criar/editar/excluir produtos, vendas e movimentos; mexer na
+  // equipe; mudar de plano). Só o dono vê — é ele quem precisa auditar o
+  // que a equipe fez. Recurso exclusivo do plano Pro (verificarPlano cuida
+  // da mensagem de upgrade).
+  if (primeiro === 'atividades' && request.method === 'GET') {
+    if (membro.papel !== 'dono') {
+      return json({ error: 'Só o dono da empresa pode ver o histórico de atividades.' }, 403);
     }
+    const checagemAtividades = await verificarPlano(db, membro.empresaId, 'auditoria');
+    if (!checagemAtividades.permitido) {
+      return json({
+        error: checagemAtividades.error,
+        recurso: 'auditoria',
+        planoAtual: checagemAtividades.planoAtual,
+        planoNecessario: checagemAtividades.planoNecessario,
+      }, checagemAtividades.status);
+    }
+
+    // Filtro opcional por área (?store=produtos|vendas|movimentos|membros|assinatura|empresa)
+    // e limite opcional (?limite=1..200, padrão 100) — sempre dentro da própria empresa.
+    const storeFiltro = url.searchParams.get('store');
+    const storesFiltraveis = STORES_VALIDOS.concat(['membros', 'assinatura', 'empresa']);
+    const limiteBruto = parseInt(url.searchParams.get('limite'), 10);
+    const limite = Number.isFinite(limiteBruto) ? Math.min(Math.max(limiteBruto, 1), 200) : 100;
+
+    const condicoes = ['empresa_id = ?'];
+    const binds = [membro.empresaId];
+    if (storeFiltro && storesFiltraveis.includes(storeFiltro)) {
+      condicoes.push('store = ?');
+      binds.push(storeFiltro);
+    }
+
     const { results } = await db
       .prepare(`
-        SELECT id, store, usuario_email AS usuarioEmail, criado_em AS criadoEm, atualizado_em AS atualizadoEm
-        FROM registros
-        WHERE empresa_id = ?
-        ORDER BY atualizado_em DESC
-        LIMIT 200
+        SELECT id, usuario_email AS usuarioEmail, papel, acao, store, registro_id AS registroId,
+               descricao, criado_em AS criadoEm
+        FROM atividades
+        WHERE ${condicoes.join(' AND ')}
+        ORDER BY criado_em DESC
+        LIMIT ${limite}
       `)
-      .bind(membro.empresaId)
+      .bind(...binds)
       .all();
     return json(results);
   }
@@ -754,6 +861,12 @@ export async function onRequest(context) {
         .prepare('INSERT INTO registros (id, empresa_id, usuario_email, store, dados, atualizado_em) VALUES (?, ?, ?, ?, ?, datetime("now"))')
         .bind(registro.id, empresaId, email, store, JSON.stringify(registro))
         .run();
+
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel, acao: 'criou', store, registroId: registro.id,
+        descricao: descreverAcaoRegistro(store, registro, 'criou'),
+      });
+
       return json(registro, 201);
     }
 
@@ -771,14 +884,38 @@ export async function onRequest(context) {
         `)
         .bind(id, empresaId, email, store, JSON.stringify(registro))
         .run();
+
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel, acao: 'atualizou', store, registroId: id,
+        descricao: descreverAcaoRegistro(store, registro, 'atualizou'),
+      });
+
       return json(registro);
     }
 
     if (request.method === 'DELETE' && id) {
+      // Busca os dados antes de apagar só pra montar uma descrição legível
+      // no histórico (ex.: "Excluiu produto \"Coca-Cola\"") — a exclusão em
+      // si não muda em nada.
+      const linhaExistente = await db
+        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+        .bind(empresaId, store, id)
+        .first();
+
       await db
         .prepare('DELETE FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
         .bind(empresaId, store, id)
         .run();
+
+      let dadosExcluidos = null;
+      if (linhaExistente) {
+        try { dadosExcluidos = JSON.parse(linhaExistente.dados); } catch (e) { dadosExcluidos = null; }
+      }
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel, acao: 'excluiu', store, registroId: id,
+        descricao: descreverAcaoRegistro(store, dadosExcluidos, 'excluiu'),
+      });
+
       return json({ ok: true });
     }
 

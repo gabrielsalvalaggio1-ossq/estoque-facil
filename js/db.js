@@ -24,8 +24,9 @@ function gerarId() {
 async function tratarResposta(resp) {
   if (!resp.ok) {
     let mensagem = 'Erro ao comunicar com o servidor.';
+    let corpo = null;
     try {
-      const corpo = await resp.json();
+      corpo = await resp.json();
       if (corpo && corpo.error) mensagem = corpo.error;
     } catch (e) {
       // resposta sem corpo JSON — mantém a mensagem genérica
@@ -33,7 +34,14 @@ async function tratarResposta(resp) {
     if (resp.status === 401) {
       mensagem = 'Sessão expirada ou acesso não autorizado. Faça login novamente.';
     }
-    throw new Error(mensagem);
+    const erro = new Error(mensagem);
+    // Repassa os metadados de recurso bloqueado por plano (ver INFO_RECURSOS
+    // no backend), pra UI poder mostrar "recurso do plano X" com botão de
+    // upgrade em vez de só uma mensagem de erro genérica.
+    if (corpo && corpo.recurso) erro.recurso = corpo.recurso;
+    if (corpo && corpo.planoAtual) erro.planoAtual = corpo.planoAtual;
+    if (corpo && corpo.planoNecessario) erro.planoNecessario = corpo.planoNecessario;
+    throw erro;
   }
   return resp.json();
 }
@@ -132,6 +140,17 @@ async function mudarPlano(planoId) {
   return tratarResposta(resp);
 }
 
+// --- Histórico de atividades (/api/atividades) — só o dono vê, recurso do plano Pro. ---
+
+async function listarAtividades(filtros = {}) {
+  const params = new URLSearchParams();
+  if (filtros.store) params.set('store', filtros.store);
+  if (filtros.limite) params.set('limite', String(filtros.limite));
+  const qs = params.toString();
+  const resp = await fetch(`/api/atividades${qs ? '?' + qs : ''}`);
+  return tratarResposta(resp);
+}
+
 async function cancelarAssinatura(motivo) {
   const resp = await fetch('/api/assinatura', {
     method: 'POST',
@@ -158,5 +177,6 @@ window.DB = {
   removerMembro,
   buscarAssinatura,
   mudarPlano,
-  cancelarAssinatura
+  cancelarAssinatura,
+  listarAtividades
 };

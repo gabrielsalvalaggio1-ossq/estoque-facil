@@ -73,6 +73,16 @@
 </div>
 
 <script>
+// Exibe mensagem de sessão expirada por inatividade (gravada por app.js antes do redirect).
+(function () {
+  var msg = sessionStorage.getItem('_mev_sessao_expirada');
+  if (msg) {
+    sessionStorage.removeItem('_mev_sessao_expirada');
+    var el = document.getElementById('erro');
+    if (el) el.textContent = msg;
+  }
+})();
+
 function voltar() {
   // Se a pessoa chegou até aqui navegando dentro do próprio site, volta
   // pra tela anterior de verdade. Se abriu o link direto (sem histórico),

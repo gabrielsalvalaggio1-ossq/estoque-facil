@@ -27,6 +27,7 @@ let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no
 let modoSelecaoEtiquetas = false;
 let produtosSelecionadosEtiquetas = new Set(); // ids dos produtos marcados
 let usuarioLogadoNomeEmpresa = ''; // usado no campo opcional "nome da empresa" da etiqueta
+let usuarioLogadoNomeDono = ''; // nome de quem criou a empresa (dono)
 
 const ROTULOS_PAGAMENTO = {
   dinheiro: '💵 Dinheiro',
@@ -669,6 +670,8 @@ else if (abaAtual === 'venda') {
         <h2>👤 Minha Conta</h2>
 
         <div class="card-info">
+          <p><strong>Empresa:</strong> ${escaparHtml(usuarioLogadoNomeEmpresa || 'Não configurado')}</p>
+          <p><strong>Dono:</strong> ${escaparHtml(usuarioLogadoNomeDono || 'Não configurado')}</p>
           <p><strong>Logado como:</strong> ${escaparHtml(usuarioLogadoEmail || 'Carregando…')}</p>
           <button type="button" class="btn danger" id="btnLogout" style="width:auto;padding:9px 16px;margin-top:10px;">Sair da conta</button>
         </div>
@@ -2823,6 +2826,7 @@ async function iniciar() {
   usuarioLogadoPapel = usuario.papel || 'dono';
   usuarioLogadoPlano = usuario.plano || 'gratis';
   usuarioLogadoNomeEmpresa = usuario.nomeEmpresa || '';
+  usuarioLogadoNomeDono = usuario.nomeDono || '';
   aplicarRestricoesDePapel(usuarioLogadoPapel);
 
   try {

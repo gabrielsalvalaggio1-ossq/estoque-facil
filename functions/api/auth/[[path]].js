@@ -184,7 +184,7 @@ export async function onRequest(context) {
   try {
     // ---------- POST /api/auth/register ----------
     if (rota === 'register' && request.method === 'POST') {
-      const { nome, email, senha } = await request.json();
+      const { nome, nomeEmpresa, email, senha } = await request.json();
       if (!email || !senha) return json({ ok: false, error: 'E-mail e senha são obrigatórios.' }, 400);
 
       const jaExiste = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
@@ -197,7 +197,8 @@ export async function onRequest(context) {
         .run();
       const usuarioId = resultado.meta.last_row_id;
 
-      await garantirEmpresaEMembro(db, email, nome ? `Loja de ${nome}` : null);
+      const nomeEmpresaFinal = (nomeEmpresa || '').trim() || (nome ? `Loja de ${nome}` : null);
+      await garantirEmpresaEMembro(db, email, nomeEmpresaFinal);
       const token = await criarSessao(db, usuarioId, request);
 
       return json({ ok: true }, 200, { 'Set-Cookie': cookieDeSessao(token) });

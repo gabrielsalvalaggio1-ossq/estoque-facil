@@ -202,7 +202,9 @@ function json(dados, status = 200) {
 async function resolverMembro(db, email) {
   const linha = await db
     .prepare(`
-      SELECT m.empresa_id AS empresaId, m.papel AS papel, e.nome AS nomeEmpresa, e.plano AS plano
+      SELECT m.empresa_id AS empresaId, m.papel AS papel, e.nome AS nomeEmpresa, e.plano AS plano,
+             e.dono_email AS donoEmail,
+             (SELECT u.nome FROM usuarios u WHERE u.email = e.dono_email) AS nomeDono
       FROM membros m
       JOIN empresas e ON e.id = m.empresa_id
       WHERE m.usuario_email = ?
@@ -709,13 +711,14 @@ export async function onRequest(context) {
   // precisa mostrar a tela de "criar sua empresa".
   if (primeiro === 'me' && request.method === 'GET') {
     if (!membro) {
-      return json({ email, empresaId: null, papel: null, nomeEmpresa: null, plano: null });
+      return json({ email, empresaId: null, papel: null, nomeEmpresa: null, nomeDono: null, plano: null });
     }
     return json({
       email,
       empresaId: membro.empresaId,
       papel: membro.papel,
       nomeEmpresa: membro.nomeEmpresa,
+      nomeDono: membro.nomeDono,
       plano: membro.plano
     });
   }

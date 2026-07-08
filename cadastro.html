@@ -48,6 +48,10 @@
       <input id="nome" type="text" placeholder="Como podemos te chamar" autocomplete="name" required>
     </div>
     <div class="field">
+      <label for="nomeEmpresa">Nome da empresa</label>
+      <input id="nomeEmpresa" type="text" placeholder="Ex: Mercado da Esquina" autocomplete="organization" required>
+    </div>
+    <div class="field">
       <label for="email">E-mail</label>
       <input id="email" type="email" placeholder="voce@exemplo.com" autocomplete="email" inputmode="email" required>
     </div>
@@ -87,14 +91,15 @@ function voltar() {
 
 async function cadastro() {
   const nome = document.getElementById("nome").value.trim();
+  const nomeEmpresa = document.getElementById("nomeEmpresa").value.trim();
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
   const erroEl = document.getElementById("erro");
   const botao = document.getElementById("btnCriar");
   erroEl.textContent = "";
 
-  if (!nome || !email || !senha) {
-    erroEl.textContent = "Preencha nome, e-mail e senha.";
+  if (!nome || !nomeEmpresa || !email || !senha) {
+    erroEl.textContent = "Preencha nome, nome da empresa, e-mail e senha.";
     return;
   }
   if (senha.length < 6) {
@@ -109,7 +114,7 @@ async function cadastro() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome, email, senha })
+      body: JSON.stringify({ nome, nomeEmpresa, email, senha })
     });
     const data = await res.json();
 

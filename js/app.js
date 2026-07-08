@@ -2480,7 +2480,7 @@ function passoOrigemHtml() {
         </button>
       `).join('')}
     </div>
-    <button class="btn ghost" id="btnFecharImport" style="margin-top:16px;">Cancelar</button>
+    <button class="btn ghost" id="btnFecharImport" style="width:60%;margin-top:14px;">Cancelar</button>
   `;
 }
 

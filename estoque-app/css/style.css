@@ -696,7 +696,7 @@ main{
 }
 .btn.primary{ background:var(--ledger); color:var(--paper); }
 .btn.danger{ background:none; color:var(--coral-deep); border:1px solid var(--coral); }
-.btn.ghost{ background:none; color:var(--ink-soft); border:1px solid var(--line); }
+.btn.ghost{ background:#FFF; color:var(--ink-soft); border:1px solid var(--line); }
 
 .receipt{
   background:var(--paper);

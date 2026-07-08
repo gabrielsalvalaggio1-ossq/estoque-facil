@@ -400,7 +400,17 @@ async function exportarErrosXlsx(erros, nomeArquivo = 'erros-importacao.xlsx') {
 
 let _pdfJsPromise = null;
 function carregarPdfJs() {
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (window.pdfjsLib) {
+    // Mesmo se o PDF.js já foi carregado (ex.: via <script> fixo no HTML),
+    // ainda precisamos garantir que o worker está configurado — antes essa
+    // configuração só rodava dentro do onload do carregamento dinâmico, que
+    // nunca dispara nesse caso.
+    if (!window.pdfjsLib.GlobalWorkerOptions.workerSrc) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+    return Promise.resolve(window.pdfjsLib);
+  }
   if (_pdfJsPromise) return _pdfJsPromise;
   _pdfJsPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -419,16 +429,17 @@ function carregarPdfJs() {
 }
 
 /**
- * Extrai o texto de um PDF, linha por linha, respeitando a ORDEM NATURAL DE
- * LEITURA que o próprio PDF.js já identifica (mesma lógica por trás de
- * "selecionar e copiar" o texto de um PDF num leitor comum). Cada item de
- * texto vem marcado com `hasEOL` quando o PDF indica quebra de linha ali —
- * é isso que usamos pra fechar uma linha e começar a próxima.
- *
- * (Uma primeira versão desta função tentava reconstruir as linhas "na mão"
- * agrupando por coordenadas x/y — mas isso se mostrou MENOS confiável que
- * simplesmente confiar na ordem que o PDF.js já entrega, pra DANFEs geradas
- * por sistema, que é o caso mais comum. Mantemos essa versão mais simples.)
+ * Extrai o texto de um PDF reconstruindo as LINHAS pela posição (x, y) de
+ * cada fragmento de texto — em vez de confiar na ordem em que o PDF.js
+ * devolve os fragmentos (que segue a ordem em que o PDF foi *desenhado*,
+ * não a ordem visual de leitura). Em muitas DANFEs geradas por sistema, a
+ * coluna de descrição do produto é desenhada inteira primeiro, e só depois
+ * a coluna de valores (NCM/qtde/preço) — na ordem "de desenho" as duas
+ * colunas da mesma linha ficam longe uma da outra, mesmo estando lado a
+ * lado visualmente. Agrupar por posição (y) resolve isso: fragmentos com o
+ * mesmo "y" (dentro de uma pequena tolerância) são tratados como a mesma
+ * linha visual e reordenados por "x", reconstruindo a linha como ela
+ * realmente aparece na página.
  */
 async function extrairLinhasPdf(arquivo) {
   const pdfjsLib = await carregarPdfJs();
@@ -436,29 +447,50 @@ async function extrairLinhasPdf(arquivo) {
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
 
   const todasAsLinhas = [];
+  const TOLERANCIA_Y = 1.5; // px de diferença de baseline ainda considerados a mesma linha
 
   for (let numPagina = 1; numPagina <= pdf.numPages; numPagina++) {
     const pagina = await pdf.getPage(numPagina);
     const conteudo = await pagina.getTextContent();
 
-    let linhaAtual = '';
+    // Agrupa os fragmentos de texto por posição vertical (y).
+    const porLinha = [];
     conteudo.items.forEach(item => {
-      if (item.str) linhaAtual += item.str;
-      // hasEOL indica que o PDF marcou uma quebra de linha logo após este
-      // fragmento — fecha a linha atual e começa uma nova.
-      if (item.hasEOL) {
-        const limpa = linhaAtual.replace(/\s+/g, ' ').trim();
-        if (limpa) todasAsLinhas.push(limpa);
-        linhaAtual = '';
-      } else if (item.str && !item.str.endsWith(' ')) {
-        // Fragmentos consecutivos sem quebra às vezes vêm colados demais
-        // (ex.: "5,00" + "0,00" sem espaço no PDF original); um espaço aqui
-        // separa por segurança sem prejudicar palavras que o PDF já quebrou
-        // em vários fragmentos (o replace(/\s+/g,' ') acima limpa excesso).
-        linhaAtual += ' ';
+      if (!item.str || !item.str.trim()) return;
+      const x = item.transform[4];
+      const y = item.transform[5];
+      // width/height já vêm calculados pelo PDF.js (em unidades do PDF) —
+      // usamos pra saber onde o fragmento termina e decidir se precisa de
+      // espaço antes do próximo, em vez de "chutar" a largura pelo nº de
+      // caracteres (o que quebrava com fontes não-monoespaçadas).
+      const largura = typeof item.width === 'number' ? item.width : item.str.length * (item.height || 5) * 0.5;
+      const altura = item.height || 8;
+      let linha = porLinha.find(l => Math.abs(l.y - y) <= TOLERANCIA_Y);
+      if (!linha) {
+        linha = { y, fragmentos: [] };
+        porLinha.push(linha);
       }
+      linha.fragmentos.push({ x, largura, altura, texto: item.str });
     });
-    if (linhaAtual.trim()) todasAsLinhas.push(linhaAtual.replace(/\s+/g, ' ').trim());
+
+    // PDF.js usa y crescente de baixo pra cima — ordenamos do topo pra baixo.
+    porLinha.sort((a, b) => b.y - a.y);
+    porLinha.forEach(linha => {
+      linha.fragmentos.sort((a, b) => a.x - b.x);
+      let texto = '';
+      let fimAnterior = null;
+      let alturaRef = linha.fragmentos[0]?.altura || 8;
+      linha.fragmentos.forEach(f => {
+        // Só insere espaço quando o "buraco" até o fragmento anterior é
+        // perceptível (proporcional ao tamanho da fonte da linha) — evita
+        // tanto colar palavras diferentes quanto quebrar uma palavra só
+        // que o PDF desenhou em vários fragmentos.
+        if (fimAnterior !== null && (f.x - fimAnterior) > alturaRef * 0.25) texto += ' ';
+        texto += f.texto;
+        fimAnterior = f.x + f.largura;
+      });
+      todasAsLinhas.push(texto.replace(/\s+/g, ' ').trim());
+    });
   }
 
   return todasAsLinhas.filter(l => l !== '');
@@ -601,8 +633,10 @@ async function parsearPdfDanfe(arquivo) {
   const itensBrutos = extrairItensPdf(linhas);
   if (!itensBrutos.length) {
     // Ajuda a depurar layouts diferentes: abra o Console do navegador (F12)
-    // pra ver exatamente que linhas de texto o PDF.js extraiu daquele PDF.
-    console.warn('[Importacao PDF] Nenhum item reconhecido. Linhas extraídas do PDF:', linhas);
+    // e rode `copy(window.__debugLinhasPdf.join('\n'))` pra copiar as linhas
+    // extraídas do PDF (fica na área de transferência, pronto pra colar).
+    window.__debugLinhasPdf = linhas;
+    console.warn('[Importacao PDF] Nenhum item reconhecido. Rode copy(window.__debugLinhasPdf.join(\'\\n\')) no Console pra copiar as linhas extraídas.', linhas);
     throw new Error('Não foi possível identificar a tabela de produtos neste PDF. O layout desta DANFE pode ser diferente do esperado — tente exportar/solicitar o XML da nota, que é 100% confiável, ou cadastre os produtos manualmente.');
   }
 

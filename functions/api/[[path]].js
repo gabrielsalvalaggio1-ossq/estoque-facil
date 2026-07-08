@@ -156,7 +156,22 @@ const INFO_RECURSOS = {
 
 const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
 
+// Cache de plano por empresa — válido por 5 minutos por isolate do Worker.
+// Cloudflare Workers reutilizam isolates no mesmo deployment, então este
+// cache é efetivo entre requisições consecutivas no mesmo edge node,
+// eliminando a query extra de JOIN assinaturas×planos a cada escrita.
+const _planoCache = new Map(); // Map<empresaId, { plano: object, exp: number }>
+const _PLANO_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+function invalidarCachePlano(empresaId) {
+  _planoCache.delete(empresaId);
+}
+
 async function carregarPlanoDaEmpresa(db, empresaId) {
+  const agora = Date.now();
+  const hit = _planoCache.get(empresaId);
+  if (hit && hit.exp > agora) return hit.plano;
+
   const linha = await db
     .prepare(`
       SELECT a.status AS status, a.data_expiracao AS dataExpiracao, a.cancelado_em AS canceladoEm,
@@ -174,7 +189,7 @@ async function carregarPlanoDaEmpresa(db, empresaId) {
   if (!linha) return null;
   let recursos = {};
   try { recursos = JSON.parse(linha.recursosJson || '{}'); } catch { recursos = {}; }
-  return {
+  const plano = {
     status: linha.status,
     dataExpiracao: linha.dataExpiracao,
     canceladoEm: linha.canceladoEm,
@@ -186,6 +201,8 @@ async function carregarPlanoDaEmpresa(db, empresaId) {
     limiteMembros: linha.limiteMembros,
     recursos,
   };
+  _planoCache.set(empresaId, { plano, exp: agora + _PLANO_TTL_MS });
+  return plano;
 }
 
 function bloqueado(recurso, planoAtualId) {
@@ -855,6 +872,7 @@ export async function onRequest(context) {
         .bind((corpo && corpo.motivo) || null, empresaId)
         .run();
 
+      invalidarCachePlano(empresaId); // M-06: invalida cache após cancelamento
       await db.prepare('UPDATE usuarios SET status_assinatura = ? WHERE email = ?').bind('CANCELED', email).run();
 
       await registrarAtividade(db, {
@@ -891,6 +909,8 @@ export async function onRequest(context) {
         `)
         .bind(empresaId)
         .run();
+
+      invalidarCachePlano(empresaId); // M-06: invalida cache após troca de plano
 
       await db
         .prepare(`
@@ -1096,9 +1116,15 @@ export async function onRequest(context) {
 
   try {
     if (request.method === 'GET' && !id) {
+      // M-05: paginação — evita carregar milhares de registros de uma vez.
+      // Defaults: limite=200, offset=0. Máximo aceito: 500 por request.
+      const limiteBruto = parseInt(url.searchParams.get('limite'), 10);
+      const offsetBruto = parseInt(url.searchParams.get('offset'), 10);
+      const limite = Number.isFinite(limiteBruto) ? Math.min(Math.max(limiteBruto, 1), 500) : 200;
+      const offset = Number.isFinite(offsetBruto) ? Math.max(offsetBruto, 0) : 0;
       const { results } = await db
-        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ?')
-        .bind(empresaId, store)
+        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? LIMIT ? OFFSET ?')
+        .bind(empresaId, store, limite, offset)
         .all();
       return json(results.map(r => JSON.parse(r.dados)));
     }
@@ -1127,6 +1153,23 @@ export async function onRequest(context) {
             planoAtual: checagemProdutos.planoAtual,
             planoNecessario: checagemProdutos.planoNecessario,
           }, checagemProdutos.status);
+        }
+      }
+
+      // M-07: Idempotência para vendas — protege contra retry de rede onde o
+      // cliente não sabe se a requisição anterior chegou ao servidor. Se já
+      // existe uma venda com o mesmo id e status != 'cancelada', retorna ela
+      // como 200 em vez de criar uma duplicata.
+      if (store === 'vendas') {
+        const existente = await db
+          .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+          .bind(empresaId, 'vendas', registro.id)
+          .first();
+        if (existente) {
+          const vendaExistente = JSON.parse(existente.dados);
+          if (vendaExistente.status !== 'cancelada') {
+            return json(vendaExistente, 200); // idempotente: retorna a venda já existente
+          }
         }
       }
 

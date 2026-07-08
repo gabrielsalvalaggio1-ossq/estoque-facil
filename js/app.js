@@ -3270,4 +3270,9 @@ async function criarEmpresaEContinuar() {
   }
 }
 
+// Esconde todas as abas imediatamente (papel ainda é null).
+// Evita flash de conteúdo de "dono" para vendedores/estoquistas
+// durante o carregamento inicial — as abas corretas aparecem após
+// aplicarRestricoesDePapel() ser chamado dentro de iniciar().
+aplicarRestricoesDePapel(null);
 iniciar();

@@ -991,6 +991,17 @@ async function excluirClienteComConfirmacao(id) {
   }
 }
 
+// --- Central de Dados ---
+
+async function carregarCentralDados() {
+  const main = document.getElementById('main');
+  if (!assinaturaCache) {
+    try { assinaturaCache = await DB.buscarAssinatura(); } catch (e) { assinaturaCache = null; }
+  }
+  main.innerHTML = await CentralDados.renderizar(produtosCache, vendasCache, assinaturaCache);
+  CentralDados.inicializar(produtosCache, vendasCache, carregarCentralDados);
+}
+
 // --- Render geral ---
 
 function renderizarConteudo() {
@@ -1031,6 +1042,10 @@ else if (abaAtual === 'venda') {
   else if (abaAtual === 'historico') {
     main.innerHTML = barraFiltrosVendas();
     atualizarListaVendas();
+  }
+
+  else if (abaAtual === 'central') {
+    carregarCentralDados();
   }
 
   else if (abaAtual === 'clientes') {
@@ -3641,7 +3656,7 @@ function aplicarRestricoesDePapel(papel) {
 
   const abasPorPapel = {
     // Aba Atividades só aparece para donos em planos pagos
-    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
+    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };

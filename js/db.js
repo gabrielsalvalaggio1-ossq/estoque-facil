@@ -189,6 +189,25 @@ async function listarAtividades(filtros = {}) {
   return tratarResposta(resp);
 }
 
+// --- Metas (/api/metas) — Central de Dados > Metas, recurso exclusivo do
+// plano Pro (o servidor confere de novo em functions/api/[[path]].js). ---
+
+async function listarMetas() {
+  return listarTodos('metas');
+}
+
+async function salvarMeta(meta) {
+  return adicionar('metas', meta);
+}
+
+async function editarMeta(meta) {
+  return atualizar('metas', meta);
+}
+
+async function excluirMeta(id) {
+  return remover('metas', id);
+}
+
 async function cancelarAssinatura(motivo) {
   const resp = await fetch('/api/assinatura', {
     method: 'POST',
@@ -304,5 +323,9 @@ window.DB = {
   buscarClientesPorNome,
   salvarCliente,
   editarCliente,
-  excluirCliente
+  excluirCliente,
+  listarMetas,
+  salvarMeta,
+  editarMeta,
+  excluirMeta
 };

@@ -30,7 +30,7 @@
  * Requer o binding D1 "DB", igual antes.
  */
 
-const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos', 'clientes'];
+const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos', 'clientes', 'metas'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
@@ -130,8 +130,27 @@ function validarRegistro(store, registro) {
     }
     const erroMotivo = validarTexto(registro.motivo, 'motivo');
     if (erroMotivo) return erroMotivo;
+  } else if (store === 'metas') {
+    if (!['faturamento', 'lucro', 'vendas'].includes(registro.tipo)) {
+      return 'Campo "tipo" deve ser "faturamento", "lucro" ou "vendas".';
+    }
+    if (!['mes', 'ano'].includes(registro.periodo)) {
+      return 'Campo "periodo" deve ser "mes" ou "ano".';
+    }
+    if (typeof registro.valor !== 'number' || registro.valor <= 0) {
+      return 'Campo "valor" deve ser um número > 0.';
+    }
   }
   return null;
+}
+
+/**
+ * Central de Dados > Metas é um recurso exclusivo do plano Pro (mensal ou
+ * anual) — planos Free/Essencial não podem cadastrar metas, só visualizar
+ * a Central de Dados na versão simplificada (ver js/central-dados.js).
+ */
+function ehPlanoPro(planoId) {
+  return planoId === 'pro' || planoId === 'pro_anual';
 }
 
 // Estados possíveis de assinaturas.status (schema-assinaturas.sql).
@@ -268,9 +287,9 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
 const PERMISSOES = {
-  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total', clientes: 'total' },
-  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'total', clientes: 'total' },
-  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total', clientes: 'leitura' },
+  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total', clientes: 'total',  metas: 'total' },
+  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'total', clientes: 'total',  metas: 'leitura' },
+  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total', clientes: 'leitura', metas: 'leitura' },
 };
 
 /**
@@ -1227,6 +1246,18 @@ export async function onRequest(context) {
         }
       }
 
+      if (store === 'metas') {
+        const planoMetas = await carregarPlanoDaEmpresa(db, empresaId);
+        if (!planoMetas || !ehPlanoPro(planoMetas.planoId)) {
+          return json({
+            error: 'Metas e alertas inteligentes são um recurso do plano Pro. Faça upgrade para desbloquear.',
+            recurso: 'metas',
+            planoAtual: planoMetas ? planoMetas.planoId : null,
+            planoNecessario: 'pro',
+          }, 403);
+        }
+      }
+
       // M-07: Idempotência para vendas — protege contra retry de rede onde o
       // cliente não sabe se a requisição anterior chegou ao servidor. Se já
       // existe uma venda com o mesmo id e status != 'cancelada', retorna ela
@@ -1342,6 +1373,18 @@ export async function onRequest(context) {
         }
       }
 
+      if (store === 'metas') {
+        const planoMetasPut = await carregarPlanoDaEmpresa(db, empresaId);
+        if (!planoMetasPut || !ehPlanoPro(planoMetasPut.planoId)) {
+          return json({
+            error: 'Metas e alertas inteligentes são um recurso do plano Pro. Faça upgrade para desbloquear.',
+            recurso: 'metas',
+            planoAtual: planoMetasPut ? planoMetasPut.planoId : null,
+            planoNecessario: 'pro',
+          }, 403);
+        }
+      }
+
       await db
         .prepare(`
           INSERT INTO registros (id, empresa_id, usuario_email, store, dados, atualizado_em)
@@ -1361,6 +1404,18 @@ export async function onRequest(context) {
     }
 
     if (request.method === 'DELETE' && id) {
+      if (store === 'metas') {
+        const planoMetasDelete = await carregarPlanoDaEmpresa(db, empresaId);
+        if (!planoMetasDelete || !ehPlanoPro(planoMetasDelete.planoId)) {
+          return json({
+            error: 'Metas e alertas inteligentes são um recurso do plano Pro. Faça upgrade para desbloquear.',
+            recurso: 'metas',
+            planoAtual: planoMetasDelete ? planoMetasDelete.planoId : null,
+            planoNecessario: 'pro',
+          }, 403);
+        }
+      }
+
       const linhaExistente = await db
         .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
         .bind(empresaId, store, id)

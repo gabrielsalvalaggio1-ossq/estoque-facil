@@ -18,14 +18,215 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="css/style.css" data-clarity-unmask="true">
-<link rel="stylesheet" href="css/microinteracoes.css">
-<link rel="stylesheet" href="venda-rapida.css">
-<link rel="stylesheet" href="estoque-inteligencia.css">
-<link rel="stylesheet" href="carrinho-inteligente.css">
-<link rel="stylesheet" href="css/clientes-t9.css">
-<link rel="stylesheet" href="css/dashboard-insights.css">
-<link rel="stylesheet" href="css/estados.css">
+<!-- T14: CSS crítico (acima da dobra) inline, para primeiro paint sem
+     esperar nenhum stylesheet externo. É um subconjunto de css/style.css —
+     se algo aqui mudar, atualize os dois lugares. -->
+<style>
+:root{
+  --ledger: #1B3A2F;
+  --ledger-dark: #12281F;
+  --paper: #FBFAF3;
+  --paper-dim: #EFEBDD;
+  --ink: #1F2420;
+  --ink-soft: #5B6259;
+  --amber: #D9A441;
+  --amber-deep: #8A6A22;
+  --coral: #E2572B;
+  --coral-deep: #8F2E14;
+  --line: #D9D4C2;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--ledger-dark);
+  font-family:'Inter',sans-serif;
+  color:var(--ink);
+  min-height:100vh;
+}
+#shell{
+  display:flex;
+  min-height:100vh;
+  max-width:1400px;
+  margin:0 auto;
+}
+.sidebar{ display:none; }
+#app{
+  width:100%;
+  max-width:420px;
+  min-height:100vh;
+  margin:0 auto;
+  background:var(--paper);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+header.top{
+  background:var(--ledger);
+  color:var(--paper);
+  padding:22px 20px 18px;
+}
+header.top .eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin:0 0 4px;
+}
+header.top h1{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:26px;
+  margin:0;
+  line-height:1.15;
+}
+header.top .sub{
+  font-size:13px;
+  color:#C7D3CB;
+  margin-top:6px;
+}
+header.top .topsellers{
+  font-size:12px;
+  color:#C7D3CB;
+  margin:10px 0 0;
+}
+header.top .topsellers strong{ color:var(--amber); font-weight:600; }
+.stats{
+  display:flex;
+  gap:10px;
+  padding:14px 16px 0;
+}
+.stat{
+  flex:1;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.stat .lbl{
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;
+}
+.stat .val{
+  font-family:'Fraunces',serif;
+  font-size:19px;
+  font-weight:600;
+  margin-top:2px;
+  color:var(--coral-deep);
+}
+.stat.warn{ cursor:pointer; }
+nav.tabs{
+  display:flex;
+  align-items:flex-end;
+  margin:16px 16px 0;
+  border-bottom:1px solid var(--line);
+}
+.tabs-scroll{
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.tabs-scroll::-webkit-scrollbar{ display:none; }
+nav.tabs button{
+  flex:0 0 auto;
+  background:none;
+  border:none;
+  padding:10px 14px 12px;
+  font-family:'Inter',sans-serif;
+  font-weight:500;
+  font-size:13.5px;
+  color:var(--ink-soft);
+  border-bottom:2px solid transparent;
+  cursor:pointer;
+  white-space:nowrap;
+}
+nav.tabs button.active{
+  color:var(--ledger);
+  border-bottom:2px solid var(--coral);
+}
+nav.tabs button.export-link{
+  flex:0 0 auto;
+  margin-left:8px;
+  padding:10px 4px 12px 14px;
+  border-left:1px solid var(--line);
+  font-size:12px;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;
+}
+.toolbar{
+  display:flex;
+  gap:8px;
+  padding:0 16px 12px;
+}
+.btn-destaque{
+  flex:1;
+  background:var(--coral);
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:14px 16px;
+  font-weight:700;
+  font-size:15px;
+  font-family:'Inter',sans-serif;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  cursor:pointer;
+  box-shadow:0 4px 14px rgba(143,46,20,0.28);
+}
+.btn-destaque:active{ transform:scale(0.98); }
+.btn-scan-toolbar{
+  width:52px; flex-shrink:0;
+  background:var(--paper);
+  color:var(--ledger);
+  border:1px solid var(--line);
+  border-radius:12px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.btn-scan-toolbar:active{ transform:scale(0.94); }
+.cartbar{
+  position:sticky;
+  bottom:0;
+  left:0; right:0;
+  background:var(--ledger);
+  color:var(--paper);
+  padding:14px 16px;
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+</style>
+
+<!-- T14: o resto do CSS carrega sem bloquear o parser. O truque
+     media="print" + onload faz o navegador buscar o arquivo em paralelo,
+     com prioridade baixa, e só aplicá-lo como "all" (tela) depois de
+     baixado — na prática, equivalente a um <link rel="preload"> que vira
+     stylesheet sozinho, com fallback via <noscript> pra quando JS está
+     desligado. -->
+<link rel="stylesheet" href="css/style.css" data-clarity-unmask="true" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/microinteracoes.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="venda-rapida.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="estoque-inteligencia.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="carrinho-inteligente.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/clientes-t9.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/dashboard-insights.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/estados.css" media="print" onload="this.media='all'">
+<noscript>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/microinteracoes.css">
+  <link rel="stylesheet" href="venda-rapida.css">
+  <link rel="stylesheet" href="estoque-inteligencia.css">
+  <link rel="stylesheet" href="carrinho-inteligente.css">
+  <link rel="stylesheet" href="css/clientes-t9.css">
+  <link rel="stylesheet" href="css/dashboard-insights.css">
+  <link rel="stylesheet" href="css/estados.css">
+</noscript>
 <script src="js/analytics.js"></script>
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-Q5PJ2HE6NX"></script>
 <script src="js/gtag.js"></script>

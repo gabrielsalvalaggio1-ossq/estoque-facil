@@ -10,6 +10,69 @@
  * Depende de estado global e helpers definidos em ui-base.js (carregado antes).
  */
 
+// ── T14: Lazy loading de imagens de produto ──────────────────────────────
+// Pixel transparente 1x1 usado como placeholder enquanto a foto real não
+// entra na viewport — evita o ícone de "imagem quebrada" e uma requisição
+// indesejada por src="" (alguns navegadores tratam src vazio como refetch
+// da própria página).
+const PIXEL_TRANSPARENTE = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
+
+/** Monta a tag <img> de uma foto de produto com lazy loading (loading="lazy"
+ *  nativo + IntersectionObserver como mecanismo real de adiar o carregamento
+ *  via data-src, cobrindo também navegadores sem suporte a `loading`). */
+function imagemProdutoLazy(urlImagem, classeExtra = '') {
+  return `<img src="${PIXEL_TRANSPARENTE}" data-src="${escaparHtml(urlImagem)}" alt="" loading="lazy" decoding="async" class="thumb${classeExtra ? ' ' + classeExtra : ''}">`;
+}
+
+let _observerImagensLazy = null;
+
+/** Ativa o carregamento das fotos de produto visíveis dentro de `escopo`.
+ *  Precisa ser chamada depois de qualquer innerHTML que insira imagens com
+ *  data-src, já que os elementos antigos observados somem com o innerHTML. */
+function observarImagensLazy(escopo = document) {
+  const imgs = escopo.querySelectorAll('img[data-src]');
+  if (!imgs.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    // Navegador muito antigo: carrega tudo de uma vez (sem lazy, mas funcional).
+    imgs.forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
+    return;
+  }
+
+  if (!_observerImagensLazy) {
+    _observerImagensLazy = new IntersectionObserver((entradas, observer) => {
+      entradas.forEach(entrada => {
+        if (!entrada.isIntersecting) return;
+        const img = entrada.target;
+        img.src = img.dataset.src;
+        img.removeAttribute('data-src');
+        observer.unobserve(img);
+      });
+    }, { rootMargin: '200px 0px' });
+  }
+
+  imgs.forEach(img => _observerImagensLazy.observe(img));
+}
+
+// ── T14: Cache de renders — evita re-renderizar listas que não mudaram ──
+// Guarda o último HTML efetivamente aplicado em cada container. Se o HTML
+// recém-gerado for idêntico ao anterior, pula o innerHTML (que força reflow
+// e recriação de todos os nós filhos) — comum quando o usuário troca de aba
+// e volta, ou quando um re-render é disparado sem nenhuma mudança real nos
+// dados/filtros.
+const _cacheRenderLista = {};
+function renderizarSeMudou(container, html, chave) {
+  if (!container) return false;
+  const anterior = _cacheRenderLista[chave];
+  // Compara também o elemento: ao trocar de aba o container é recriado do
+  // zero (innerHTML novo, vazio) — nesse caso precisa renderizar de novo
+  // mesmo que o HTML gerado seja idêntico ao da última vez.
+  if (anterior && anterior.elemento === container && anterior.html === html) return false;
+  _cacheRenderLista[chave] = { elemento: container, html };
+  container.innerHTML = html;
+  return true;
+}
+
 // --- Dashboard (cabeçalho) ---
 
 function renderizarEstatisticas() {
@@ -101,15 +164,18 @@ function atualizarListaProdutos() {
   const container = document.getElementById('listaProdutos');
   if (!container) return;
   const filtrados = Produtos.filtrarProdutos(produtosCache, filtroEstoque);
+  let html;
   if (produtosCache.length === 0) {
-    container.innerHTML = telaVaziaEstoque();
+    html = telaVaziaEstoque();
   } else if (filtrados.length === 0) {
-    container.innerHTML = criarSemResultado('Nenhum produto encontrado', 'Tente outro filtro ou termo de busca.');
+    html = criarSemResultado('Nenhum produto encontrado', 'Tente outro filtro ou termo de busca.');
   } else if (filtroEstoque.agrupar === 'categoria' || filtroEstoque.agrupar === 'fornecedor') {
-    container.innerHTML = agruparProdutosEstoqueHtml(filtrados, filtroEstoque.agrupar);
+    html = agruparProdutosEstoqueHtml(filtrados, filtroEstoque.agrupar);
   } else {
-    container.innerHTML = filtrados.map(cartaoProdutoEstoque).join('');
+    html = filtrados.map(cartaoProdutoEstoque).join('');
   }
+  const mudou = renderizarSeMudou(container, html, 'estoque');
+  if (mudou) observarImagensLazy(container);
 }
 
 /** Agrupa os produtos da aba Estoque em seções por categoria ou fornecedor,
@@ -163,7 +229,7 @@ function cartaoProdutoEstoque(produto) {
     ? `<span class="cat fornecedor-tag">${escaparHtml(produto.fornecedor)}</span>`
     : '';
   const miniatura = produto.imagem
-    ? `<img src="${escaparHtml(produto.imagem)}" alt="" class="thumb">`
+    ? imagemProdutoLazy(produto.imagem)
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
 
   if (modoSelecaoEtiquetas) {
@@ -223,12 +289,16 @@ function uxVendaEnter(e) {
   document.getElementById('campoBuscaVenda')?.focus();
 }
 
+let _timerFiltroVenda = null;
 function aplicarFiltroVenda() {
+  // Mesmo padrão de aplicarFiltroEstoque: lê os valores na hora, mas adia a
+  // re-renderização — sem isso, catálogos grandes travavam a digitação.
   const campo = document.getElementById('campoBuscaVenda');
   const seletor = document.getElementById('seletorCategoriaVenda');
   buscaVenda = campo ? campo.value : '';
   categoriaVenda = seletor ? seletor.value : '';
-  atualizarListaVenda();
+  clearTimeout(_timerFiltroVenda);
+  _timerFiltroVenda = setTimeout(atualizarListaVenda, 200);
 }
 
 function atualizarListaVenda() {
@@ -244,7 +314,7 @@ function atualizarListaVenda() {
   });
 
   if (filtrados.length === 0) {
-    container.innerHTML = criarSemResultado('Nenhum produto aqui ainda', 'Adicione seu primeiro produto clicando em "Adicionar produto".');
+    renderizarSeMudou(container, criarSemResultado('Nenhum produto aqui ainda', 'Adicione seu primeiro produto clicando em "Adicionar produto".'), 'venda');
     return;
   }
 
@@ -260,7 +330,7 @@ function atualizarListaVenda() {
     a.localeCompare(b, 'pt-BR')
   );
 
-  container.innerHTML = categorias.map(cat => `
+  const html = categorias.map(cat => `
     <div class="venda-categoria">
       <h3 class="categoria-titulo">${escaparHtml(cat)}</h3>
       <div class="categoria-grid">
@@ -268,6 +338,9 @@ function atualizarListaVenda() {
       </div>
     </div>
   `).join('');
+
+  const mudou = renderizarSeMudou(container, html, 'venda');
+  if (mudou) observarImagensLazy(container);
 }
 /** Card de venda (aba Venda): estilo cardápio — sem número de estoque, só nome, foto, preço e botão de vender. */
 function cartaoProdutoVenda(produto) {
@@ -277,7 +350,7 @@ function cartaoProdutoVenda(produto) {
   const semMaisAdicionar = qtd >= produto.estoque;
 
   const img = produto.imagem
-    ? `<img src="${escaparHtml(produto.imagem)}" class="thumb">`
+    ? imagemProdutoLazy(produto.imagem)
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
 
   const idEscapado = escaparHtml(produto.id);
@@ -374,13 +447,15 @@ function atualizarListaVendas() {
   const container = document.getElementById('listaVendas');
   if (!container) return;
   const filtradas = Vendas.filtrarVendas(vendasCache, filtroVendas);
+  let html;
   if (vendasCache.length === 0) {
-    container.innerHTML = telaVaziaVendas();
+    html = telaVaziaVendas();
   } else if (filtradas.length === 0) {
-    container.innerHTML = criarSemResultado('Nenhuma venda encontrada', 'Tente outro período ou status.');
+    html = criarSemResultado('Nenhuma venda encontrada', 'Tente outro período ou status.');
   } else {
-    container.innerHTML = filtradas.map(linhaVenda).join('');
+    html = filtradas.map(linhaVenda).join('');
   }
+  renderizarSeMudou(container, html, 'vendas');
 }
 
 function linhaVenda(venda) {
@@ -500,4 +575,3 @@ async function cancelarVendaComConfirmacao(id) {
     cancelamentoEmAndamento.delete(id);
   }
 }
-

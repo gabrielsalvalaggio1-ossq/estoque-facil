@@ -5,23 +5,56 @@
  * este arquivo só garante que a INTERFACE carregue offline.
  */
 
-const CACHE_NAME = 'meu-estoque-v9';
+// T14: versão incrementada porque a lista de arquivos essenciais mudou —
+// isso força o novo service worker a reinstalar o cache (senão o browser
+// continuaria usando o cache antigo, sem os arquivos novos, até um
+// unregister manual). Sempre suba esse número ao alterar ARQUIVOS_ESSENCIAIS.
+const CACHE_NAME = 'meu-estoque-v10';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',
   './index.html',
   './manifest.json',
+
+  // CSS — todo arquivo referenciado em <link rel="stylesheet"> no index.html
   './css/style.css',
+  './css/microinteracoes.css',
+  './venda-rapida.css',
+  './estoque-inteligencia.css',
+  './carrinho-inteligente.css',
+  './css/clientes-t9.css',
+  './css/dashboard-insights.css',
+  './css/estados.css',
+
+  // JS — todo <script src="..."> local do index.html (scripts de terceiros,
+  // como pdf.js do cdnjs e o gtag.js do Google, ficam de fora do precache:
+  // são cross-origin e entram no cache automaticamente em runtime, via
+  // stale-while-revalidate, no primeiro fetch bem-sucedido).
+  './js/analytics.js',
+  './js/gtag.js',
   './js/db.js',
   './js/produtos.js',
   './js/vendas.js',
   './js/importacao.js',
   './js/central-dados.js',
+  './js/dashboard-insights.js',
   './js/etiquetas.js',
+  './js/ui-base.js',
+  './estoque-inteligencia.js',
+  './js/ui-estoque-venda.js',
+  './js/ui-clientes-render.js',
+  './js/ui-produto-modal.js',
+  './js/ui-equipe-assinatura.js',
+  './js/ui-comprovante-atividades.js',
+  './js/ui-onboarding-importacao.js',
+  './js/ui-etiquetas.js',
+  './js/estados.js',
   './js/app.js',
-  './js/analytics.js',
-  './js/gtag.js',
+  './venda-rapida.js',
+  './js/atalhos.js',
+  './carrinho-inteligente.js',
   './js/init.js',
+
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

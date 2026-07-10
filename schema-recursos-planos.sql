@@ -18,6 +18,7 @@ UPDATE planos SET
     "clientes": false,
     "relatorios": false,
     "backup": false,
+    "importacao": false,
     "equipe": false,
     "permissoes_papeis": false,
     "auditoria": false
@@ -38,6 +39,7 @@ UPDATE planos SET
     "clientes": true,
     "relatorios": true,
     "backup": true,
+    "importacao": true,
     "equipe": true,
     "permissoes_papeis": false,
     "auditoria": false
@@ -55,6 +57,7 @@ UPDATE planos SET
     "clientes": true,
     "relatorios": true,
     "backup": true,
+    "importacao": true,
     "equipe": true,
     "permissoes_papeis": true,
     "auditoria": true

@@ -1013,6 +1013,16 @@ export async function onRequest(context) {
   }
 
   if (primeiro === 'importacoes' || primeiro === 'mapeamentos-importacao') {
+    // Importação é recurso exclusivo dos planos Essencial e Pro
+    const planoAtualImport = await buscarPlanoAtual(db, membro.empresaId);
+    if (planoAtualImport && planoAtualImport.planoId === 'free') {
+      return json({
+        error: 'Importação de produtos não está disponível no plano Free. Faça upgrade para o plano Essencial ou Pro.',
+        recurso: 'importacao',
+        planoAtual: 'free',
+        planoNecessario: 'essencial',
+      }, 403);
+    }
     const permissaoProdutos = permissaoPara(membro.papel, 'produtos');
     if (!permissaoProdutos) {
       return json({ error: `Seu papel (${membro.papel}) não tem acesso à importação de produtos.` }, 403);

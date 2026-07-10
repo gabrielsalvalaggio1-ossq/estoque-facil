@@ -1,0 +1,243 @@
+/* =====================================================================
+   dashboard-insights.css  (T10 — Dashboard Inteligente)
+   Adicione ao final de style.css ou importe com <link>.
+   Todos os seletores começam com .di- para não colidir com nada existente.
+   ===================================================================== */
+
+/* ── Wrapper geral ────────────────────────────────────────────────────── */
+.di-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Bloco base (espelho do .cd-bloco existente, mas autocontido) ──────── */
+.di-bloco {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+  margin-bottom: 14px;
+}
+
+.di-titulo-secao {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .10em;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+/* ── 3. Comparativo mês ──────────────────────────────────────────────── */
+.di-comp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.di-comp-item {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.di-comp-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+
+.di-comp-val {
+  font-family: 'Fraunces', serif;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--ledger);
+  line-height: 1.2;
+}
+
+.di-comp-sub {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+/* Tags de variação */
+.di-tag {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  width: fit-content;
+  margin-top: 2px;
+}
+.di-tag.up      { background: #DCE8E0; color: var(--ledger); }
+.di-tag.down    { background: #F3DED6; color: var(--coral-deep); }
+.di-tag.neutro  { background: var(--paper-dim); color: var(--ink-soft); }
+
+/* ── 4. Gráfico 7 dias ────────────────────────────────────────────────── */
+.di-grafico-7d {
+  padding: 4px 0 0;
+  overflow: hidden;
+}
+
+/* ── 1 + 2. Padrões de venda ─────────────────────────────────────────── */
+.di-padroes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.di-padrao-card {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.di-padrao-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+
+.di-padrao-valor {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ledger);
+  line-height: 1.2;
+}
+
+.di-padrao-sub {
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-top: 1px;
+}
+
+.di-dias-svg {
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+/* ── 5. Meta mensal rápida ────────────────────────────────────────────── */
+.di-meta-lbl {
+  font-size: 13.5px;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.di-meta-lbl strong { color: var(--ledger); }
+
+.di-meta-hint {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 12px;
+  line-height: 1.45;
+}
+
+.di-meta-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.di-input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  min-width: 0;
+}
+.di-input:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(217,164,65,.18);
+}
+
+.di-btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--amber-deep);
+  cursor: pointer;
+  display: block;
+}
+.di-btn-link:hover { text-decoration: underline; }
+
+/* ── 6. Alertas ──────────────────────────────────────────────────────── */
+.di-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.di-alerta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+
+.di-alerta-ok {
+  background: #DCE8E0;
+  border-color: #C0D9CB;
+}
+.di-alerta-aviso {
+  background: #FFF3D9;
+  border-color: #F5DDA5;
+}
+.di-alerta-critico {
+  background: #F3DED6;
+  border-color: #E8C4B5;
+}
+
+.di-alerta-icone {
+  font-size: 18px;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+
+.di-alerta-titulo {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 2px;
+}
+
+.di-alerta-texto {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* ── Responsividade: mobile estreito ─────────────────────────────────── */
+@media (max-width: 340px) {
+  .di-comp-grid,
+  .di-padroes-grid {
+    grid-template-columns: 1fr;
+  }
+}

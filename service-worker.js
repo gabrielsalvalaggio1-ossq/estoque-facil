@@ -5,7 +5,7 @@
  * este arquivo só garante que a INTERFACE carregue offline.
  */
 
-const CACHE_NAME = 'meu-estoque-v8';
+const CACHE_NAME = 'meu-estoque-v9';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',
@@ -15,7 +15,13 @@ const ARQUIVOS_ESSENCIAIS = [
   './js/db.js',
   './js/produtos.js',
   './js/vendas.js',
+  './js/importacao.js',
+  './js/central-dados.js',
+  './js/etiquetas.js',
   './js/app.js',
+  './js/analytics.js',
+  './js/gtag.js',
+  './js/init.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];

@@ -19,6 +19,16 @@
 
 const CentralDados = (() => {
 
+  // ── Constantes locais ────────────────────────────────────────────────────
+  // Duplicado de app.js para que este módulo seja autocontido e não dependa
+  // da ordem de carregamento de scripts externos (tarefa SEC-FUNC-09).
+  const ROTULOS_PAGAMENTO = {
+    dinheiro: '💵 Dinheiro',
+    pix:      '🔑 Pix',
+    cartao:   '💳 Cartão',
+    fiado:    '📝 Fiado',
+  };
+
   // ── Períodos ────────────────────────────────────────────────────────────
 
   function inicioDia(d = new Date()) {
@@ -741,12 +751,19 @@ const CentralDados = (() => {
 
     document.querySelectorAll('[data-acao="excluir-meta"]').forEach(botao => {
       botao.addEventListener('click', async () => {
-        if (!confirm('Excluir esta meta?')) return;
+        // Usa mostrarConfirm() do app.js (disponível em runtime); fallback para
+        // confirm() nativo caso o módulo seja carregado isoladamente em testes.
+        const confirmou = typeof mostrarConfirm === 'function'
+          ? await mostrarConfirm('Excluir esta meta?', { confirmText: 'Excluir', tipo: 'perigo' })
+          : confirm('Excluir esta meta?');
+        if (!confirmou) return;
         try {
           await DB.excluirMeta(botao.dataset.id);
           aoTrocarPeriodo();
         } catch (erro) {
-          alert(erro.message || 'Não foi possível excluir a meta.');
+          const msg = erro.message || 'Não foi possível excluir a meta.';
+          if (typeof mostrarToast === 'function') mostrarToast(msg, 'erro');
+          else alert(msg);
         }
       });
     });
@@ -755,21 +772,85 @@ const CentralDados = (() => {
     if (btnNovaMeta) btnNovaMeta.addEventListener('click', () => abrirFormularioMeta(aoTrocarPeriodo));
   }
 
+  /**
+   * Abre um modal próprio para criação de meta — substitui os três prompt()
+   * nativos que existiam antes (UX-01). Usa as classes .confirm-dialog /
+   * .confirm-actions / .modal-wrap já definidas em css/style.css.
+   */
   function abrirFormularioMeta(aoSalvar) {
-    const tipo = prompt('Tipo de meta: faturamento, lucro ou vendas?', 'faturamento');
-    if (!tipo || !['faturamento', 'lucro', 'vendas'].includes(tipo.trim())) return;
-    const periodoMeta = prompt('Período: mes ou ano?', 'mes');
-    if (!periodoMeta || !['mes', 'ano'].includes(periodoMeta.trim())) return;
-    const valorTexto = prompt('Valor da meta (número):', '');
-    const valor = Number(valorTexto);
-    if (!valor || valor <= 0) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'modal-wrap modal-wrap-centro';
+    wrap.innerHTML = `
+      <div class="confirm-dialog" style="gap:14px;min-width:280px;max-width:340px;">
+        <p class="confirm-msg" style="font-weight:600;font-size:15px;margin:0;">Nova meta</p>
 
-    DB.salvarMeta({
-      id: DB.gerarId(),
-      tipo: tipo.trim(),
-      periodo: periodoMeta.trim(),
-      valor,
-    }).then(aoSalvar).catch(erro => alert(erro.message || 'Não foi possível criar a meta.'));
+        <div class="field" style="display:flex;flex-direction:column;gap:4px;">
+          <label for="metaTipo" style="font-size:13px;font-weight:500;color:#3d4b44;">Tipo</label>
+          <select id="metaTipo" class="filtro-select" style="width:100%;">
+            <option value="faturamento">Faturamento</option>
+            <option value="lucro">Lucro</option>
+            <option value="vendas">Número de vendas</option>
+          </select>
+        </div>
+
+        <div class="field" style="display:flex;flex-direction:column;gap:4px;">
+          <label for="metaPeriodo" style="font-size:13px;font-weight:500;color:#3d4b44;">Período</label>
+          <select id="metaPeriodo" class="filtro-select" style="width:100%;">
+            <option value="mes">Mês atual</option>
+            <option value="ano">Ano atual</option>
+          </select>
+        </div>
+
+        <div class="field" style="display:flex;flex-direction:column;gap:4px;">
+          <label for="metaValor" style="font-size:13px;font-weight:500;color:#3d4b44;">Valor da meta (R$)</label>
+          <input id="metaValor" type="number" min="1" step="any" placeholder="Ex: 5000"
+                 class="filtro-select" style="width:100%;">
+        </div>
+
+        <p id="metaErro" style="color:#c0392b;font-size:13px;min-height:16px;margin:0;"></p>
+
+        <div class="confirm-actions">
+          <button class="btn ghost" id="metaCancelar">Cancelar</button>
+          <button class="btn primary" id="metaSalvar">Salvar meta</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrap);
+
+    const fechar = () => wrap.remove();
+    document.getElementById('metaCancelar').addEventListener('click', fechar);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) fechar(); });
+
+    document.getElementById('metaSalvar').addEventListener('click', async () => {
+      const tipo     = document.getElementById('metaTipo').value;
+      const periodo  = document.getElementById('metaPeriodo').value;
+      const valor    = Number(document.getElementById('metaValor').value);
+      const erroEl   = document.getElementById('metaErro');
+      const btnSalvar = document.getElementById('metaSalvar');
+
+      if (!valor || valor <= 0) {
+        erroEl.textContent = 'Informe um valor maior que zero.';
+        return;
+      }
+      erroEl.textContent = '';
+      btnSalvar.disabled = true;
+      btnSalvar.textContent = 'Salvando…';
+
+      try {
+        await DB.salvarMeta({ id: DB.gerarId(), tipo, periodo, valor });
+        fechar();
+        aoSalvar();
+      } catch (erro) {
+        erroEl.textContent = erro.message || 'Não foi possível criar a meta.';
+        btnSalvar.disabled = false;
+        btnSalvar.textContent = 'Salvar meta';
+      }
+    });
+
+    // Foco automático no campo de valor ao abrir
+    requestAnimationFrame(() => {
+      const input = document.getElementById('metaValor');
+      if (input) input.focus();
+    });
   }
 
   return { renderizar, inicializar, ROTULO_PERIODO };

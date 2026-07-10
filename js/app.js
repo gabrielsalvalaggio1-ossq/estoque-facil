@@ -52,6 +52,7 @@ document.getElementById('btnImprimirEtiquetasSelecionadas').addEventListener('cl
 // T5: ações em lote (excluir/mudar categoria de vários produtos de uma vez)
 document.getElementById('btnSelecionarLote').addEventListener('click', ativarModoSelecaoLote);
 document.getElementById('btnCancelarSelecaoLote').addEventListener('click', cancelarSelecaoLote);
+document.getElementById('btnSelecionarTodosLote').addEventListener('click', selecionarTodosLote);
 document.getElementById('btnExcluirSelecionadosLote').addEventListener('click', confirmarExclusaoLote);
 document.getElementById('btnMudarCategoriaLote').addEventListener('click', abrirAlterarCategoriaLote);
 

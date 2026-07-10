@@ -50,6 +50,30 @@ function atualizarBarraSelecaoLote() {
     n === 0 ? 'Nenhum produto selecionado' : `${n} produto${n > 1 ? 's' : ''} selecionado${n > 1 ? 's' : ''}`;
   document.getElementById('btnExcluirSelecionadosLote').disabled = n === 0;
   document.getElementById('btnMudarCategoriaLote').disabled = n === 0;
+
+  // Atualiza o rótulo do botão "Selecionar tudo" conforme o estado atual
+  const filtrados = Produtos.filtrarProdutos(produtosCache, filtroEstoque);
+  const todosSelecionados = filtrados.length > 0 && filtrados.every(p => produtosSelecionadosLote.has(p.id));
+  const btn = document.getElementById('btnSelecionarTodosLote');
+  if (btn) btn.textContent = todosSelecionados ? 'Desmarcar tudo' : 'Selecionar tudo';
+}
+
+/**
+ * Seleciona todos os produtos visíveis (respeitando filtros ativos).
+ * Se todos já estão selecionados, desmarca todos.
+ */
+function selecionarTodosLote() {
+  const filtrados = Produtos.filtrarProdutos(produtosCache, filtroEstoque);
+  const todosSelecionados = filtrados.length > 0 && filtrados.every(p => produtosSelecionadosLote.has(p.id));
+
+  if (todosSelecionados) {
+    filtrados.forEach(p => produtosSelecionadosLote.delete(p.id));
+  } else {
+    filtrados.forEach(p => produtosSelecionadosLote.add(p.id));
+  }
+
+  atualizarBarraSelecaoLote();
+  atualizarListaProdutos();
 }
 
 async function confirmarExclusaoLote() {

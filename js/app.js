@@ -2168,9 +2168,34 @@ function abrirComprovante() {
       <div class="rtotal"><span>Total</span><span>${formatarMoeda(total)}</span></div>
 
       <p class="pay-label" id="labelCliente">Nome do cliente <span id="spanClienteOpcional">(opcional)</span><span id="spanClienteObrigatorio" style="display:none;color:#E24B4A;"> (obrigatório no fiado)</span></p>
-      <div class="field autocomplete-wrap" style="margin-bottom:6px;position:relative;">
+      <div class="field autocomplete-wrap" style="margin-bottom:4px;position:relative;">
         <input id="fCliente" type="text" placeholder="Ex: Dona Maria" autocomplete="off">
         <div id="sugestoesCliente" class="autocomplete-sugestoes" style="display:none;"></div>
+      </div>
+      <button type="button" class="link-mais-opcoes" id="btnInfoCliente" style="padding:4px 0 10px;">+ Informações do cliente</button>
+      <div id="infoClienteAvancado" style="display:none;">
+        <div class="field">
+          <label for="fClienteVendaTelefone">Telefone</label>
+          <input id="fClienteVendaTelefone" type="text" inputmode="tel" placeholder="(00) 00000-0000" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="fClienteVendaEmail">E-mail</label>
+          <input id="fClienteVendaEmail" type="email" placeholder="cliente@email.com" autocomplete="off">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="fClienteVendaCpf">CPF</label>
+            <input id="fClienteVendaCpf" type="text" inputmode="numeric" placeholder="000.000.000-00" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="fClienteVendaEndereco">Endereço</label>
+          <input id="fClienteVendaEndereco" type="text" placeholder="Rua, número, bairro" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="fClienteVendaObs">Observações</label>
+          <textarea id="fClienteVendaObs" rows="2" placeholder="Anotações internas" style="resize:vertical;"></textarea>
+        </div>
       </div>
 
       <p class="pay-label">Forma de pagamento</p>
@@ -2188,6 +2213,14 @@ function abrirComprovante() {
 
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
   document.getElementById('btnVoltar').addEventListener('click', () => wrap.remove());
+
+  // Toggle informações avançadas do cliente
+  document.getElementById('btnInfoCliente').addEventListener('click', function() {
+    const painel = document.getElementById('infoClienteAvancado');
+    const aberto = painel.style.display !== 'none';
+    painel.style.display = aberto ? 'none' : 'block';
+    this.textContent = aberto ? '+ Informações do cliente' : '– Ocultar informações do cliente';
+  });
 
   configurarAutocompleteClienteVenda();
 
@@ -2231,15 +2264,36 @@ function abrirComprovante() {
     btn.textContent = 'Registrando venda…';
 
     const cliente = document.getElementById('fCliente').value;
-    // Só envia clienteId se o texto atual do campo ainda bater com o cliente
-    // selecionado no autocomplete — se a pessoa editou o nome depois de
-    // escolher um cliente da lista, trata como digitação livre novamente.
     const clienteSelecionado = clienteIdSelecionadoNaVenda
       ? clientesCache.find(c => c.id === clienteIdSelecionadoNaVenda)
       : null;
     const clienteId = (clienteSelecionado && clienteSelecionado.nome === cliente.trim()) ? clienteSelecionado.id : null;
+
+    // Salva/atualiza dados avançados do cliente se preenchidos
+    const telVal  = (document.getElementById('fClienteVendaTelefone') || {}).value || '';
+    const emlVal  = (document.getElementById('fClienteVendaEmail') || {}).value || '';
+    const cpfVal  = (document.getElementById('fClienteVendaCpf') || {}).value || '';
+    const endVal  = (document.getElementById('fClienteVendaEndereco') || {}).value || '';
+    const obsVal  = (document.getElementById('fClienteVendaObs') || {}).value || '';
+    const temDadosAvancados = telVal || emlVal || cpfVal || endVal || obsVal;
+    const nomeCliente = cliente.trim();
+
+    if (nomeCliente && temDadosAvancados) {
+      try {
+        const dadosCliente = { nome: nomeCliente, telefone: telVal, email: emlVal, cpf: cpfVal, endereco: endVal, observacoes: obsVal };
+        if (clienteId) {
+          // Atualiza cliente existente
+          await DB.salvarCliente({ ...clienteSelecionado, ...dadosCliente });
+        } else {
+          // Cria novo cliente
+          await DB.salvarCliente({ id: DB.gerarId(), ...dadosCliente });
+        }
+        clientesCache = await DB.listarClientes();
+      } catch (e) { /* não bloqueia a venda se falhar */ }
+    }
+
     try {
-      await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente, clienteId });
+      await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente: nomeCliente, clienteId });
       carrinho = {};
       await recarregarDados();
       wrap.remove();
@@ -2296,6 +2350,28 @@ function configurarAutocompleteClienteVenda() {
     clienteIdSelecionadoNaVenda = cliente.id;
     lista.style.display = 'none';
     lista.innerHTML = '';
+    // Preenche campos avançados automaticamente com dados do cliente selecionado
+    const tel = document.getElementById('fClienteVendaTelefone');
+    const eml = document.getElementById('fClienteVendaEmail');
+    const cpf = document.getElementById('fClienteVendaCpf');
+    const end = document.getElementById('fClienteVendaEndereco');
+    const obs = document.getElementById('fClienteVendaObs');
+    if (tel || eml || cpf || end || obs) {
+      if (tel) tel.value = cliente.telefone || '';
+      if (eml) eml.value = cliente.email || '';
+      if (cpf) cpf.value = cliente.cpf || '';
+      if (end) end.value = cliente.endereco || '';
+      if (obs) obs.value = cliente.observacoes || '';
+      // Abre o painel se tiver algum dado para mostrar
+      if (cliente.telefone || cliente.email || cliente.cpf || cliente.endereco || cliente.observacoes) {
+        const painel = document.getElementById('infoClienteAvancado');
+        const btn = document.getElementById('btnInfoCliente');
+        if (painel && painel.style.display === 'none') {
+          painel.style.display = 'block';
+          if (btn) btn.textContent = '– Ocultar informações do cliente';
+        }
+      }
+    }
     input.dispatchEvent(new Event('input')); // reaproveita a validação de fiado já existente, sem apagar a seleção
   });
 
@@ -3505,21 +3581,9 @@ function imprimirEtiquetas(itens, modeloId, config) {
 // [data-tab] existente pra herdar exatamente o mesmo markup/estilo (o HTML
 // estático do projeto não faz parte deste arquivo, então a aba nova precisa
 // nascer aqui em vez de em index.html).
-(function injetarAbaClientes() {
-  if (document.querySelector('[data-tab="clientes"]')) return; // já existe (ex: HTML atualizado depois)
-  const referencia = document.querySelector('[data-tab="historico"]') || document.querySelector('[data-tab]');
-  if (!referencia) return;
-  const botaoClientes = referencia.cloneNode(true);
-  botaoClientes.dataset.tab = 'clientes';
-  if (botaoClientes.querySelector) {
-    // Se o botão de referência tiver ícone/texto em elementos filhos, troca só o texto visível.
-    const textoOriginal = referencia.textContent.trim();
-    botaoClientes.innerHTML = botaoClientes.innerHTML.replace(textoOriginal, 'Clientes');
-  } else {
-    botaoClientes.textContent = 'Clientes';
-  }
-  referencia.insertAdjacentElement('afterend', botaoClientes);
-})();
+// Aba Clientes removida da navegação principal.
+// Clientes agora são gerenciados diretamente no modal de venda
+// (campo "Informações do cliente" expansível).
 
 document.querySelectorAll('[data-tab]').forEach(botao => {
   botao.addEventListener('click', () => {
@@ -3577,8 +3641,8 @@ function aplicarRestricoesDePapel(papel) {
 
   const abasPorPapel = {
     // Aba Atividades só aparece para donos em planos pagos
-    dono: ['estoque', 'venda', 'clientes', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
-    vendedor: ['venda', 'clientes', 'conta', 'contato'],
+    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
+    vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };
   // null = ainda carregando: esconde todas as abas até o papel real chegar.

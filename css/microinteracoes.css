@@ -1,0 +1,360 @@
+/**
+ * microinteracoes.css – T2 do Roadmap MEV
+ *
+ * Animações e transições suaves em todos os elementos interativos.
+ * Não altera lógica, arquitetura nem valores visuais do style.css.
+ * Seguro para Cloudflare Pages — CSS puro, sem dependências.
+ *
+ * Índice:
+ *   1. Keyframes
+ *   2. Modais  (overlay + caixa)
+ *   3. Botões  (btn-destaque, .btn, .btn-sm, .btn-scan, .unidade-opt)
+ *   4. Chips   (filtros rápidos)
+ *   5. Tabs de navegação
+ *   6. Sidebar (desktop)
+ *   7. Cards de estatísticas
+ *   8. Sellbtn + Qtybtn (aba Venda)
+ *   9. Linhas de histórico (.sale-row)
+ *  10. Campo de busca
+ *  11. Itens de opção no modal (.opt)
+ *  12. Toast  (melhora timing)
+ *  13. Focus-visible global (acessibilidade)
+ *  14. Prefers-reduced-motion  (respeita preferência do sistema)
+ */
+
+/* ─────────────────────────────────────────────────────────────
+   1. Keyframes
+   ───────────────────────────────────────────────────────────── */
+
+@keyframes mev-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes mev-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mev-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   2. Modais
+   ──────────────────────────────────────────────────────────────
+   .modal-wrap é inserido via appendChild() — o browser dispara
+   a animação automaticamente em cada abertura. Sem JS adicional.
+   ───────────────────────────────────────────────────────────── */
+
+.modal-wrap {
+  animation: mev-fade-in 0.2s ease both;
+}
+
+/* Modais de confirmação / centralizados */
+.modal-wrap-centro .modal,
+.modal-wrap-centro .onboard {
+  animation: mev-scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Modais de base (sobem da parte inferior da tela) */
+.modal-wrap:not(.modal-wrap-centro) .modal {
+  animation: mev-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Modal de produto (tem ID próprio) */
+#productModalWrap .modal {
+  animation: mev-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   3. Botões
+   ───────────────────────────────────────────────────────────── */
+
+/* Botão de destaque (Adicionar produto, Cobrar…) */
+.btn-destaque {
+  transition:
+    background  0.18s ease,
+    color       0.18s ease,
+    transform   0.12s ease,
+    box-shadow  0.18s ease;
+}
+.btn-destaque:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(27, 58, 47, 0.25);
+}
+/* :active scale já existe em style.css, só garantimos que volte suave */
+.btn-destaque:not(:active) {
+  transition:
+    background  0.18s ease,
+    color       0.18s ease,
+    transform   0.2s ease,
+    box-shadow  0.2s ease;
+}
+
+/* Botões genéricos (.btn, .btn.primary, .btn.ghost, .btn.danger) */
+.btn {
+  transition:
+    background    0.15s ease,
+    color         0.15s ease,
+    border-color  0.15s ease,
+    transform     0.12s ease,
+    box-shadow    0.15s ease;
+}
+.btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.09);
+}
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  box-shadow: none;
+  transition: transform 0.08s ease;
+}
+
+/* Botão pequeno (.btn-sm) */
+.btn-sm {
+  transition:
+    background   0.13s ease,
+    color        0.13s ease,
+    transform    0.1s  ease;
+}
+.btn-sm:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.btn-sm:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+/* Botão de scan */
+.btn-scan,
+.btn-scan-toolbar {
+  transition:
+    background  0.15s ease,
+    transform   0.12s ease;
+}
+.btn-scan:hover,
+.btn-scan-toolbar:hover {
+  transform: translateY(-1px);
+}
+
+/* Toggle de unidade (un / kg) */
+.unidade-opt {
+  transition:
+    background  0.15s ease,
+    color       0.15s ease,
+    transform   0.1s  ease;
+}
+.unidade-opt:hover:not(.selected) {
+  background: var(--paper-dim);
+}
+
+/* Botão "Cobrar" na cartbar */
+.cartbar button {
+  transition:
+    background  0.18s ease,
+    transform   0.12s ease,
+    box-shadow  0.18s ease;
+}
+.cartbar button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(226, 87, 43, 0.3);
+}
+.cartbar button:active {
+  transform: scale(0.97);
+}
+
+/* Google auth button */
+.btn.google {
+  transition:
+    background  0.15s ease,
+    box-shadow  0.15s ease,
+    transform   0.1s  ease;
+}
+.btn.google:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   4. Chips (filtros rápidos — Todos / Estoque baixo / Disponível…)
+   ───────────────────────────────────────────────────────────── */
+
+.chip {
+  transition:
+    background    0.15s ease,
+    color         0.15s ease,
+    border-color  0.15s ease,
+    transform     0.1s  ease,
+    box-shadow    0.15s ease;
+}
+.chip:hover:not(.active):not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.chip:active {
+  transform: scale(0.95);
+  transition: transform 0.07s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   5. Tabs de navegação (mobile)
+   ───────────────────────────────────────────────────────────── */
+
+nav.tabs button {
+  transition:
+    color             0.18s ease,
+    background        0.18s ease,
+    border-bottom-color 0.18s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   6. Sidebar (desktop)
+   ───────────────────────────────────────────────────────────── */
+
+.side-item {
+  transition:
+    background  0.15s ease,
+    color       0.15s ease,
+    border-left 0.15s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   7. Cards de estatísticas
+   ───────────────────────────────────────────────────────────── */
+
+.stat {
+  transition:
+    transform   0.2s ease,
+    box-shadow  0.2s ease,
+    border-color 0.2s ease;
+}
+
+@media (hover: hover) {
+  .stat:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+    border-color: var(--amber);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   8. Sellbtn + Qtybtn (botões da tela de Venda)
+   ───────────────────────────────────────────────────────────── */
+
+.sellbtn {
+  transition:
+    background  0.15s ease,
+    color       0.15s ease,
+    transform   0.1s  ease,
+    box-shadow  0.15s ease;
+}
+.sellbtn:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(27, 58, 47, 0.2);
+}
+
+.qtybtn {
+  transition:
+    background  0.12s ease,
+    color       0.12s ease,
+    transform   0.1s  ease;
+}
+.qtybtn:hover:not(:disabled) {
+  background: var(--paper-dim);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   9. Linhas de histórico de vendas
+   ───────────────────────────────────────────────────────────── */
+
+.sale-row {
+  transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .sale-row:hover {
+    background: var(--paper-dim);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+  10. Campo de busca
+   ───────────────────────────────────────────────────────────── */
+
+.campo-busca {
+  transition:
+    border-color  0.18s ease,
+    box-shadow    0.18s ease,
+    transform     0.18s ease;
+}
+/* scaleX removido: causaria overflow em layouts estreitos (mobile) */
+
+/* ─────────────────────────────────────────────────────────────
+  11. Itens de opção no modal (.opt  — Forma de pagamento, etc.)
+   ───────────────────────────────────────────────────────────── */
+
+.modal .opt {
+  /* style.css já declara transition:0.18s ease; reforçamos com transform */
+  transition:
+    background  0.18s ease,
+    border-color 0.18s ease,
+    transform   0.12s ease,
+    box-shadow  0.12s ease;
+}
+.modal .opt:hover {
+  /* style.css já tem translateY(-1px) — mantemos; adicionamos sombra */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.modal .opt:active {
+  transition: transform 0.07s ease;
+}
+
+/* ─────────────────────────────────────────────────────────────
+  12. Toast — melhora o spring de entrada e saída
+   ───────────────────────────────────────────────────────────── */
+
+.app-toast {
+  /* style.css controla opacity/transform via .app-toast--visivel;
+     aqui só melhoramos o easing da transição */
+  transition:
+    opacity    0.3s ease,
+    transform  0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─────────────────────────────────────────────────────────────
+  13. Focus-visible global (acessibilidade + consistência)
+   ───────────────────────────────────────────────────────────── */
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+}
+
+/* ─────────────────────────────────────────────────────────────
+  14. prefers-reduced-motion — respeita quem prefere sem animação
+   ───────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:   0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration:  0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -16,18 +16,12 @@
 
 <link rel="stylesheet" href="css/style.css" data-clarity-unmask="true">
 
-<script type="text/javascript">
-(function(c,l,a,r,i,t,y){
-    c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-    t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-    y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-})(window, document, "clarity", "script", "xhal4lh08w");
-</script>
+<script src="js/analytics.js"></script>
 </head>
 <body class="auth-page">
 
 <div class="auth-card">
-  <button type="button" class="auth-voltar" onclick="voltar()" aria-label="Voltar">
+  <button type="button" class="auth-voltar" aria-label="Voltar">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
@@ -42,7 +36,7 @@
     <p class="sub">Acesse sua loja e continue de onde parou.</p>
   </div>
 
-  <form class="auth-form" onsubmit="event.preventDefault(); login();">
+  <form class="auth-form">
     <div class="field">
       <label for="email">E-mail</label>
       <input id="email" type="email" placeholder="voce@exemplo.com" autocomplete="email" inputmode="email" required>
@@ -76,64 +70,7 @@
   <p class="auth-footer">Não tem conta? <a href="/cadastro.html">Criar conta grátis</a></p>
 </div>
 
-<script>
-// Exibe mensagem de sessão expirada por inatividade (gravada por app.js antes do redirect).
-(function () {
-  var msg = sessionStorage.getItem('_mev_sessao_expirada');
-  if (msg) {
-    sessionStorage.removeItem('_mev_sessao_expirada');
-    var el = document.getElementById('erro');
-    if (el) el.textContent = msg;
-  }
-})();
-
-function voltar() {
-  // Se a pessoa chegou até aqui navegando dentro do próprio site, volta
-  // pra tela anterior de verdade. Se abriu o link direto (sem histórico),
-  // cai na página de planos — nunca no index.
-  if (document.referrer && document.referrer.indexOf(location.origin) === 0 && history.length > 1) {
-    history.back();
-  } else {
-    window.location.href = "/planos.html";
-  }
-}
-
-async function login() {
-  const email = document.getElementById("email").value.trim();
-  const senha = document.getElementById("senha").value;
-  const erroEl = document.getElementById("erro");
-  const botao = document.getElementById("btnEntrar");
-  erroEl.textContent = "";
-
-  if (!email || !senha) {
-    erroEl.textContent = "Preencha e-mail e senha.";
-    return;
-  }
-
-  botao.disabled = true;
-  botao.textContent = "Entrando...";
-
-  try {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, senha })
-    });
-    const data = await res.json();
-
-    if (data.ok) {
-      window.location.href = "/index.html";
-      return;
-    }
-    erroEl.textContent = data.error || "Erro no login.";
-  } catch (e) {
-    erroEl.textContent = "Não foi possível conectar ao servidor.";
-  }
-
-  botao.disabled = false;
-  botao.textContent = "Entrar";
-}
-</script>
+<script src="js/login.js"></script>
 
 </body>
 </html>

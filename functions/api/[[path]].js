@@ -703,7 +703,7 @@ async function registrarAtividade(db, { empresaId, email, papel, acao, store = n
   }
 }
 
-const ORIGENS_IMPORTACAO_VALIDAS = ['xlsx', 'csv', 'xml_nfe'];
+const ORIGENS_IMPORTACAO_VALIDAS = ['xlsx', 'csv', 'xml_nfe', 'pdf_danfe'];
 
 async function tratarRotaImportacoes(db, membro, email, request, url, permissaoProdutos) {
   const empresaId = membro.empresaId;

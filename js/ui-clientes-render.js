@@ -513,6 +513,7 @@ function renderizarConteudo() {
   }
 
   else if (abaAtual === 'venda') {
+    const categoriasVenda = Produtos.listarCategorias(produtosCache);
     main.innerHTML = `
       <div class="page">
         <div class="filtros">

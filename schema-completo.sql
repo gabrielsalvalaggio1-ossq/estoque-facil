@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS usuarios (
   email               TEXT NOT NULL UNIQUE,
   senha_hash          TEXT NOT NULL,               -- 'pbkdf2:…' | 'google' (OAuth)
   cargo               TEXT NOT NULL DEFAULT 'dono',
-  status_assinatura   TEXT,                        -- cache do status da assinatura da empresa
-  plano_atual         TEXT,                        -- cache do plano atual
+  status_assinatura        TEXT,                   -- cache do status da assinatura da empresa
+  plano_atual              TEXT,                   -- cache do plano atual
+  data_inicio_assinatura   TEXT,                   -- cache: data de início do plano atual
+  data_expiracao           TEXT,                   -- cache: data de expiração do plano atual
   criado_em           TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

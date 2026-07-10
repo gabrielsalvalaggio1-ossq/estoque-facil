@@ -1033,7 +1033,7 @@ export async function onRequest(context) {
 
   if (primeiro === 'importacoes' || primeiro === 'mapeamentos-importacao') {
     // Importação é recurso exclusivo dos planos Essencial e Pro
-    const planoAtualImport = await buscarPlanoAtual(db, membro.empresaId);
+    const planoAtualImport = await carregarPlanoDaEmpresa(db, membro.empresaId);
     if (planoAtualImport && planoAtualImport.planoId === 'free') {
       return json({
         error: 'Importação de produtos não está disponível no plano Free. Faça upgrade para o plano Essencial ou Pro.',

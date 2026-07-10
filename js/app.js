@@ -20,6 +20,11 @@ document.querySelectorAll('[data-tab]').forEach(botao => {
     if (modoSelecaoEtiquetas && botao.dataset.tab !== 'estoque') cancelarSelecaoEtiquetas();
     abaAtual = botao.dataset.tab;
     renderizarTudo();
+    // T4: auto-foca o campo de busca ao mudar de aba
+    requestAnimationFrame(() => {
+      if (abaAtual === 'estoque') document.getElementById('campoBusca')?.focus();
+      if (abaAtual === 'venda')   document.getElementById('campoBuscaVenda')?.focus();
+    });
   });
 });
 

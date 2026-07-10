@@ -32,7 +32,8 @@ function abrirComprovante() {
 
   if (itens.length === 0) return;
   const total = itens.reduce((soma, i) => soma + i.precoUnitario * i.quantidade, 0);
-  formaPagamentoEscolhida = 'dinheiro';
+  // T4: lembra a última forma de pagamento escolhida
+  formaPagamentoEscolhida = localStorage.getItem('mev_forma_pgto') || 'dinheiro';
   clienteIdSelecionadoNaVenda = null;
 
   const wrap = document.createElement('div');
@@ -107,6 +108,7 @@ function abrirComprovante() {
     const botao = e.target.closest('.pay-btn');
     if (!botao) return;
     formaPagamentoEscolhida = botao.dataset.forma;
+    localStorage.setItem('mev_forma_pgto', formaPagamentoEscolhida); // T4: persiste escolha
     document.querySelectorAll('#payOptions .pay-btn').forEach(b => {
       b.classList.toggle('selected', b.dataset.forma === formaPagamentoEscolhida);
     });

@@ -202,6 +202,27 @@ function cartaoProdutoEstoque(produto) {
 
 // --- Aba Venda (cardápio, por categoria, sem número de estoque) ---
 
+// T4/T13: Enter no campo de busca adiciona ao carrinho se houver exatamente 1 resultado
+function uxVendaEnter(e) {
+  if (e.key !== 'Enter') return;
+  // Lê o valor vivo do input (mais seguro que o estado global buscaVenda em composições IME)
+  const termo = ((e.currentTarget || e.target).value || buscaVenda || '').trim().toLowerCase();
+  if (!termo) return;
+  const visiveis = produtosCache.filter(p => {
+    if (!p.nome.toLowerCase().includes(termo)) return false;
+    if (categoriaVenda && (p.categoria || Produtos.CATEGORIA_PADRAO) !== categoriaVenda) return false;
+    return p.estoque > 0;
+  });
+  if (visiveis.length !== 1) return;
+  e.preventDefault();
+  alterarCarrinho(visiveis[0].id, 1);
+  const campo = document.getElementById('campoBuscaVenda');
+  if (campo) campo.value = '';
+  buscaVenda = '';
+  atualizarListaVenda();
+  document.getElementById('campoBuscaVenda')?.focus();
+}
+
 function aplicarFiltroVenda() {
   const campo = document.getElementById('campoBuscaVenda');
   const seletor = document.getElementById('seletorCategoriaVenda');

@@ -228,6 +228,7 @@ else if (abaAtual === 'venda') {
           type="text"
           placeholder="Buscar produto..."
           oninput="aplicarFiltroVenda()"
+          onkeydown="uxVendaEnter(event)"
           class="campo-busca"
           value="${escaparHtml(buscaVenda)}"
         />

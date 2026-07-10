@@ -1358,6 +1358,7 @@ main{
 .aviso-cancelado{ background:#F3DED6; color:var(--coral-deep); }
 
 .lista-planos-troca{ display:flex; flex-direction:column; gap:10px; }
+.lista-planos-troca[hidden]{ display:none; }
 .opcao-plano{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding:12px 14px; border-radius:10px; border:1px solid var(--paper-dim);

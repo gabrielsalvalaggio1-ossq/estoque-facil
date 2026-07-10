@@ -1,0 +1,210 @@
+/* ─── T6 — Inteligência do Estoque ────────────────────────────────────────── */
+
+/* ── Stock status: crítico (esgotado) ──────────────────────────────────── */
+.stock.critico {
+  color: var(--coral-deep);
+  font-weight: 600;
+}
+
+/* Card levemente destacado quando esgotado */
+.product-card.card-critico {
+  border-left: 3px solid var(--coral);
+  opacity: 0.82;
+}
+
+/* ── Badge ABC ─────────────────────────────────────────────────────────── */
+.badge-abc {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 3px;
+  line-height: 1.6;
+  vertical-align: middle;
+}
+
+.badge-abc-a {
+  background: var(--ledger);
+  color: var(--amber);
+}
+
+.badge-abc-b {
+  background: #f5e6c0;
+  color: var(--amber-deep);
+}
+
+.badge-abc-c {
+  background: #e8e8e6;
+  color: var(--ink-soft);
+}
+
+/* ── Badge status (esgotado / estoque baixo) ───────────────────────────── */
+.badge-estoque {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  letter-spacing: .04em;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.badge-estoque.critico {
+  background: #fde8e2;
+  color: var(--coral-deep);
+}
+
+.badge-estoque.baixo {
+  background: #fef3db;
+  color: var(--amber-deep);
+}
+
+/* ── Badge parado ─────────────────────────────────────────────────────── */
+.badge-parado {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: #ebebeb;
+  color: #888;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── intel-row: linha de indicadores no card ───────────────────────────── */
+.intel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.intel-giro {
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ink-soft);
+  background: #f0f0ec;
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.intel-margem {
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 500;
+}
+
+.intel-margem.margem-verde {
+  background: #e3f3e9;
+  color: #1d6e42;
+}
+
+.intel-margem.margem-amarelo {
+  background: #fef3db;
+  color: var(--amber-deep);
+}
+
+.intel-margem.margem-vermelho {
+  background: #fde8e2;
+  color: var(--coral-deep);
+}
+
+.intel-sugestao {
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  border-radius: 4px;
+  padding: 1px 6px;
+  background: #e8f0fe;
+  color: #2c5fb3;
+  font-weight: 500;
+}
+
+.intel-sugestao.urgente {
+  background: #fde8e2;
+  color: var(--coral-deep);
+  font-weight: 700;
+}
+
+/* ── Painel de alertas acima da lista ─────────────────────────────────── */
+.painel-intel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 16px 6px;
+}
+
+.intel-alerta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 10px;
+  letter-spacing: .02em;
+}
+
+.intel-alerta.critico {
+  background: #fde8e2;
+  color: var(--coral-deep);
+  cursor: pointer;
+}
+
+.intel-alerta.critico:hover {
+  background: #fcd5cb;
+}
+
+.intel-alerta.parado {
+  background: #ebebeb;
+  color: #666;
+}
+
+/* ── Modal: margem e lucro no modal de edição de produto ──────────────── */
+.intel-modal-margem {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.intel-modal-chip {
+  display: inline-flex;
+  flex-direction: column;
+  font-size: 11px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  gap: 1px;
+}
+
+.intel-modal-chip .lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+}
+
+.intel-modal-chip .val {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.intel-modal-chip.verde { background: #e3f3e9; color: #1d6e42; }
+.intel-modal-chip.amarelo { background: #fef3db; color: var(--amber-deep); }
+.intel-modal-chip.vermelho { background: #fde8e2; color: var(--coral-deep); }

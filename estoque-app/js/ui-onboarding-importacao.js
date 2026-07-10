@@ -272,12 +272,7 @@ function passoUploadHtml() {
   `;
 }
 
-function tamanhoLegivel(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
+// tamanhoLegivel() já está definida em ui-base.js — reutilizada aqui.
 const TAMANHO_MAXIMO_IMPORT_MB = 10;
 
 async function processarArquivoSelecionado(arquivo) {

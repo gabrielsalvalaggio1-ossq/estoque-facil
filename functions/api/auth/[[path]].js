@@ -352,7 +352,7 @@ export async function onRequest(context) {
         .find(c => c.startsWith('oauth_state='))
         ?.slice('oauth_state='.length);
 
-      if (!stateGoogle || !stateCookie || stateGoogle !== stateCookie) {
+      if (!stateGoogle || !stateCookie || !iguaisEmTempoConstante(stateGoogle, stateCookie)) {
         return json({ error: 'Verificação de segurança falhou (state inválido). Tente fazer login novamente.' }, 403);
       }
 
@@ -552,8 +552,8 @@ export async function onRequest(context) {
       if (!token || typeof token !== 'string') {
         return json({ ok: false, error: 'Token inválido.' }, 400);
       }
-      if (!novaSenha || typeof novaSenha !== 'string' || novaSenha.length < 6) {
-        return json({ ok: false, error: 'A senha deve ter pelo menos 6 caracteres.' }, 400);
+      if (!novaSenha || typeof novaSenha !== 'string' || novaSenha.length < 8) {
+        return json({ ok: false, error: 'A senha deve ter pelo menos 8 caracteres.' }, 400);
       }
 
       const tokenHash = await sha256Hex(token);

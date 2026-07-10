@@ -1,0 +1,220 @@
+/* ─── T8 — Carrinho Inteligente ───────────────────────────────────────────── */
+
+/*
+ * Painel que aparece logo abaixo da barra do carrinho (#cartbar).
+ * Visível apenas quando há itens no carrinho.
+ */
+#carrinho-inteligente-painel {
+  /* Ocupa a mesma largura que o cartbar (fixado na parte inferior) */
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 420px;
+  z-index: 89; /* abaixo do cartbar (z-index: 90) e modais */
+  pointer-events: none; /* o painel em si não bloqueia cliques */
+}
+
+/* Recalcula a posição vertical para ficar acima do cartbar.
+   O cartbar tem ~62px de altura; o painel fica logo acima dele. */
+#carrinho-inteligente-painel {
+  bottom: 62px;
+}
+
+.ci-painel {
+  pointer-events: auto;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Sombra sutil para separar do conteúdo abaixo */
+  box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+}
+
+/* ── Seções individuais ──────────────────────────────────────────────────── */
+.ci-secao {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ci-secao:last-child {
+  border-bottom: none;
+}
+
+/* ── 3. Margem da venda ──────────────────────────────────────────────────── */
+.ci-margem {
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 16px;
+}
+
+.ci-margem-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+.ci-margem-verde  { background: #e3f3e9; color: #1d6e42; }
+.ci-margem-amarelo { background: #fef3db; color: var(--amber-deep); }
+.ci-margem-vermelho { background: #fde8e2; color: var(--coral-deep); }
+
+.ci-margem-sep { opacity: 0.5; font-weight: 400; }
+
+.ci-margem-pct { font-size: 13px; }
+
+/* ── 2. Avisos de estoque crítico ────────────────────────────────────────── */
+.ci-aviso-titulo {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--coral-deep);
+  letter-spacing: .02em;
+}
+
+.ci-criticos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ci-critico-item {
+  font-size: 11px;
+  background: #fde8e2;
+  color: var(--coral-deep);
+  border-radius: 5px;
+  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ci-critico-item em {
+  font-style: normal;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* ── 4. Combos automáticos ───────────────────────────────────────────────── */
+.ci-combo-label {
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--ledger);
+  letter-spacing: .02em;
+}
+
+.ci-combo-ativo .ci-combo-label {
+  color: var(--amber-deep);
+}
+
+.ci-combo-nomes {
+  font-size: 12px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.ci-combo-hint {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.ci-combo-sugestao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ci-combo-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 6px;
+  background: var(--ledger);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 120ms;
+  white-space: nowrap;
+}
+
+.ci-combo-btn:hover { background: var(--ledger-dark); }
+
+.ci-combo-btn em {
+  font-style: normal;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+/* ── 1. Produtos relacionados ────────────────────────────────────────────── */
+.ci-rel-titulo {
+  font-size: 10.5px;
+  font-family: 'IBM Plex Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.ci-rel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ci-rel-chip {
+  border: 1px solid var(--line);
+  background: var(--paper-dim);
+  border-radius: 20px;
+  font-size: 11.5px;
+  color: var(--ink);
+  padding: 5px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 100ms, border-color 100ms;
+  font-family: inherit;
+}
+
+.ci-rel-chip:hover {
+  background: var(--ledger);
+  border-color: var(--ledger);
+  color: var(--paper);
+}
+
+.ci-rel-chip:hover .ci-rel-preco { color: var(--amber); }
+
+.ci-rel-preco {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+/* ── Ajuste do cartbar quando o painel está presente ─────────────────────── */
+/* Nada a fazer aqui: o painel usa `bottom: 62px` para ficar
+   exatamente acima do cartbar, sem deslocar o layout. */
+
+/* ── Mobile safe-area ─────────────────────────────────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  #carrinho-inteligente-painel {
+    bottom: calc(62px + env(safe-area-inset-bottom));
+  }
+}

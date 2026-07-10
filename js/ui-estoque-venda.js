@@ -104,7 +104,7 @@ function atualizarListaProdutos() {
   if (produtosCache.length === 0) {
     container.innerHTML = telaVaziaEstoque();
   } else if (filtrados.length === 0) {
-    container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado com esse filtro.</div>';
+    container.innerHTML = criarSemResultado('Nenhum produto encontrado', 'Tente outro filtro ou termo de busca.');
   } else if (filtroEstoque.agrupar === 'categoria' || filtroEstoque.agrupar === 'fornecedor') {
     container.innerHTML = agruparProdutosEstoqueHtml(filtrados, filtroEstoque.agrupar);
   } else {
@@ -223,7 +223,7 @@ function atualizarListaVenda() {
   });
 
   if (filtrados.length === 0) {
-    container.innerHTML = '<div class="sem-resultado">Nenhum produto encontrado.</div>';
+    container.innerHTML = criarSemResultado('Nenhum produto aqui ainda', 'Adicione seu primeiro produto clicando em "Adicionar produto".');
     return;
   }
 
@@ -356,7 +356,7 @@ function atualizarListaVendas() {
   if (vendasCache.length === 0) {
     container.innerHTML = telaVaziaVendas();
   } else if (filtradas.length === 0) {
-    container.innerHTML = '<div class="sem-resultado">Nenhuma venda encontrada com esse filtro.</div>';
+    container.innerHTML = criarSemResultado('Nenhuma venda encontrada', 'Tente outro período ou status.');
   } else {
     container.innerHTML = filtradas.map(linhaVenda).join('');
   }

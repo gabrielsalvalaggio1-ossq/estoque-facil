@@ -111,19 +111,14 @@ async function iniciar() {
 
   // Evita a tela em branco enquanto os primeiros fetches ao D1 respondem
   // (o app só passa a renderizar dados quando eles realmente chegaram).
-  document.getElementById('main').innerHTML = `<div class="empty">
-    <p class="titulo">Carregando…</p>
-    <p class="hint">Buscando seus dados.</p>
-  </div>`;
+  document.getElementById('main').innerHTML = criarSkeletonMain(6);
 
   let usuario;
   try {
     usuario = await DB.buscarUsuarioLogado();
   } catch (erro) {
-    document.getElementById('main').innerHTML = `<div class="empty">
-      <p class="titulo">Não foi possível carregar seus dados</p>
-      <p class="hint">${escaparHtml(erro.message || 'Verifique sua conexão e tente novamente.')}</p>
-    </div>`;
+    document.getElementById('main').innerHTML = criarErroMain(erro.message, 'btnRetryInicio');
+    document.getElementById('btnRetryInicio')?.addEventListener('click', iniciar);
     return;
   }
 
@@ -147,10 +142,8 @@ async function iniciar() {
   try {
     await recarregarDados();
   } catch (erro) {
-    document.getElementById('main').innerHTML = `<div class="empty">
-      <p class="titulo">Não foi possível carregar seus dados</p>
-      <p class="hint">${escaparHtml(erro.message || 'Verifique sua conexão e tente novamente.')}</p>
-    </div>`;
+    document.getElementById('main').innerHTML = criarErroMain(erro.message, 'btnRetryDados');
+    document.getElementById('btnRetryDados')?.addEventListener('click', iniciar);
     return;
   }
 

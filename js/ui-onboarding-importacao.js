@@ -157,6 +157,7 @@ function abrirTelaInsights() {
       <button class="btn primary" id="btnFecharInsights">Vamos lá</button>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.querySelectorAll('.insight-card.clicavel').forEach(el => {
     const acao = cards[Number(el.dataset.indice)].acao;
@@ -204,6 +205,7 @@ function abrirWizardImportacao() {
   wrap.id = 'importWrap';
   wrap.innerHTML = `<div class="modal import-modal"><div id="importCorpo"></div></div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharWizardImportacao(); });
 
   renderizarPassoImportacao();

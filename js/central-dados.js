@@ -1044,6 +1044,7 @@ const CentralDados = (() => {
         </div>
       </div>`;
     document.body.appendChild(wrap);
+    aplicarFocusTrap(wrap);
 
     const fechar = () => wrap.remove();
     document.getElementById('metaCancelar').addEventListener('click', fechar);

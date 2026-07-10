@@ -49,6 +49,12 @@ document.getElementById('btnSelecionarEtiquetas').addEventListener('click', ativ
 document.getElementById('btnCancelarSelecaoEtiquetas').addEventListener('click', cancelarSelecaoEtiquetas);
 document.getElementById('btnImprimirEtiquetasSelecionadas').addEventListener('click', abrirConfigEtiquetas);
 
+// T5: ações em lote (excluir/mudar categoria de vários produtos de uma vez)
+document.getElementById('btnSelecionarLote').addEventListener('click', ativarModoSelecaoLote);
+document.getElementById('btnCancelarSelecaoLote').addEventListener('click', cancelarSelecaoLote);
+document.getElementById('btnExcluirSelecionadosLote').addEventListener('click', confirmarExclusaoLote);
+document.getElementById('btnMudarCategoriaLote').addEventListener('click', abrirAlterarCategoriaLote);
+
 // Fecha o modal mais recente ao pressionar ESC.
 // Para o scanner (que tem lógica de parar câmera), procura o botão de fechar.
 // Para os demais modais, simula um clique no fundo escuro (mesma lógica do

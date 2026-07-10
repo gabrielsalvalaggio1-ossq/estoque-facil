@@ -165,10 +165,12 @@ function abrirModalProduto(produto) {
       <p class="erro" id="erroForm" style="display:none;"></p>
       <div class="modal-actions">
         ${produto ? '<button class="btn danger" id="btnExcluir">Excluir</button>' : '<button class="btn ghost" id="btnCancelar">Cancelar</button>'}
+        ${produto ? '<button class="btn ghost" id="btnDuplicar">Duplicar</button>' : ''}
         <button class="btn primary" id="btnSalvar">Salvar</button>
       </div>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModal(); });
   document.getElementById('btnSalvar').addEventListener('click', salvarFormularioProduto);
@@ -232,6 +234,9 @@ function abrirModalProduto(produto) {
 
   const btnExcluir = document.getElementById('btnExcluir');
   if (btnExcluir) btnExcluir.addEventListener('click', () => excluirProdutoComConfirmacao(produto.id));
+
+  const btnDuplicar = document.getElementById('btnDuplicar');
+  if (btnDuplicar) btnDuplicar.addEventListener('click', () => duplicarProdutoAtual(produto));
 
   setTimeout(() => document.getElementById('fNome').focus(), 50);
 }
@@ -304,6 +309,30 @@ function avaliarAvisoCusto() {
 function fecharModal() {
   const el = document.getElementById('productModalWrap');
   if (el) el.remove();
+}
+
+/**
+ * T5: cria uma cópia do produto (nome + " (cópia)", estoque zerado, sem
+ * código de barras — ver Produtos.duplicarProduto) e recarrega a lista.
+ * Fica no modal de edição porque é a ação mais natural quando o lojista já
+ * está olhando pro produto que quer duplicar (ex: variações de cor/tamanho).
+ */
+async function duplicarProdutoAtual(produto) {
+  const btn = document.getElementById('btnDuplicar');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Duplicando…';
+  try {
+    await Produtos.duplicarProduto(produto);
+    await recarregarDados();
+    fecharModal();
+    renderizarTudo();
+    mostrarToast('Produto duplicado. Edite a cópia para ajustar o que for diferente.', 'sucesso');
+  } catch (e) {
+    mostrarErroFormulario(e.message || 'Não foi possível duplicar o produto. Tente novamente.');
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
 }
 
 function mostrarErroFormulario(mensagem) {

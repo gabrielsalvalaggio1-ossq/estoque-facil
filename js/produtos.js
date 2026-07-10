@@ -178,6 +178,58 @@ async function excluirProduto(id) {
 }
 
 /**
+ * T5: exclusão em lote — mesma operação de excluirProduto, repetida para
+ * cada id selecionado. Processado em série (não em paralelo) para manter o
+ * mesmo comportamento previsível de darBaixaEstoque/restaurarEstoque e não
+ * sobrecarregar o IndexedDB/API com muitas escritas simultâneas quando o
+ * lojista seleciona dezenas de produtos de uma vez.
+ */
+async function excluirProdutosEmLote(ids) {
+  for (const id of ids) {
+    await excluirProduto(id);
+  }
+}
+
+/**
+ * T5: muda a categoria de vários produtos de uma vez (ex: reorganizar o
+ * catálogo sem precisar abrir e salvar o formulário produto por produto).
+ * Reaproveita editarProduto para manter validação e registro de auditoria
+ * consistentes — só a categoria muda, o resto dos campos é preservado.
+ */
+async function alterarCategoriaEmLote(produtosAtuais, ids, categoria) {
+  const porId = new Map(produtosAtuais.map(p => [p.id, p]));
+  for (const id of ids) {
+    const produto = porId.get(id);
+    if (!produto) continue;
+    await editarProduto(id, { ...produto, categoria });
+  }
+}
+
+/**
+ * T5: duplica um produto existente — cria um novo cadastro com os mesmos
+ * dados (menos código de barras, que precisa ser único por produto físico),
+ * já com "(cópia)" no nome. Não duplica o estoque atual: a cópia nasce com
+ * estoque zerado, porque duplicar quantidade física seria enganoso (o
+ * estoque real continua sendo só do produto original).
+ */
+async function duplicarProduto(produto) {
+  return criarProduto({
+    nome: `${produto.nome} (cópia)`,
+    preco: produto.preco,
+    estoque: 0,
+    estoqueMinimo: produto.estoqueMinimo || 0,
+    categoria: produto.categoria,
+    imagem: produto.imagem,
+    codigoBarras: '', // código de barras não pode se repetir entre produtos
+    unidade: produto.unidade,
+    precoCusto: produto.precoCusto,
+    dimensoes: produto.dimensoes,
+    fornecedor: produto.fornecedor,
+    marca: produto.marca
+  });
+}
+
+/**
  * Dá baixa no estoque de uma lista de itens vendidos.
  * Usado após confirmar uma venda. Os itens são sempre produtos diferentes
  * (o carrinho é indexado por produtoId), então processá-los em paralelo é
@@ -362,6 +414,9 @@ window.Produtos = {
   criarProduto,
   editarProduto,
   excluirProduto,
+  excluirProdutosEmLote,
+  alterarCategoriaEmLote,
+  duplicarProduto,
   darBaixaEstoque,
   restaurarEstoque,
   calcularEstatisticas,

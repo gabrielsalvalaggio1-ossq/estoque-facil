@@ -129,22 +129,16 @@ function telaAssinaturaHtml(a) {
     <div class="card-info">
       <h3>Planos disponíveis</h3>
 
-      <div class="toggle-ciclo-wrap" style="display:flex;gap:6px;margin-bottom:16px;">
-        <button type="button" class="btn-ciclo${cicloAtual === 'mensal' ? ' ativo' : ''}" data-ciclo="mensal"
-          style="padding:7px 16px;border-radius:8px;border:1.5px solid var(--line,#D9D4C2);
-                 background:${cicloAtual === 'mensal' ? 'var(--accent,#1B3A2F)' : 'transparent'};
-                 color:${cicloAtual === 'mensal' ? '#fff' : 'inherit'};font-size:13px;font-weight:600;cursor:pointer;">
+      <div class="toggle-ciclo-wrap">
+        <button type="button" class="btn-ciclo${cicloAtual === 'mensal' ? ' ativo' : ''}" data-ciclo="mensal">
           Mensal
         </button>
-        <button type="button" class="btn-ciclo${cicloAtual === 'anual' ? ' ativo' : ''}" data-ciclo="anual"
-          style="padding:7px 16px;border-radius:8px;border:1.5px solid var(--line,#D9D4C2);
-                 background:${cicloAtual === 'anual' ? 'var(--accent,#1B3A2F)' : 'transparent'};
-                 color:${cicloAtual === 'anual' ? '#fff' : 'inherit'};font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-          Anual <span style="background:#E2572B;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;">2 meses grátis</span>
+        <button type="button" class="btn-ciclo${cicloAtual === 'anual' ? ' ativo' : ''}" data-ciclo="anual">
+          Anual <span class="tag-desconto-anual">2 meses grátis</span>
         </button>
       </div>
 
-      <div class="lista-planos-troca" id="listaMensalAssinatura" style="${cicloAtual === 'anual' ? 'display:none' : ''}">
+      <div class="lista-planos-troca" id="listaMensalAssinatura" ${cicloAtual === 'anual' ? 'hidden' : ''}>
         ${PLANOS_CATALOGO_MENSAL.map(p => {
           const ehAtual = p.id === a.planoId && podeAgir;
           const textoBotao = emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este');
@@ -156,13 +150,13 @@ function telaAssinaturaHtml(a) {
             </div>
             ${ehAtual
               ? '<span class="opcao-plano-tag">Plano atual</span>'
-              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${textoBotao}</button>`
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-sm btn-trocar-plano" data-plano="${p.id}">${textoBotao}</button>`
             }
           </div>`;
         }).join('')}
       </div>
 
-      <div class="lista-planos-troca" id="listaAnualAssinatura" style="${cicloAtual === 'mensal' ? 'display:none' : ''}">
+      <div class="lista-planos-troca" id="listaAnualAssinatura" ${cicloAtual === 'mensal' ? 'hidden' : ''}>
         ${PLANOS_CATALOGO_ANUAL.map(p => {
           const ehAtual = p.id === a.planoId && podeAgir;
           const textoBotao = emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este');
@@ -174,7 +168,7 @@ function telaAssinaturaHtml(a) {
             </div>
             ${ehAtual
               ? '<span class="opcao-plano-tag">Plano atual</span>'
-              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${textoBotao}</button>`
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-sm btn-trocar-plano" data-plano="${p.id}">${textoBotao}</button>`
             }
           </div>`;
         }).join('')}
@@ -186,10 +180,10 @@ function telaAssinaturaHtml(a) {
     ${(podeAgir && !ehPlanoGratuito) ? `
       <div class="card-info" id="cardCancelarAssinatura">
         <h3>Cancelar assinatura</h3>
-        <p style="font-size:13.5px;color:var(--ink-soft,#5B6259);margin:0 0 12px;">
+        <p class="texto-secundario">
           Você para de ser cobrado e perde acesso aos recursos pagos. Seus dados continuam salvos.
         </p>
-        <button type="button" class="btn danger" id="btnCancelarAssinatura" style="width:auto;padding:9px 16px;">Cancelar assinatura</button>
+        <button type="button" class="btn danger btn-sm" id="btnCancelarAssinatura">Cancelar assinatura</button>
       </div>
     ` : ''}
   `;
@@ -207,16 +201,13 @@ function inicializarAcoesAssinatura() {
   document.querySelectorAll('.btn-ciclo').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.btn-ciclo').forEach(b => {
-        const ativo = b === btn;
-        b.classList.toggle('ativo', ativo);
-        b.style.background = ativo ? 'var(--accent,#1B3A2F)' : 'transparent';
-        b.style.color = ativo ? '#fff' : '';
+        b.classList.toggle('ativo', b === btn);
       });
       const ciclo = btn.dataset.ciclo;
       const listaMensal = document.getElementById('listaMensalAssinatura');
       const listaAnual  = document.getElementById('listaAnualAssinatura');
-      if (listaMensal) listaMensal.style.display = ciclo === 'mensal' ? '' : 'none';
-      if (listaAnual)  listaAnual.style.display  = ciclo === 'anual'  ? '' : 'none';
+      if (listaMensal) listaMensal.hidden = ciclo !== 'mensal';
+      if (listaAnual)  listaAnual.hidden  = ciclo !== 'anual';
     });
   });
 

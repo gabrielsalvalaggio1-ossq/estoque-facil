@@ -117,6 +117,7 @@ function abrirConfigEtiquetas() {
       </div>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModalEtiquetas(); });
   document.getElementById('btnCancelarConfigEtiquetas').addEventListener('click', fecharModalEtiquetas);
@@ -185,6 +186,7 @@ function abrirPreviewEtiquetas(produtosSelecionadosLista) {
       </div>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharPreviewEtiquetas(); });
   document.getElementById('btnVoltarConfigEtiquetas').addEventListener('click', () => {

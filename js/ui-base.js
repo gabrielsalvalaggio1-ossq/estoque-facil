@@ -46,6 +46,10 @@ const quitacaoEmAndamento = new Set();
 // --- Impressão de etiquetas (ver js/etiquetas.js pro motor de geração) ---
 let modoSelecaoEtiquetas = false;
 let produtosSelecionadosEtiquetas = new Set(); // ids dos produtos marcados
+
+// --- T5: Ações em lote no Estoque (ver js/selecao-lote.js) ---
+let modoSelecaoLote = false;
+let produtosSelecionadosLote = new Set(); // ids dos produtos marcados para excluir/mudar categoria em lote
 let usuarioLogadoNomeEmpresa = ''; // usado no campo opcional "nome da empresa" da etiqueta
 let usuarioLogadoNomeDono = ''; // nome de quem criou a empresa (dono)
 
@@ -55,6 +59,47 @@ const ROTULOS_PAGAMENTO = {
   cartao: '💳 Cartão',
   fiado: '📝 Fiado'
 };
+
+/**
+ * T15: acessibilidade — prende o foco de Tab/Shift+Tab dentro de um modal
+ * enquanto ele estiver aberto, e devolve o foco pro elemento que abriu o
+ * modal quando ele for removido. Sem isso, Tab escapa para trás do modal
+ * (para elementos escondidos atrás do overlay), o que é uma armadilha de
+ * navegação por teclado para quem não usa mouse/toque.
+ * Uso: chamar logo depois de `document.body.appendChild(wrap)`.
+ */
+function aplicarFocusTrap(wrap) {
+  const elementoAnterior = document.activeElement;
+  wrap.setAttribute('role', wrap.getAttribute('role') || 'dialog');
+  wrap.setAttribute('aria-modal', 'true');
+
+  const seletorFocavel = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+  const aoPressionarTab = (e) => {
+    if (e.key !== 'Tab') return;
+    const focaveis = Array.from(wrap.querySelectorAll(seletorFocavel)).filter(el => !el.disabled && el.offsetParent !== null);
+    if (!focaveis.length) return;
+    const primeiro = focaveis[0];
+    const ultimo = focaveis[focaveis.length - 1];
+    if (e.shiftKey && document.activeElement === primeiro) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey && document.activeElement === ultimo) {
+      e.preventDefault();
+      primeiro.focus();
+    }
+  };
+  wrap.addEventListener('keydown', aoPressionarTab);
+
+  // Quando o modal for removido do DOM (fechado), devolve o foco e limpa o listener.
+  const observer = new MutationObserver(() => {
+    if (!document.body.contains(wrap)) {
+      observer.disconnect();
+      if (elementoAnterior && typeof elementoAnterior.focus === 'function') elementoAnterior.focus();
+    }
+  });
+  observer.observe(document.body, { childList: true });
+}
 
 const ICONE_PRODUTO_PLACEHOLDER = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`;
 
@@ -179,12 +224,14 @@ function mostrarConfirm(mensagem, { confirmText = 'Confirmar', cancelText = 'Can
         </div>
       </div>`;
     document.body.appendChild(wrap);
+    aplicarFocusTrap(wrap);
     const fechar = (resultado) => { wrap.remove(); resolver(resultado); };
     document.getElementById('confirmNao').addEventListener('click', () => fechar(false));
     document.getElementById('confirmSim').addEventListener('click', () => fechar(true));
     // Clique no fundo escuro cancela (o handler global de ESC também funciona
     // porque o wrap usa a classe .modal-wrap e o evento é target === wrap)
     wrap.addEventListener('click', (e) => { if (e.target === wrap) fechar(false); });
+    setTimeout(() => document.getElementById('confirmSim').focus(), 50);
   });
 }
 

@@ -232,9 +232,14 @@ function cartaoProdutoEstoque(produto) {
     ? imagemProdutoLazy(produto.imagem)
     : `<span class="thumb thumb-placeholder">${ICONE_PRODUTO_PLACEHOLDER}</span>`;
 
-  if (modoSelecaoEtiquetas) {
-    const marcado = produtosSelecionadosEtiquetas.has(produto.id);
-    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="alternarSelecaoProdutoEtiqueta('${escaparHtml(produto.id)}')">
+  if (modoSelecaoEtiquetas || modoSelecaoLote) {
+    const marcado = modoSelecaoLote
+      ? produtosSelecionadosLote.has(produto.id)
+      : produtosSelecionadosEtiquetas.has(produto.id);
+    const aoClicar = modoSelecaoLote
+      ? `alternarSelecaoProdutoLote('${escaparHtml(produto.id)}')`
+      : `alternarSelecaoProdutoEtiqueta('${escaparHtml(produto.id)}')`;
+    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="${aoClicar}">
       <span class="selecao-check" aria-hidden="true">${marcado ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
       ${miniatura}
       <div class="info">

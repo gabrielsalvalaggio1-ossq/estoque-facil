@@ -384,6 +384,7 @@ function abrirModalCliente(cliente) {
     </div>`;
 
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModalCliente(); });
   document.getElementById('btnCancelarCliente').addEventListener('click', fecharModalCliente);

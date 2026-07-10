@@ -90,6 +90,7 @@ function abrirComprovante() {
       <button class="btn ghost" id="btnVoltar" style="width:100%;margin-top:10px;">Voltar</button>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
   document.getElementById('btnVoltar').addEventListener('click', () => wrap.remove());
@@ -324,6 +325,7 @@ function abrirMenuExportar() {
     </div>`;
 
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
   document.getElementById('btnFecharExport').addEventListener('click', () => wrap.remove());
 
@@ -418,6 +420,7 @@ function abrirExportarPorVendedor(dataArquivo) {
     </div>`;
 
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
 
   document.getElementById('btnVoltarExport').addEventListener('click', () => {
@@ -586,6 +589,7 @@ function abrirOnboarding() {
       <button class="btn ghost" id="btnZero">Começar do zero</button>
     </div>`;
   document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
 
   const fechar = () => {
     localStorage.setItem(CHAVE_ONBOARDING, '1');

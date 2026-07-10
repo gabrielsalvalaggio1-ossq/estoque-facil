@@ -1821,7 +1821,7 @@ function abrirComprovante() {
       ${itens.map(i => `<div class="ritem"><span><span class="qn">${Vendas.formatarQuantidadeItem(i)}</span>${escaparHtml(i.nome)}</span><span>${formatarMoeda(i.precoUnitario * i.quantidade)}</span></div>`).join('')}
       <div class="rtotal"><span>Total</span><span>${formatarMoeda(total)}</span></div>
 
-      <p class="pay-label">Nome do cliente (opcional)</p>
+      <p class="pay-label" id="labelCliente">Nome do cliente <span id="spanClienteOpcional">(opcional)</span><span id="spanClienteObrigatorio" style="display:none;color:#E24B4A;"> (obrigatório no fiado)</span></p>
       <div class="field" style="margin-bottom:6px;">
         <input id="fCliente" type="text" placeholder="Ex: Dona Maria">
       </div>
@@ -1849,11 +1849,34 @@ function abrirComprovante() {
     document.querySelectorAll('#payOptions .pay-btn').forEach(b => {
       b.classList.toggle('selected', b.dataset.forma === formaPagamentoEscolhida);
     });
+    // Fiado: nome do cliente obrigatório
+    const eFiado = formaPagamentoEscolhida === 'fiado';
+    document.getElementById('spanClienteOpcional').style.display = eFiado ? 'none' : '';
+    document.getElementById('spanClienteObrigatorio').style.display = eFiado ? '' : 'none';
+    document.getElementById('fCliente').required = eFiado;
+    atualizarBtnConfirmarFiado();
   });
+
+  function atualizarBtnConfirmarFiado() {
+    const eFiado = formaPagamentoEscolhida === 'fiado';
+    const temCliente = document.getElementById('fCliente').value.trim().length > 0;
+    const btn = document.getElementById('btnConfirmar');
+    if (!btn) return;
+    btn.disabled = eFiado && !temCliente;
+    btn.title = (eFiado && !temCliente) ? 'Informe o nome do cliente para registrar fiado' : '';
+  }
+
+  document.getElementById('fCliente').addEventListener('input', atualizarBtnConfirmarFiado);
 
   document.getElementById('btnConfirmar').addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     if (btn.disabled) return; // já está processando — ignora cliques repetidos
+    // Guarda extra: valida fiado mesmo que o listener de input não tenha rodado
+    if (formaPagamentoEscolhida === 'fiado' && !document.getElementById('fCliente').value.trim()) {
+      document.getElementById('fCliente').focus();
+      mostrarToast('Informe o nome do cliente para registrar como fiado.', 'info');
+      return;
+    }
     btn.disabled = true;
     const textoOriginal = btn.textContent;
     btn.textContent = 'Registrando venda…';
@@ -1915,6 +1938,10 @@ function abrirMenuExportar() {
         👤 Clientes
         <span class="d">Total de compras e valor gasto por cliente</span>
       </button>
+      <button class="opt" id="expFiado">
+        📝 Fiado em aberto
+        <span class="d">Lista de fiados pendentes e quitados para cobrança</span>
+      </button>
 
       ${ehPlanoPago ? `
       <div class="secao-avancada-titulo" style="margin:16px 0 10px;">Recursos do plano pago</div>
@@ -1958,6 +1985,13 @@ function abrirMenuExportar() {
     const historico = Vendas.calcularHistoricoClientes(vendasCache);
     if (historico.length === 0) { mostrarToast('Ainda não há vendas com nome de cliente registrado.', 'info'); return; }
     baixarCsv(`clientes-${dataArquivo}.csv`, Vendas.gerarCsvClientes(vendasCache));
+    wrap.remove();
+  });
+
+  document.getElementById('expFiado').addEventListener('click', () => {
+    const fiadoAtivas = vendasCache.filter(v => v.formaPagamento === 'fiado' && v.status !== 'cancelada');
+    if (fiadoAtivas.length === 0) { mostrarToast('Não há vendas no fiado registradas.', 'info'); return; }
+    baixarCsv(`fiado-${dataArquivo}.csv`, Vendas.gerarCsvFiado(vendasCache));
     wrap.remove();
   });
 

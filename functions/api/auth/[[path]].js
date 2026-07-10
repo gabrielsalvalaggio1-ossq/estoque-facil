@@ -421,6 +421,171 @@ export async function onRequest(context) {
       });
     }
 
+    // ---------- POST /api/auth/forgot-password ----------
+    // Gera um token de recuperação e envia e-mail. Sempre responde { ok: true }
+    // para não revelar se o e-mail existe (proteção contra enumeração).
+    if (rota === 'forgot-password' && request.method === 'POST') {
+      const { email } = await request.json();
+
+      if (!email || typeof email !== 'string' || !email.includes('@')) {
+        return json({ ok: true }); // resposta genérica intencional
+      }
+
+      // Rate limiting: 3 solicitações por e-mail por hora
+      const bloqueado = await verificarRateLimit(db, `forgot:${String(email).toLowerCase()}`, 3, 3600);
+      if (bloqueado) {
+        return json({ ok: true }); // resposta genérica intencional
+      }
+
+      const usuario = await db
+        .prepare('SELECT id, nome FROM usuarios WHERE email = ?')
+        .bind(email.toLowerCase().trim())
+        .first();
+
+      if (!usuario || !env.EMAIL_FROM) {
+        // Usuário não existe ou serviço de e-mail não configurado:
+        // retornamos ok:true mesmo assim para não vazar informação.
+        return json({ ok: true });
+      }
+
+      // Gera token criptograficamente seguro (64 hex chars = 256 bits de entropia)
+      const tokenBytes = crypto.getRandomValues(new Uint8Array(32));
+      const token = bytesParaHex(tokenBytes);
+      const tokenHash = await sha256Hex(token);
+      const expiraEm = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora
+
+      // Cria tabela de tokens se ainda não existir
+      await db.prepare(`
+        CREATE TABLE IF NOT EXISTS tokens_recuperacao (
+          token_hash   TEXT PRIMARY KEY,
+          usuario_id   INTEGER NOT NULL,
+          expira_em    TEXT NOT NULL,
+          usado        INTEGER NOT NULL DEFAULT 0,
+          criado_em    TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `).run();
+
+      // Invalida tokens anteriores desse usuário (só um ativo por vez)
+      await db.prepare('DELETE FROM tokens_recuperacao WHERE usuario_id = ?')
+        .bind(usuario.id).run();
+
+      await db.prepare(
+        'INSERT INTO tokens_recuperacao (token_hash, usuario_id, expira_em) VALUES (?, ?, ?)'
+      ).bind(tokenHash, usuario.id, expiraEm).run();
+
+      const baseUrl = new URL(request.url).origin;
+      const linkRecuperacao = `${baseUrl}/redefinir-senha.html?token=${token}`;
+
+      // Envia e-mail via Resend (https://resend.com — API simples, tier grátis generoso)
+      // Variável de ambiente necessária: RESEND_API_KEY, EMAIL_FROM
+      // Ex: EMAIL_FROM = "MEV <noreply@seudominio.com.br>"
+      const corpoEmail = `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#1B3A2F;margin-bottom:8px;">Redefinir senha — MEV</h2>
+          <p style="color:#444;line-height:1.6;">Olá${usuario.nome ? ', ' + usuario.nome : ''}!</p>
+          <p style="color:#444;line-height:1.6;">
+            Recebemos uma solicitação para redefinir a senha da sua conta no
+            <strong>Meu Estoque e Vendas</strong>.
+          </p>
+          <p style="margin:24px 0;">
+            <a href="${linkRecuperacao}"
+               style="background:#1B3A2F;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">
+              Criar nova senha
+            </a>
+          </p>
+          <p style="color:#888;font-size:13px;line-height:1.6;">
+            Este link expira em <strong>1 hora</strong>.<br>
+            Se você não solicitou a redefinição de senha, ignore este e-mail — sua conta está segura.
+          </p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
+          <p style="color:#aaa;font-size:12px;">MEV · Meu Estoque e Vendas</p>
+        </div>
+      `;
+
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM,
+          to: [email],
+          subject: 'Redefinir senha — Meu Estoque e Vendas',
+          html: corpoEmail
+        })
+      });
+
+      return json({ ok: true });
+    }
+
+    // ---------- POST /api/auth/reset-password/verificar ----------
+    // Verifica se um token de recuperação é válido e não foi usado.
+    if (rota === 'reset-password' && partes[1] === 'verificar' && request.method === 'POST') {
+      const { token } = await request.json();
+      if (!token || typeof token !== 'string') {
+        return json({ ok: false, error: 'Token inválido.' }, 400);
+      }
+
+      const tokenHash = await sha256Hex(token);
+
+      try {
+        const registro = await db.prepare(
+          'SELECT usuario_id, expira_em, usado FROM tokens_recuperacao WHERE token_hash = ?'
+        ).bind(tokenHash).first();
+
+        if (!registro || registro.usado || new Date(registro.expira_em) < new Date()) {
+          return json({ ok: false, error: 'Link inválido ou expirado.' }, 400);
+        }
+
+        return json({ ok: true });
+      } catch {
+        return json({ ok: false, error: 'Link inválido.' }, 400);
+      }
+    }
+
+    // ---------- POST /api/auth/reset-password ----------
+    // Redefine a senha usando um token válido.
+    if (rota === 'reset-password' && !partes[1] && request.method === 'POST') {
+      const { token, novaSenha } = await request.json();
+
+      if (!token || typeof token !== 'string') {
+        return json({ ok: false, error: 'Token inválido.' }, 400);
+      }
+      if (!novaSenha || typeof novaSenha !== 'string' || novaSenha.length < 6) {
+        return json({ ok: false, error: 'A senha deve ter pelo menos 6 caracteres.' }, 400);
+      }
+
+      const tokenHash = await sha256Hex(token);
+
+      try {
+        const registro = await db.prepare(
+          'SELECT usuario_id, expira_em, usado FROM tokens_recuperacao WHERE token_hash = ?'
+        ).bind(tokenHash).first();
+
+        if (!registro || registro.usado || new Date(registro.expira_em) < new Date()) {
+          return json({ ok: false, error: 'Link inválido ou expirado. Solicite um novo link de recuperação.' }, 400);
+        }
+
+        // Marca o token como usado ANTES de alterar a senha (evita race condition)
+        await db.prepare('UPDATE tokens_recuperacao SET usado = 1 WHERE token_hash = ?')
+          .bind(tokenHash).run();
+
+        const novoHash = await gerarHashDeSenha(novaSenha);
+        await db.prepare('UPDATE usuarios SET senha_hash = ? WHERE id = ?')
+          .bind(novoHash, registro.usuario_id).run();
+
+        // Encerra todas as sessões ativas do usuário por segurança
+        // (alguém que roubou a sessão perde acesso imediatamente)
+        await db.prepare('DELETE FROM sessoes WHERE usuario_id = ?')
+          .bind(registro.usuario_id).run();
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'Não foi possível redefinir a senha. Tente novamente.' }, 500);
+      }
+    }
+
     return json({ error: 'Rota de autenticação não encontrada.' }, 404);
   } catch (erro) {
     return json({ error: 'Erro no servidor: ' + erro.message }, 500);

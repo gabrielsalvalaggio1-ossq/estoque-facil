@@ -207,6 +207,33 @@ function gerarCsvClientes(vendas) {
   return linhas.join('\r\n');
 }
 
+
+/**
+ * Gera CSV das vendas no fiado para cobrança posterior.
+ * Inclui todas as vendas fiado não canceladas, com status pendente/quitado.
+ * O lojista pode abrir direto no Excel ou Google Sheets.
+ */
+function gerarCsvFiado(vendas) {
+  const fiadoAtivas = vendas.filter(v =>
+    v.formaPagamento === 'fiado' && v.status !== 'cancelada'
+  );
+
+  const linhas = [
+    ['Data', 'Cliente', 'Itens', 'Total (R$)', 'Status'].join(';')
+  ];
+
+  fiadoAtivas.forEach(v => {
+    const data = new Date(v.data).toLocaleString('pt-BR');
+    const cliente = String(v.cliente || '').replace(/;/g, ',');
+    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ').replace(/;/g, ',');
+    const total = v.total.toFixed(2).replace('.', ',');
+    const status = v.status === 'quitada' ? 'Quitado' : 'Pendente';
+    linhas.push([data, cliente, itens, total, status].join(';'));
+  });
+
+  return linhas.join('\r\n');
+}
+
 window.Vendas = {
   FORMAS_PAGAMENTO,
   listarVendas,
@@ -220,5 +247,6 @@ window.Vendas = {
   calcularHistoricoClientes,
   formatarQuantidadeItem,
   gerarCsvVendas,
-  gerarCsvClientes
+  gerarCsvClientes,
+  gerarCsvFiado
 };

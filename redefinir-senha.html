@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Redefinir senha — Meu Estoque e Vendas</title>
+<meta name="description" content="Crie uma nova senha para sua conta MEV.">
+<meta name="theme-color" content="#12281F">
+
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="css/style.css" data-clarity-unmask="true">
+</head>
+<body class="auth-page">
+
+<div class="auth-card">
+
+  <img class="auth-logo" src="icons/icon-192.png" alt="MEV">
+
+  <div class="auth-head">
+    <p class="eyebrow">MEV · Meu Estoque e Vendas</p>
+    <h1>Criar nova senha</h1>
+    <p class="sub">Escolha uma senha nova para sua conta.</p>
+  </div>
+
+  <!-- Tela de carregamento -->
+  <div id="telaCarregando" style="text-align:center; padding: 16px 0;">
+    <p style="color:#5B6259; font-size:14px;">Verificando link…</p>
+  </div>
+
+  <!-- Tela de link inválido/expirado -->
+  <div id="telaLinkInvalido" style="display:none; text-align:center;">
+    <div style="font-size:40px; margin-bottom:16px;">⚠️</div>
+    <h2 style="font-size:18px; font-weight:600; margin-bottom:8px;">Link inválido ou expirado</h2>
+    <p style="font-size:14px; color:#5B6259; line-height:1.6; margin-bottom:24px;">
+      Este link de recuperação não é mais válido. Links expiram em 1 hora por segurança.
+    </p>
+    <a href="/esqueci-senha.html" class="btn primary" style="display:block; text-align:center; margin-bottom:10px;">Solicitar novo link</a>
+    <a href="/login.html" class="btn ghost" style="display:block; text-align:center;">Voltar para o login</a>
+  </div>
+
+  <!-- Formulário de nova senha -->
+  <div id="telaFormulario" style="display:none;">
+    <form class="auth-form" onsubmit="event.preventDefault(); redefinirSenha();">
+      <div class="field">
+        <label for="novaSenha">Nova senha</label>
+        <input id="novaSenha" type="password" placeholder="Mínimo 6 caracteres" autocomplete="new-password" minlength="6" required>
+      </div>
+      <div class="field">
+        <label for="confirmarSenha">Confirmar senha</label>
+        <input id="confirmarSenha" type="password" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required>
+      </div>
+
+      <p id="erro" class="auth-erro"></p>
+
+      <button id="btnSalvar" class="btn primary" type="submit">Salvar nova senha</button>
+    </form>
+  </div>
+
+  <!-- Tela de sucesso -->
+  <div id="telaSucesso" style="display:none; text-align:center;">
+    <div style="font-size:40px; margin-bottom:16px;">✅</div>
+    <h2 style="font-size:20px; font-weight:600; margin-bottom:8px;">Senha redefinida!</h2>
+    <p style="font-size:14px; color:#5B6259; line-height:1.6; margin-bottom:24px;">
+      Sua senha foi alterada com sucesso. Agora você pode entrar com a nova senha.
+    </p>
+    <a href="/login.html" class="btn primary" style="display:block; text-align:center;">Entrar na conta</a>
+  </div>
+
+</div>
+
+<script>
+let tokenRecuperacao = null;
+
+async function inicializar() {
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('token');
+
+  if (!token) {
+    mostrarTela('invalido');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/reset-password/verificar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      tokenRecuperacao = token;
+      mostrarTela('formulario');
+    } else {
+      mostrarTela('invalido');
+    }
+  } catch (e) {
+    mostrarTela('invalido');
+  }
+}
+
+async function redefinirSenha() {
+  const novaSenha = document.getElementById('novaSenha').value;
+  const confirmar = document.getElementById('confirmarSenha').value;
+  const erroEl = document.getElementById('erro');
+  const botao = document.getElementById('btnSalvar');
+  erroEl.textContent = '';
+
+  if (novaSenha.length < 6) {
+    erroEl.textContent = 'A senha precisa ter pelo menos 6 caracteres.';
+    return;
+  }
+  if (novaSenha !== confirmar) {
+    erroEl.textContent = 'As senhas não coincidem.';
+    return;
+  }
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: tokenRecuperacao, novaSenha })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      mostrarTela('sucesso');
+    } else {
+      erroEl.textContent = data.error || 'Não foi possível alterar a senha. Solicite um novo link.';
+      botao.disabled = false;
+      botao.textContent = 'Salvar nova senha';
+    }
+  } catch (e) {
+    erroEl.textContent = 'Não foi possível conectar ao servidor. Tente novamente.';
+    botao.disabled = false;
+    botao.textContent = 'Salvar nova senha';
+  }
+}
+
+function mostrarTela(qual) {
+  document.getElementById('telaCarregando').style.display = 'none';
+  document.getElementById('telaLinkInvalido').style.display = qual === 'invalido' ? 'block' : 'none';
+  document.getElementById('telaFormulario').style.display = qual === 'formulario' ? 'block' : 'none';
+  document.getElementById('telaSucesso').style.display = qual === 'sucesso' ? 'block' : 'none';
+}
+
+inicializar();
+</script>
+
+</body>
+</html>

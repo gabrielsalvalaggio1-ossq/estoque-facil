@@ -1,0 +1,248 @@
+/* =====================================================================
+   clientes-t9.css — Estilos adicionais para o módulo de Clientes (T9)
+   Adicione este bloco ao final de style.css (ou importe como <link>).
+   ===================================================================== */
+
+/* --- Toolbar da aba Clientes (busca + seletor de ordem) --- */
+.clientes-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.clientes-toolbar .campo-busca {
+  flex: 1;
+}
+.clientes-toolbar .filtro-select {
+  flex: 0 0 auto;
+  max-width: 150px;
+}
+
+/* --- Avatar circular no card de cliente --- */
+.cliente-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ledger);
+  color: var(--paper);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Card com fiado pendente recebe borda coral suave */
+.product-card.fiado-pendente {
+  border-color: #E2572B44;
+  background: #FFF8F6;
+}
+
+/* Badge de fiado no nome do cliente */
+.cliente-badge-fiado {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--coral-deep);
+  background: #F3DED6;
+  border-radius: 5px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Linha de stats no card (compras · total · última visita) */
+.cliente-meta-stats {
+  margin-top: 4px !important;
+  flex-wrap: wrap;
+  gap: 8px !important;
+  color: var(--ink-soft);
+  font-size: 11.5px !important;
+}
+.cliente-meta-stats .sem-compras {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* =====================================================================
+   Modal do cliente — seções internas
+   ===================================================================== */
+
+.modal-cliente {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+/* Grid 2×2 de estatísticas no topo do modal */
+.cliente-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.cliente-stat {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cliente-stat.stat-fiado {
+  background: #F3DED6;
+  border-color: #E2572B44;
+}
+
+.cliente-stat-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft);
+}
+.cliente-stat-val {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ledger);
+}
+.cliente-stat.stat-fiado .cliente-stat-val {
+  color: var(--coral-deep);
+}
+
+/* Hint de frequência média */
+.cliente-freq-hint {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin: -4px 0 12px;
+}
+.cliente-freq-hint strong {
+  color: var(--ledger);
+}
+
+/* Label de seção dentro do modal */
+.cliente-section-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink-soft);
+  margin: 0 0 8px;
+}
+
+/* Top 3 produtos favoritos */
+.cliente-tops {
+  margin-bottom: 14px;
+}
+.cliente-tops-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cliente-top-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  padding: 7px 10px;
+  background: var(--paper-dim);
+  border-radius: 8px;
+}
+.cliente-top-rank {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--amber-deep);
+  width: 24px;
+  flex-shrink: 0;
+}
+.cliente-top-nome {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cliente-top-qtd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+/* Histórico de compras */
+.cliente-historico {
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 6px;
+  margin-bottom: 10px;
+}
+
+.cliente-sem-historico {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-style: italic;
+  margin: 4px 0 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+/* Linha individual de uma venda no histórico */
+.cliente-venda-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.cliente-venda-row:last-child {
+  border-bottom: none;
+}
+.cliente-venda-row.fiado-em-aberto {
+  background: #FFF8F6;
+  border-radius: 6px;
+  padding: 8px 8px;
+  margin: 0 -8px;
+}
+
+.cvr-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.cvr-data {
+  font-size: 13px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.cvr-pgto {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--paper-dim);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.cvr-pgto.fiado {
+  background: #F3DED6;
+  color: var(--coral-deep);
+}
+.cvr-total {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--amber-deep);
+  flex-shrink: 0;
+}

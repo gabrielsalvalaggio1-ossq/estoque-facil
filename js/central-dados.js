@@ -29,6 +29,138 @@ const CentralDados = (() => {
     fiado:    '📝 Fiado',
   };
 
+  // ── Personalização de widgets (T11 — Dashboard Personalizável) ──────────
+  // Camada de apresentação apenas: não altera nenhum cálculo de dados.
+  // Cada card/seção do dashboard vira um "widget" com id fixo. Preferências
+  // (widgets ocultos e ordem) ficam salvas em localStorage, por usuário.
+
+  // Rótulos amigáveis usados na barra de "widgets ocultos" (chips de restaurar).
+  const ROTULOS_WIDGET = {
+    'indicadores':                    'Indicadores gerais',
+    'grafico-vendas':                 'Evolução das vendas',
+    'grafico-faturamento':            'Evolução do faturamento',
+    'grafico-mais-vendidos':          'Produtos mais vendidos (gráfico)',
+    'grafico-formas-pagamento':       'Formas de pagamento',
+    'lista-ultimas-vendas':           'Últimas vendas',
+    'lista-mais-vendidos':            'Produtos mais vendidos',
+    'lista-estoque-baixo':            'Estoque baixo',
+    'comparativos':                   'Comparativos',
+    'alertas':                        'Alertas inteligentes',
+    'lista-mais-lucrativos':          'Produtos mais lucrativos',
+    'lista-giro':                     'Maior giro de estoque',
+    'lista-parados':                  'Parados há mais de 30 dias',
+    'padroes-venda':                  'Padrões de venda',
+    'lista-estoque-categoria':        'Estoque por categoria',
+    'lista-proximo-minimo':           'Próximos do estoque mínimo',
+    'lista-melhores-clientes':        'Melhores clientes',
+    'indicadores-estoque-financeiro': 'Indicadores de estoque e clientes',
+    'metas':                          'Metas',
+  };
+
+  // Identifica o usuário dono das preferências. Se o app hospedeiro não
+  // chamar CentralDados.definirUsuario(id), cai num id compartilhado —
+  // funciona, só deixa de isolar por usuário no mesmo navegador.
+  let usuarioIdAtual = 'default';
+  function definirUsuario(id) {
+    usuarioIdAtual = id ? String(id) : 'default';
+  }
+
+  function chavePrefsWidgets() {
+    return `mev_cd_widgets::${usuarioIdAtual}`;
+  }
+
+  function carregarPrefsWidgets() {
+    try {
+      const bruto = localStorage.getItem(chavePrefsWidgets());
+      if (!bruto) return { ocultos: [], ordem: [] };
+      const dados = JSON.parse(bruto);
+      return {
+        ocultos: Array.isArray(dados.ocultos) ? dados.ocultos : [],
+        ordem: Array.isArray(dados.ordem) ? dados.ordem : [],
+      };
+    } catch (e) {
+      return { ocultos: [], ordem: [] };
+    }
+  }
+
+  function salvarPrefsWidgets(prefs) {
+    try { localStorage.setItem(chavePrefsWidgets(), JSON.stringify(prefs)); }
+    catch (e) { /* localStorage indisponível (modo privado, quota etc.) — segue sem persistir */ }
+  }
+
+  function ocultarWidget(id) {
+    const prefs = carregarPrefsWidgets();
+    if (!prefs.ocultos.includes(id)) prefs.ocultos.push(id);
+    salvarPrefsWidgets(prefs);
+  }
+
+  function mostrarWidget(id) {
+    const prefs = carregarPrefsWidgets();
+    prefs.ocultos = prefs.ocultos.filter(x => x !== id);
+    salvarPrefsWidgets(prefs);
+  }
+
+  function salvarNovaOrdemWidgets(idsNaOrdem) {
+    const prefs = carregarPrefsWidgets();
+    prefs.ordem = idsNaOrdem;
+    salvarPrefsWidgets(prefs);
+  }
+
+  function restaurarPadraoWidgets() {
+    salvarPrefsWidgets({ ocultos: [], ordem: [] });
+  }
+
+  /** Aplica a ordem salva; widgets novos (sem ordem salva) vão ao final, na ordem natural. */
+  function ordenarWidgets(widgets, ordemSalva) {
+    if (!ordemSalva.length) return widgets;
+    const porId = new Map(widgets.map(w => [w.id, w]));
+    const ordenados = [];
+    ordemSalva.forEach(id => {
+      if (porId.has(id)) { ordenados.push(porId.get(id)); porId.delete(id); }
+    });
+    porId.forEach(w => ordenados.push(w));
+    return ordenados;
+  }
+
+  /** Monta um widget: id estável + HTML do conteúdo (que já tem seu próprio card/h3). */
+  function widget(id, html, opcoes = {}) {
+    return { id, html, largo: !!opcoes.largo };
+  }
+
+  function renderWidget(w) {
+    return `
+      <div class="cd-widget${w.largo ? ' cd-widget-largo' : ''}" draggable="true" data-widget-id="${escaparHtml(w.id)}">
+        <div class="cd-widget-controles">
+          <span class="cd-widget-alca" title="Arrastar para reordenar" aria-hidden="true">⠿</span>
+          <button type="button" class="cd-widget-fechar" data-acao="ocultar-widget" data-widget-id="${escaparHtml(w.id)}" title="Ocultar este widget">✕</button>
+        </div>
+        <div class="cd-widget-corpo">${w.html}</div>
+      </div>`;
+  }
+
+  /** Aplica preferências (ordem + ocultos) e monta o grid arrastável + a barra de "ocultos". */
+  function renderPainelWidgets(todosWidgets) {
+    const prefs = carregarPrefsWidgets();
+    const ordenados = ordenarWidgets(todosWidgets, prefs.ordem);
+    const visiveis = ordenados.filter(w => !prefs.ocultos.includes(w.id));
+    const ocultos = ordenados.filter(w => prefs.ocultos.includes(w.id));
+
+    const barraOcultos = ocultos.length ? `
+      <div class="cd-widgets-ocultos">
+        <span class="cd-widgets-ocultos-rotulo">Ocultos:</span>
+        ${ocultos.map(w => `
+          <button type="button" class="cd-chip-oculto" data-acao="mostrar-widget" data-widget-id="${escaparHtml(w.id)}">
+            + ${escaparHtml(ROTULOS_WIDGET[w.id] || w.id)}
+          </button>`).join('')}
+      </div>` : '';
+
+    return `
+      ${barraOcultos}
+      <div class="cd-widgets" id="cdWidgets">
+        ${visiveis.map(renderWidget).join('')}
+      </div>`;
+  }
+
   // ── Períodos ────────────────────────────────────────────────────────────
 
   function inicioDia(d = new Date()) {
@@ -516,52 +648,59 @@ const CentralDados = (() => {
       </div>`;
   }
 
+  /** Retorna a lista de widgets do plano Essencial (ordem natural/padrão). */
   function renderEssencial(dados, periodo, produtos, todasVendas) {
     const { faturamento, qtdVendas, ticketMedio, lucro, temCusto, totalProdutos, totalClientes, vendasPeriodo } = dados;
     const maisVendidos = Produtos.calcularMaisVendidos(vendasPeriodo, 5);
     const estoqueBaixo = produtos.filter(p => p.estoque <= (p.estoqueMinimo || 0)).slice(0, 6);
     const ultimasVendas = [...vendasPeriodo].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 6);
 
-    return `
-      <div class="cd-grid-cartoes">
-        ${cartaoIndicador('Faturamento do dia', formatarMoeda(faturamentoDoDia(todasVendas)))}
-        ${cartaoIndicador('Faturamento no período', formatarMoeda(faturamento))}
-        ${cartaoIndicador('Vendas', qtdVendas)}
-        ${cartaoIndicador('Ticket médio', formatarMoeda(ticketMedio))}
-        ${cartaoIndicador('Lucro no período', temCusto ? formatarMoeda(lucro) : '—', temCusto ? '' : 'Cadastre o preço de custo dos produtos para ver o lucro.')}
-        ${cartaoIndicador('Produtos cadastrados', totalProdutos)}
-        ${cartaoIndicador('Clientes cadastrados', totalClientes)}
-      </div>
+    return [
+      widget('indicadores', `
+        <div class="cd-grid-cartoes">
+          ${cartaoIndicador('Faturamento do dia', formatarMoeda(faturamentoDoDia(todasVendas)))}
+          ${cartaoIndicador('Faturamento no período', formatarMoeda(faturamento))}
+          ${cartaoIndicador('Vendas', qtdVendas)}
+          ${cartaoIndicador('Ticket médio', formatarMoeda(ticketMedio))}
+          ${cartaoIndicador('Lucro no período', temCusto ? formatarMoeda(lucro) : '—', temCusto ? '' : 'Cadastre o preço de custo dos produtos para ver o lucro.')}
+          ${cartaoIndicador('Produtos cadastrados', totalProdutos)}
+          ${cartaoIndicador('Clientes cadastrados', totalClientes)}
+        </div>`, { largo: true }),
 
-      <div class="cd-grid-graficos">
+      widget('grafico-vendas', `
         <div class="cd-bloco">
           <h3>Evolução das vendas</h3>
           <div class="cd-grafico-linha" data-grafico="vendas"></div>
-        </div>
+        </div>`),
+
+      widget('grafico-faturamento', `
         <div class="cd-bloco">
           <h3>Evolução do faturamento</h3>
           <div class="cd-grafico-linha" data-grafico="faturamento"></div>
-        </div>
+        </div>`),
+
+      widget('grafico-mais-vendidos', `
         <div class="cd-bloco">
           <h3>Produtos mais vendidos</h3>
           <div class="cd-grafico-barras" data-grafico="mais-vendidos"></div>
-        </div>
+        </div>`),
+
+      widget('grafico-formas-pagamento', `
         <div class="cd-bloco cd-bloco-pizza">
           <h3>Formas de pagamento</h3>
           <div class="cd-grafico-pizza" data-grafico="formas-pagamento"></div>
           <div class="cd-legenda" data-legenda="formas-pagamento"></div>
-        </div>
-      </div>
+        </div>`),
 
-      <div class="cd-grid-listas">
-        ${listaSimples('Últimas vendas', ultimasVendas.map(v => `
-          <li><span>${escaparHtml(v.cliente || 'Cliente não informado')}</span><span>${formatarMoeda(v.total)}</span></li>`))}
-        ${listaSimples('Produtos mais vendidos', maisVendidos.map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span>${p.quantidade} un.</span></li>`))}
-        ${listaSimples('Estoque baixo', estoqueBaixo.map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span class="cd-tag-alerta">${p.estoque} un.</span></li>`))}
-      </div>
-    `;
+      widget('lista-ultimas-vendas', listaSimples('Últimas vendas', ultimasVendas.map(v => `
+        <li><span>${escaparHtml(v.cliente || 'Cliente não informado')}</span><span>${formatarMoeda(v.total)}</span></li>`))),
+
+      widget('lista-mais-vendidos', listaSimples('Produtos mais vendidos', maisVendidos.map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span>${p.quantidade} un.</span></li>`))),
+
+      widget('lista-estoque-baixo', listaSimples('Estoque baixo', estoqueBaixo.map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span class="cd-tag-alerta">${p.estoque} un.</span></li>`))),
+    ];
   }
 
   function barraComparativo(rotulo, comp) {
@@ -624,50 +763,59 @@ const CentralDados = (() => {
     const clientesInt = inteligenciaClientes(dados.vendasPeriodo);
     const alertas = gerarAlertas(vendas, produtos, comparativo, estoqueInt, Produtos.calcularMaisVendidos(dados.vendasPeriodo, 5));
 
-    return `
-      <div class="cd-bloco">
-        <h3>Comparativos</h3>
-        <div class="cd-comparativos">
-          ${barraComparativo('Faturamento vs. período anterior', comparativo.faturamento)}
-          ${barraComparativo('Vendas vs. período anterior', comparativo.vendas)}
-        </div>
-      </div>
+    const widgets = [
+      widget('comparativos', `
+        <div class="cd-bloco">
+          <h3>Comparativos</h3>
+          <div class="cd-comparativos">
+            ${barraComparativo('Faturamento vs. período anterior', comparativo.faturamento)}
+            ${barraComparativo('Vendas vs. período anterior', comparativo.vendas)}
+          </div>
+        </div>`, { largo: true }),
+    ];
 
-      ${renderAlertas(alertas)}
+    if (alertas.length) {
+      widgets.push(widget('alertas', renderAlertas(alertas), { largo: true }));
+    }
 
-      <div class="cd-grid-listas">
-        ${listaSimples('Produtos mais lucrativos', maisLucrativos.map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span>${formatarMoeda(p.lucro)}</span></li>`))}
-        ${listaSimples('Maior giro de estoque', giro.slice(0, 6).map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span>${p.giro.toFixed(2)}x</span></li>`))}
-        ${listaSimples('Parados há mais de 30 dias', semVenda.map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span class="cd-tag-alerta">${p.nuncaVendido ? 'Nunca vendido' : p.dias + ' dias'}</span></li>`))}
-      </div>
+    widgets.push(
+      widget('lista-mais-lucrativos', listaSimples('Produtos mais lucrativos', maisLucrativos.map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span>${formatarMoeda(p.lucro)}</span></li>`))),
 
-      <div class="cd-bloco">
-        <h3>Padrões de venda</h3>
-        <p class="cd-destaque">Horário com mais vendas: <strong>${horarios.some(h=>h>0) ? horaTopo + 'h' : '—'}</strong> · Dia da semana mais forte: <strong>${diasSemana[0] && diasSemana[0].total > 0 ? diasSemana[0].nome : '—'}</strong></p>
-        <div class="cd-grafico-barras" data-grafico="horarios"></div>
-      </div>
+      widget('lista-giro', listaSimples('Maior giro de estoque', giro.slice(0, 6).map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span>${p.giro.toFixed(2)}x</span></li>`))),
 
-      <div class="cd-grid-listas">
-        ${listaSimples('Estoque por categoria', estoqueInt.porCategoria.slice(0, 6).map(c => `
-          <li><span>${escaparHtml(c.categoria)}</span><span>${formatarMoeda(c.valor)}</span></li>`))}
-        ${listaSimples('Próximos do estoque mínimo', estoqueInt.proximosDoMinimo.slice(0, 6).map(p => `
-          <li><span>${escaparHtml(p.nome)}</span><span>${p.estoque} un.</span></li>`))}
-        ${listaSimples('Melhores clientes', clientesInt.ranking.slice(0, 6).map(c => `
-          <li><span>${escaparHtml(c.cliente)}</span><span>${formatarMoeda(c.totalGasto)}</span></li>`))}
-      </div>
+      widget('lista-parados', listaSimples('Parados há mais de 30 dias', semVenda.map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span class="cd-tag-alerta">${p.nuncaVendido ? 'Nunca vendido' : p.dias + ' dias'}</span></li>`))),
 
-      <div class="cd-grid-cartoes">
-        ${cartaoIndicador('Valor financeiro em estoque', formatarMoeda(estoqueInt.valorEstoque))}
-        ${cartaoIndicador('Clientes inativos (30+ dias)', clientesInt.inativos.length)}
-        ${cartaoIndicador('Clientes recorrentes', clientesInt.recorrentes.length)}
-        ${cartaoIndicador('Frequência média de compra', clientesInt.frequenciaMedia.toFixed(1) + 'x')}
-      </div>
+      widget('padroes-venda', `
+        <div class="cd-bloco">
+          <h3>Padrões de venda</h3>
+          <p class="cd-destaque">Horário com mais vendas: <strong>${horarios.some(h=>h>0) ? horaTopo + 'h' : '—'}</strong> · Dia da semana mais forte: <strong>${diasSemana[0] && diasSemana[0].total > 0 ? diasSemana[0].nome : '—'}</strong></p>
+          <div class="cd-grafico-barras" data-grafico="horarios"></div>
+        </div>`, { largo: true }),
 
-      ${renderMetas(metas, vendas, produtos)}
-    `;
+      widget('lista-estoque-categoria', listaSimples('Estoque por categoria', estoqueInt.porCategoria.slice(0, 6).map(c => `
+        <li><span>${escaparHtml(c.categoria)}</span><span>${formatarMoeda(c.valor)}</span></li>`))),
+
+      widget('lista-proximo-minimo', listaSimples('Próximos do estoque mínimo', estoqueInt.proximosDoMinimo.slice(0, 6).map(p => `
+        <li><span>${escaparHtml(p.nome)}</span><span>${p.estoque} un.</span></li>`))),
+
+      widget('lista-melhores-clientes', listaSimples('Melhores clientes', clientesInt.ranking.slice(0, 6).map(c => `
+        <li><span>${escaparHtml(c.cliente)}</span><span>${formatarMoeda(c.totalGasto)}</span></li>`))),
+
+      widget('indicadores-estoque-financeiro', `
+        <div class="cd-grid-cartoes">
+          ${cartaoIndicador('Valor financeiro em estoque', formatarMoeda(estoqueInt.valorEstoque))}
+          ${cartaoIndicador('Clientes inativos (30+ dias)', clientesInt.inativos.length)}
+          ${cartaoIndicador('Clientes recorrentes', clientesInt.recorrentes.length)}
+          ${cartaoIndicador('Frequência média de compra', clientesInt.frequenciaMedia.toFixed(1) + 'x')}
+        </div>`, { largo: true }),
+
+      widget('metas', renderMetas(metas, vendas, produtos), { largo: true }),
+    );
+
+    return widgets;
   }
 
   // ── Estado do módulo ────────────────────────────────────────────────────
@@ -688,16 +836,23 @@ const CentralDados = (() => {
       try { metasCache = await DB.listarMetas(); } catch (e) { metasCache = []; }
     }
 
+    const todosWidgets = [
+      ...renderEssencial(dados, periodo, produtos, vendas),
+      ...(ehPro ? renderPro(dados, periodo, produtos, vendas, metasCache) : []),
+    ];
+
     return `
       <div class="page cd-central">
         <div class="cd-topo">
           <h2>📊 Central de Dados</h2>
-          <span class="cd-plano-tag">${ehPro ? 'Plano Pro' : 'Plano Essencial'}</span>
+          <div class="cd-topo-acoes">
+            <span class="cd-plano-tag">${ehPro ? 'Plano Pro' : 'Plano Essencial'}</span>
+            <button type="button" class="cd-btn-restaurar" data-acao="restaurar-widgets" title="Restaurar layout padrão">↺ Restaurar padrão</button>
+          </div>
         </div>
         ${barraFiltros(periodoAtual, ehPro)}
         <div id="cdConteudo">
-          ${renderEssencial(dados, periodo, produtos, vendas)}
-          ${ehPro ? renderPro(dados, periodo, produtos, vendas, metasCache) : ''}
+          ${renderPainelWidgets(todosWidgets)}
         </div>
       </div>
     `;
@@ -733,8 +888,82 @@ const CentralDados = (() => {
     }
   }
 
+  /**
+   * Arrastar e soltar nativo (HTML5 Drag and Drop API) para reordenar os
+   * widgets. Enquanto arrasta, reordena o DOM em tempo real (comparando a
+   * posição do cursor); a nova ordem é persistida em localStorage ao soltar.
+   */
+  function configurarArrastarWidgets() {
+    const container = document.getElementById('cdWidgets');
+    if (!container) return;
+    let arrastando = null;
+
+    function persistirOrdemAtual() {
+      const ordem = Array.from(container.querySelectorAll('.cd-widget')).map(el => el.dataset.widgetId);
+      salvarNovaOrdemWidgets(ordem);
+    }
+
+    container.querySelectorAll('.cd-widget').forEach(el => {
+      el.addEventListener('dragstart', (e) => {
+        arrastando = el;
+        el.classList.add('cd-widget-arrastando');
+        if (e.dataTransfer) {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', el.dataset.widgetId); } catch (err) { /* ignora navegadores restritos */ }
+        }
+      });
+
+      el.addEventListener('dragend', () => {
+        el.classList.remove('cd-widget-arrastando');
+        arrastando = null;
+        persistirOrdemAtual();
+      });
+
+      el.addEventListener('dragover', (e) => {
+        if (!arrastando || arrastando === el) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        const rect = el.getBoundingClientRect();
+        const antes = (e.clientY - rect.top) < rect.height / 2;
+        if (antes) container.insertBefore(arrastando, el);
+        else container.insertBefore(arrastando, el.nextSibling);
+      });
+    });
+
+    // Permite soltar depois do último widget (espaço vazio no fim do grid).
+    container.addEventListener('dragover', (e) => { if (arrastando) e.preventDefault(); });
+    container.addEventListener('drop', (e) => { e.preventDefault(); persistirOrdemAtual(); });
+  }
+
   function inicializar(produtos, vendas, aoTrocarPeriodo) {
     desenharGraficosNaTela(produtos, vendas);
+    configurarArrastarWidgets();
+
+    document.querySelectorAll('[data-acao="ocultar-widget"]').forEach(botao => {
+      botao.addEventListener('click', () => {
+        ocultarWidget(botao.dataset.widgetId);
+        aoTrocarPeriodo();
+      });
+    });
+
+    document.querySelectorAll('[data-acao="mostrar-widget"]').forEach(botao => {
+      botao.addEventListener('click', () => {
+        mostrarWidget(botao.dataset.widgetId);
+        aoTrocarPeriodo();
+      });
+    });
+
+    const btnRestaurarWidgets = document.querySelector('[data-acao="restaurar-widgets"]');
+    if (btnRestaurarWidgets) {
+      btnRestaurarWidgets.addEventListener('click', async () => {
+        const confirmou = typeof mostrarConfirm === 'function'
+          ? await mostrarConfirm('Restaurar o layout padrão da Central de Dados? Todos os widgets ocultos voltam a aparecer e a ordem original é restaurada.', { confirmText: 'Restaurar', tipo: 'perigo' })
+          : confirm('Restaurar o layout padrão da Central de Dados?');
+        if (!confirmou) return;
+        restaurarPadraoWidgets();
+        aoTrocarPeriodo();
+      });
+    }
 
     document.querySelectorAll('.cd-filtro-btn').forEach(botao => {
       botao.addEventListener('click', () => {
@@ -853,5 +1082,5 @@ const CentralDados = (() => {
     });
   }
 
-  return { renderizar, inicializar, ROTULO_PERIODO };
+  return { renderizar, inicializar, ROTULO_PERIODO, definirUsuario };
 })();

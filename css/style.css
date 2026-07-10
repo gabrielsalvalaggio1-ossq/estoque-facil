@@ -2136,12 +2136,62 @@ body.auth-page{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   flex-wrap:wrap; margin-bottom:8px;
 }
+.cd-topo-acoes{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .cd-plano-tag{
   font-family:'IBM Plex Mono', monospace;
   font-size:11.5px; letter-spacing:.03em; text-transform:uppercase;
   background:var(--paper-dim); color:var(--ledger);
   padding:5px 10px; border-radius:999px;
 }
+.cd-btn-restaurar{
+  font-family:'IBM Plex Mono', monospace; font-size:11.5px;
+  background:none; border:1px solid var(--paper-dim); color:var(--ledger);
+  padding:5px 10px; border-radius:999px; cursor:pointer; transition:background .15s;
+}
+.cd-btn-restaurar:hover{ background:var(--paper-dim); }
+
+/* ── Widgets (T11 — Dashboard Personalizável) ── */
+.cd-widgets-ocultos{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  margin:0 0 16px; padding:10px 12px;
+  background:var(--paper-dim); border-radius:10px;
+}
+.cd-widgets-ocultos-rotulo{
+  font-size:12px; font-weight:600; color:var(--ledger);
+  text-transform:uppercase; letter-spacing:.02em;
+}
+.cd-chip-oculto{
+  font-size:12px; border:1px dashed var(--paper-dim); background:var(--paper);
+  color:var(--ink); padding:4px 10px; border-radius:999px; cursor:pointer;
+  transition:background .15s, border-color .15s;
+}
+.cd-chip-oculto:hover{ background:var(--paper); border-color:var(--ledger); }
+
+.cd-widgets{
+  display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  gap:14px; align-items:start; margin-bottom:22px;
+}
+.cd-widget{ position:relative; }
+.cd-widget-largo{ grid-column:1 / -1; }
+.cd-widget-controles{
+  position:absolute; top:8px; right:8px; z-index:2;
+  display:flex; align-items:center; gap:4px;
+  opacity:0; transition:opacity .15s;
+}
+.cd-widget:hover .cd-widget-controles,
+.cd-widget:focus-within .cd-widget-controles{ opacity:1; }
+.cd-widget-alca{
+  cursor:grab; font-size:14px; color:var(--ledger); opacity:.65;
+  padding:2px 5px; user-select:none;
+}
+.cd-widget-alca:active{ cursor:grabbing; }
+.cd-widget-fechar{
+  border:none; background:var(--paper); color:var(--coral-deep);
+  width:22px; height:22px; border-radius:50%; cursor:pointer;
+  font-size:12px; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,.15);
+}
+.cd-widget-fechar:hover{ background:#F3DED6; }
+.cd-widget-arrastando{ opacity:.4; }
 .cd-filtros{
   display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 22px;
 }
@@ -2261,7 +2311,11 @@ body.auth-page{
 .cd-upgrade .btn{ width:auto; padding:10px 22px; }
 
 @media (max-width: 640px){
-  .cd-grid-cartoes, .cd-grid-graficos, .cd-grid-listas, .cd-metas-grid{
+  .cd-grid-cartoes, .cd-grid-graficos, .cd-grid-listas, .cd-metas-grid, .cd-widgets{
     grid-template-columns:1fr;
+  }
+  /* Sem hover em touch: controles do widget ficam sempre visíveis, no topo do card. */
+  .cd-widget-controles{
+    opacity:1; position:static; justify-content:flex-end; margin-bottom:4px;
   }
 }

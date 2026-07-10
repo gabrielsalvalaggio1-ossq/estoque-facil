@@ -37,6 +37,7 @@ async function registrarVenda(carrinho, opcoes = {}) {
 
   const formaPagamento = FORMAS_PAGAMENTO.includes(opcoes.formaPagamento) ? opcoes.formaPagamento : 'dinheiro';
   const cliente = (opcoes.cliente || '').trim();
+  const clienteId = (opcoes.clienteId || '').trim() || null;
   const vendedor = (opcoes.vendedor || '').trim();
 
   const total = carrinho.reduce((soma, item) => soma + item.precoUnitario * item.quantidade, 0);
@@ -48,6 +49,7 @@ async function registrarVenda(carrinho, opcoes = {}) {
     total,
     formaPagamento,
     cliente,
+    clienteId,
     vendedor,
     status: 'concluida'
   };
@@ -76,6 +78,32 @@ async function cancelarVenda(id) {
   };
   await DB.atualizar(DB.STORES.VENDAS, atualizada);
   await Produtos.restaurarEstoque(venda.itens);
+  return atualizada;
+}
+
+/**
+ * Marca uma venda fiado como quitada (paga), sem cancelar a venda e sem
+ * mexer no estoque — diferente de cancelarVenda, que devolve os itens.
+ * Só se aplica a vendas com formaPagamento "fiado"; qualquer outra forma
+ * de pagamento é rejeitada.
+ */
+async function marcarFiadoQuitado(id) {
+  const venda = await DB.buscarPorId(DB.STORES.VENDAS, id);
+  if (!venda) throw new Error('Venda não encontrada.');
+  if (venda.formaPagamento !== 'fiado') {
+    throw new Error('Somente vendas no fiado podem ser marcadas como quitadas.');
+  }
+  if (venda.status === 'cancelada') {
+    throw new Error('Não é possível quitar uma venda cancelada.');
+  }
+  if (venda.status === 'quitada') return venda;
+
+  const atualizada = {
+    ...venda,
+    status: 'quitada',
+    quitadaEm: new Date().toISOString()
+  };
+  await DB.atualizar(DB.STORES.VENDAS, atualizada);
   return atualizada;
 }
 
@@ -239,6 +267,7 @@ window.Vendas = {
   listarVendas,
   registrarVenda,
   cancelarVenda,
+  marcarFiadoQuitado,
   filtrarVendas,
   calcularTotalVendido,
   calcularVendasDoDia,

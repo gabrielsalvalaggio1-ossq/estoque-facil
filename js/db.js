@@ -14,7 +14,8 @@
 const STORES = {
   PRODUTOS: 'produtos',
   VENDAS: 'vendas',
-  MOVIMENTOS: 'movimentos'
+  MOVIMENTOS: 'movimentos',
+  CLIENTES: 'clientes'
 };
 
 function gerarId() {
@@ -111,6 +112,16 @@ async function buscarUsuarioLogado() {
 async function criarEmpresa(nomeEmpresa) {
   const resp = await fetch('/api/empresas', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nomeEmpresa })
+  });
+  return tratarResposta(resp);
+}
+
+/** Atualiza somente o nome da empresa do usuário logado (não altera nenhum outro dado). */
+async function atualizarNomeEmpresa(nomeEmpresa) {
+  const resp = await fetch('/api/empresas', {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ nomeEmpresa })
   });
@@ -222,7 +233,47 @@ async function salvarMapeamentoImportacao(origem, mapeamento) {
   return tratarResposta(resp);
 }
 
-// Exposto globalmente porque o projeto usa scripts simples (sem bundler),
+// --- Clientes (/api/clientes) ---
+// Segue exatamente o mesmo padrão genérico de listarTodos/buscarPorId/
+// adicionar/atualizar/remover já usado por produtos e vendas — só com
+// nomes de função específicos, como pedido no cadastro de clientes.
+
+async function listarClientes() {
+  return listarTodos(STORES.CLIENTES);
+}
+
+async function buscarClientePorId(id) {
+  return buscarPorId(STORES.CLIENTES, id);
+}
+
+/**
+ * Busca clientes pelo nome (contém, sem diferenciar maiúsculas/acentos
+ * exatamente — comparação simples, suficiente para o autocomplete do
+ * cadastro). Filtra no cliente porque a API não tem uma rota de busca
+ * dedicada — mesma filosofia usada em Produtos.filtrarProdutos.
+ */
+async function buscarClientesPorNome(nome) {
+  const termo = (nome || '').trim().toLowerCase();
+  const todos = await listarClientes();
+  if (!termo) return todos;
+  return todos.filter(c => (c.nome || '').toLowerCase().includes(termo));
+}
+
+async function salvarCliente(cliente) {
+  const registro = { ...cliente, id: cliente.id || gerarId() };
+  return adicionar(STORES.CLIENTES, registro);
+}
+
+async function editarCliente(id, dados) {
+  const registro = { ...dados, id };
+  return atualizar(STORES.CLIENTES, registro);
+}
+
+async function excluirCliente(id) {
+  return remover(STORES.CLIENTES, id);
+}
+
+
 // mantendo a filosofia de "zero dependências, zero build step".
 window.DB = {
   STORES,
@@ -235,6 +286,7 @@ window.DB = {
   buscarPorId,
   buscarUsuarioLogado,
   criarEmpresa,
+  atualizarNomeEmpresa,
   listarMembros,
   adicionarMembro,
   editarMembro,
@@ -246,5 +298,11 @@ window.DB = {
   listarImportacoes,
   registrarImportacao,
   buscarMapeamentoImportacao,
-  salvarMapeamentoImportacao
+  salvarMapeamentoImportacao,
+  listarClientes,
+  buscarClientePorId,
+  buscarClientesPorNome,
+  salvarCliente,
+  editarCliente,
+  excluirCliente
 };

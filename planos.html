@@ -546,14 +546,15 @@
       <div class="plan reveal">
         <div class="nome">Free</div>
         <div class="preco-row"><span class="preco">R$ 0</span></div>
-        <div class="periodo">Grátis pelos primeiros 2 meses</div>
+        <div class="periodo">Para começar e testar sem compromisso</div>
         <ul>
-          <li><span class="check">✓</span> 1 pessoa usando o sistema</li>
-          <li><span class="check">✓</span> Estoque e vendas ilimitados</li>
-          <li><span class="check">✓</span> Histórico completo</li>
-          <li><span class="check">✓</span> Exportação em CSV</li>
+          <li><span class="check">✓</span> 1 pessoa no sistema</li>
+          <li><span class="check">✓</span> Até 50 produtos cadastrados</li>
+          <li><span class="check">✓</span> Vendas ilimitadas</li>
+          <li class="muted"><span class="check">–</span> Sem cadastro de clientes</li>
+          <li class="muted"><span class="check">–</span> Sem relatórios de fiado</li>
+          <li class="muted"><span class="check">–</span> Sem exportação de dados</li>
           <li class="muted"><span class="check">–</span> Sem equipe / múltiplos usuários</li>
-          <li class="muted"><span class="check">–</span> Sem suporte prioritário</li>
         </ul>
         <a class="plan-cta" href="/cadastro.html">Criar conta grátis</a>
         <div class="plan-foot">Sem cartão de crédito</div>
@@ -567,9 +568,12 @@
         </div>
         <div class="periodo" data-periodo-mensal="Ideal pra quem já vende sozinho todo dia" data-periodo-anual="Cobrado R$ 199,00 uma vez por ano">Ideal pra quem já vende sozinho todo dia</div>
         <ul>
-          <li><span class="check">✓</span> Tudo do plano Free, sem limites</li>
+          <li><span class="check">✓</span> Produtos e vendas ilimitados</li>
           <li><span class="check">✓</span> Até 2 pessoas na equipe</li>
+          <li><span class="check">✓</span> Cadastro e histórico de clientes</li>
           <li><span class="check">✓</span> Relatórios de vendas e fiado</li>
+          <li><span class="check">✓</span> Backup e exportação de dados</li>
+          <li><span class="check">✓</span> Importação de produtos (CSV, XLSX, XML NF-e)</li>
           <li><span class="check">✓</span> Leitor de código de barras</li>
           <li><span class="check">✓</span> Suporte por WhatsApp</li>
         </ul>
@@ -582,12 +586,12 @@
         <div class="preco-row">
           <span class="preco" data-mensal="R$ 39,90" data-anual="R$ 33,25">R$ 39,90</span><span class="ciclo">/mês</span>
         </div>
-        <div class="periodo" data-periodo-mensal="Pra quem já tem equipe e mais de uma loja" data-periodo-anual="Cobrado R$ 399,00 uma vez por ano">Pra quem já tem equipe e mais de uma loja</div>
+        <div class="periodo" data-periodo-mensal="Pra quem já tem equipe e precisa de controle total" data-periodo-anual="Cobrado R$ 399,00 uma vez por ano">Pra quem já tem equipe e precisa de controle total</div>
         <ul>
-          <li><span class="check">✓</span> Tudo do Essencial, sem limites</li>
+          <li><span class="check">✓</span> Tudo do Essencial</li>
           <li><span class="check">✓</span> Até 5 pessoas na equipe</li>
-          <li><span class="check">✓</span> Papéis: dono, vendedor, estoquista</li>
-          <li><span class="check">✓</span> Auditoria completa de ações</li>
+          <li><span class="check">✓</span> Papéis por pessoa: dono, vendedor, estoquista</li>
+          <li><span class="check">✓</span> Auditoria completa — quem fez o quê e quando</li>
           <li><span class="check">✓</span> Suporte prioritário</li>
         </ul>
         <a class="plan-cta" href="/cadastro.html?plano=pro" id="ctaPro">Assinar o Pro</a>
@@ -628,8 +632,20 @@
             <td class="yes">5</td>
           </tr>
           <tr>
-            <td>Estoque e vendas ilimitados</td>
+            <td>Limite de produtos</td>
+            <td>50</td>
+            <td class="col-dest yes">Ilimitado</td>
+            <td class="yes">Ilimitado</td>
+          </tr>
+          <tr>
+            <td>Vendas ilimitadas</td>
             <td class="yes">✓</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Cadastro e histórico de clientes</td>
+            <td class="no">—</td>
             <td class="col-dest yes">✓</td>
             <td class="yes">✓</td>
           </tr>
@@ -646,7 +662,19 @@
             <td class="yes">✓</td>
           </tr>
           <tr>
-            <td>Papéis e permissões por pessoa</td>
+            <td>Backup e exportação de dados</td>
+            <td class="no">—</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Importação de produtos (CSV, XLSX, NF-e)</td>
+            <td class="no">—</td>
+            <td class="col-dest yes">✓</td>
+            <td class="yes">✓</td>
+          </tr>
+          <tr>
+            <td>Papéis por pessoa (vendedor, estoquista)</td>
             <td class="no">—</td>
             <td class="no">—</td>
             <td class="yes">✓</td>
@@ -690,7 +718,7 @@
       </div>
       <div class="faq-item reveal">
         <button class="faq-q" aria-expanded="false">Meus dados ficam salvos onde? E se eu trocar de celular?<span class="plus">+</span></button>
-        <div class="faq-a"><p>Tudo fica salvo em nuvem, com backup automático. Se trocar de celular ou usar o computador, basta fazer login com seu e-mail e todo o histórico está lá.</p></div>
+        <div class="faq-a"><p>Tudo fica salvo em nuvem — basta fazer login com seu e-mail em qualquer celular ou computador e o histórico está lá. A exportação dos dados (CSV/planilha) é um recurso dos planos Essencial e Pro.</p></div>
       </div>
       <div class="faq-item reveal">
         <button class="faq-q" aria-expanded="false">Preciso saber mexer em computador pra usar?<span class="plus">+</span></button>
@@ -698,7 +726,7 @@
       </div>
       <div class="faq-item reveal">
         <button class="faq-q" aria-expanded="false">Como funciona o cancelamento?<span class="plus">+</span></button>
-        <div class="faq-a"><p>Você cancela quando quiser, direto na sua conta, sem multa e sem precisar ligar pra ninguém. Seus dados continuam disponíveis pra exportação por um tempo depois do cancelamento.</p></div>
+        <div class="faq-a"><p>Você cancela quando quiser, direto na sua conta, sem multa e sem precisar ligar pra ninguém. Se você estava num plano pago, seus dados ficam acessíveis para exportação por um período depois do cancelamento.</p></div>
       </div>
     </div>
   </div>

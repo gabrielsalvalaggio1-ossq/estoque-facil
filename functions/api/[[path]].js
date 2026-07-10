@@ -30,7 +30,7 @@
  * Requer o binding D1 "DB", igual antes.
  */
 
-const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos'];
+const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos', 'clientes'];
 const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
 const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
 
@@ -154,7 +154,7 @@ const INFO_RECURSOS = {
   auditoria:          { rotulo: 'Auditoria completa de ações',           planoMinimo: 'pro' },
 };
 
-const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro' };
+const NOME_PLANO = { free: 'Free', essencial: 'Essencial', pro: 'Pro', essencial_anual: 'Essencial Anual', pro_anual: 'Pro Anual' };
 
 // Cache de plano por empresa — válido por 5 minutos por isolate do Worker.
 // Cloudflare Workers reutilizam isolates no mesmo deployment, então este
@@ -268,9 +268,9 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
 const PERMISSOES = {
-  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total' },
-  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'total' },
-  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total' },
+  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total', clientes: 'total' },
+  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'total', clientes: 'total' },
+  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total', clientes: 'leitura' },
 };
 
 /**
@@ -405,6 +405,40 @@ async function criarEmpresa(db, email, request) {
   });
 
   return json({ email, empresaId, papel: 'dono', nomeEmpresa, plano: 'free' }, 201);
+}
+
+/**
+ * Atualiza somente o campo "nome" da empresa do usuário autenticado.
+ * Restrito ao "dono" (mesmo padrão usado nas rotas de assinatura/equipe).
+ */
+async function atualizarNomeEmpresa(db, membro, email, request) {
+  if (membro.papel !== 'dono') {
+    return json({ error: 'Só o dono da empresa pode alterar o nome da empresa.' }, 403);
+  }
+
+  let corpo;
+  try {
+    corpo = await request.json();
+  } catch (e) {
+    return json({ error: 'Corpo da requisição inválido.' }, 400);
+  }
+
+  const nomeEmpresa = ((corpo && corpo.nomeEmpresa) || '').trim();
+  if (!nomeEmpresa) {
+    return json({ error: 'Informe o nome da empresa.' }, 400);
+  }
+
+  await db
+    .prepare('UPDATE empresas SET nome = ? WHERE id = ?')
+    .bind(nomeEmpresa, membro.empresaId)
+    .run();
+
+  await registrarAtividade(db, {
+    empresaId: membro.empresaId, email, papel: membro.papel, acao: 'atualizou', store: 'empresa', registroId: membro.empresaId,
+    descricao: `Alterou o nome da empresa para "${nomeEmpresa}"`,
+  });
+
+  return json({ empresaId: membro.empresaId, nomeEmpresa });
 }
 
 function permissaoPara(papel, store) {
@@ -758,13 +792,13 @@ async function tratarRotaMapeamentosImportacao(db, membro, request, url) {
   return json({ error: 'Método não suportado em /api/mapeamentos-importacao.' }, 405);
 }
 
-const ROTULO_STORE_LOG = { produtos: 'produto', vendas: 'venda', movimentos: 'movimento' };
+const ROTULO_STORE_LOG = { produtos: 'produto', vendas: 'venda', movimentos: 'movimento', clientes: 'cliente' };
 
 function descreverAcaoRegistro(store, dados, acao) {
   const rotulo = ROTULO_STORE_LOG[store] || store;
   let detalhe = '';
 
-  if (store === 'produtos' && dados && dados.nome) {
+  if ((store === 'produtos' || store === 'clientes') && dados && dados.nome) {
     detalhe = `"${dados.nome}"`;
   } else if (store === 'vendas' && dados) {
     const valor = dados.total != null ? `R$ ${Number(dados.total).toFixed(2)}` : '';
@@ -776,11 +810,22 @@ function descreverAcaoRegistro(store, dados, acao) {
   if (store === 'vendas' && acao === 'atualizou' && dados && dados.status === 'cancelada') {
     return `Cancelou venda${detalhe ? ' ' + detalhe : ''}`.trim();
   }
+  if (store === 'vendas' && acao === 'atualizou' && dados && dados.status === 'quitada') {
+    return `Marcou venda fiado como quitada${detalhe ? ' ' + detalhe : ''}`.trim();
+  }
 
   const verbos = { criou: 'Cadastrou', atualizou: 'Editou', excluiu: 'Excluiu' };
   const verbo = verbos[acao] || acao;
   return `${verbo} ${rotulo}${detalhe ? ' ' + detalhe : ''}`.trim();
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Gateway de pagamento removido (era Mercado Pago: checkout, webhook,
+// mp_preapproval_id, ativação/reversão de plano via preapproval). Planos
+// pagos hoje são ativados diretamente pela ação "mudar_plano" abaixo, sem
+// cobrança real. Quando um gateway for reintroduzido, este é o lugar certo
+// para as novas funções de checkout/webhook.
+// ═══════════════════════════════════════════════════════════════════════════
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -825,6 +870,14 @@ export async function onRequest(context) {
 
   if (!membro) {
     return json({ error: 'Este e-mail ainda não foi associado a nenhuma empresa. Peça para o dono te convidar.' }, 403);
+  }
+
+  if (primeiro === 'empresas' && (request.method === 'PUT' || request.method === 'PATCH')) {
+    try {
+      return await atualizarNomeEmpresa(db, membro, email, request);
+    } catch (erro) {
+      return json({ error: erro.message || 'Erro interno ao atualizar a empresa.' }, 500);
+    }
   }
 
   const assinatura = await statusAssinatura(db, membro.empresaId);
@@ -890,13 +943,21 @@ export async function onRequest(context) {
         return json({ error: `Plano "${planoId}" inválido.` }, 400);
       }
 
+      // Sem gateway de pagamento por enquanto: qualquer plano (grátis ou pago)
+      // é ativado diretamente aqui, sem cobrança real. Quando um gateway for
+      // reintroduzido, é aqui que entra a exigência de pagamento confirmado
+      // antes de ativar planos pagos.
       const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
       const novoStatus = 'ACTIVE';
 
       let dataExpiracao = null;
       if (planoId !== 'free') {
         const data = new Date();
-        data.setDate(data.getDate() + 30);
+        if (planoId.endsWith('_anual')) {
+          data.setFullYear(data.getFullYear() + 1);
+        } else {
+          data.setDate(data.getDate() + 30);
+        }
         dataExpiracao = data.toISOString();
       }
 

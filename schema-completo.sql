@@ -152,6 +152,27 @@ INSERT OR IGNORE INTO planos (id, nome, preco_centavos, ciclo, limite_produtos, 
     "equipe": true,
     "permissoes_papeis": true,
     "auditoria": true
+  }'),
+  -- Planos anuais: mesmos recursos dos respectivos mensais; cobrados uma vez por ano.
+  ('essencial_anual', 'Essencial Anual', 19900, 'anual', NULL, 2, '{
+    "produtos_ilimitados": true,
+    "vendas_ilimitadas": true,
+    "clientes": true,
+    "relatorios": true,
+    "backup": true,
+    "equipe": true,
+    "permissoes_papeis": false,
+    "auditoria": false
+  }'),
+  ('pro_anual', 'Pro Anual', 39900, 'anual', NULL, 5, '{
+    "produtos_ilimitados": true,
+    "vendas_ilimitadas": true,
+    "clientes": true,
+    "relatorios": true,
+    "backup": true,
+    "equipe": true,
+    "permissoes_papeis": true,
+    "auditoria": true
   }');
 
 
@@ -167,6 +188,8 @@ CREATE TABLE IF NOT EXISTS assinaturas (
   status                  TEXT NOT NULL DEFAULT 'ACTIVE',
                           -- 'FREE' | 'TRIAL' | 'ACTIVE' | 'PAST_DUE' | 'CANCELED' | 'EXPIRED'
   gateway_subscription_id TEXT,              -- id no gateway de pagamento (Stripe/etc.)
+  mp_preapproval_id       TEXT,              -- id da preapproval no Mercado Pago
+  mp_plano_solicitado     TEXT,              -- chave do plano solicitado (ex: 'essencial_anual')
   data_inicio             TEXT NOT NULL DEFAULT (datetime('now')),
   data_expiracao          TEXT,              -- NULL = sem vencimento (plano free)
   cancelado_em            TEXT,

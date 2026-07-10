@@ -6,13 +6,17 @@
 
 let produtosCache = [];
 let vendasCache = [];
+let clientesCache = [];
 let carrinho = {}; // { produtoId: quantidade }
 let abaAtual = 'estoque';
 let idEmEdicao = null;
+let idClienteEmEdicao = null;
+let clienteIdSelecionadoNaVenda = null; // preenchido quando um cliente cadastrado é escolhido no autocomplete da cobrança
 let formaPagamentoEscolhida = 'dinheiro';
 
 let filtroEstoque = { busca: '', categoria: '', fornecedor: '', situacao: 'todos', agrupar: 'nenhum' };
 let filtroVendas = { periodo: 'todas', status: 'todas' };
+let buscaCliente = '';
 
 // Estado do wizard de Importação de Produtos (ver seção "Importação de
 // Produtos" mais abaixo). Fica em memória só durante o wizard aberto.
@@ -25,6 +29,7 @@ let unidadeSelecionada = 'un'; // 'un' | 'kg' — estado do toggle de unidade no
 
 // Set de IDs de vendas cujo cancelamento já está em andamento — evita duplo clique.
 const cancelamentoEmAndamento = new Set();
+const quitacaoEmAndamento = new Set();
 
 // --- Impressão de etiquetas (ver js/etiquetas.js pro motor de geração) ---
 let modoSelecaoEtiquetas = false;
@@ -61,13 +66,16 @@ function dataDeHoje() {
 async function recarregarDados() {
   const precisaProdutos = true;
   const precisaVendas   = usuarioLogadoPapel !== 'estoquista';
+  const precisaClientes = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'vendedor';
 
-  const [produtos, vendas] = await Promise.all([
+  const [produtos, vendas, clientes] = await Promise.all([
     precisaProdutos ? Produtos.listarProdutos() : Promise.resolve(produtosCache),
     precisaVendas   ? Vendas.listarVendas()     : Promise.resolve(vendasCache),
+    precisaClientes ? DB.listarClientes()       : Promise.resolve(clientesCache),
   ]);
   produtosCache = produtos;
   vendasCache   = vendas;
+  clientesCache = clientes;
 
   // Carrega a assinatura em segundo plano só pra quem é dono — é quem vê o
   // pill de plano na Equipe e a aba Minha Assinatura. Erro aqui não deve
@@ -684,6 +692,8 @@ function linhaVenda(venda) {
     data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   const nomesItens = venda.itens.map(i => `${Vendas.formatarQuantidadeItem(i)} ${i.nome}`).join(', ');
   const cancelada = venda.status === 'cancelada';
+  const quitada = venda.status === 'quitada';
+  const fiadoPendente = venda.formaPagamento === 'fiado' && venda.status === 'concluida';
   const rotuloPagamento = ROTULOS_PAGAMENTO[venda.formaPagamento] || ROTULOS_PAGAMENTO.dinheiro;
 
   return `<div class="sale-row ${cancelada ? 'cancelada' : ''}">
@@ -692,6 +702,7 @@ function linhaVenda(venda) {
         <span>${dataFormatada}</span>
         <span class="tag">${rotuloPagamento}</span>
         ${cancelada ? '<span class="tag cancelada">Cancelada</span>' : ''}
+        ${quitada ? '<span class="tag quitada">Quitado</span>' : ''}
       </div>
       <div class="n">${escaparHtml(nomesItens)}</div>
       ${venda.cliente ? `<div class="cliente">${escaparHtml(venda.cliente)}</div>` : ''}
@@ -699,8 +710,65 @@ function linhaVenda(venda) {
     <div class="right">
       <div class="t">${formatarMoeda(venda.total)}</div>
       ${!cancelada ? `<button class="btnCancelarVenda" onclick="cancelarVendaComConfirmacao('${escaparHtml(venda.id)}')">Cancelar</button>` : ''}
+      ${fiadoPendente ? `<button class="btnQuitarFiado" onclick="marcarFiadoQuitadoComConfirmacao('${escaparHtml(venda.id)}')">Marcar como quitado</button>` : ''}
     </div>
   </div>`;
+}
+
+async function marcarFiadoQuitadoComConfirmacao(id) {
+  if (quitacaoEmAndamento.has(id)) return; // já está quitando essa venda
+  if (!await mostrarConfirm('Marcar esta venda fiado como quitada (paga)? O estoque não será alterado.', { confirmText: 'Marcar como quitado', cancelText: 'Voltar' })) return;
+
+  quitacaoEmAndamento.add(id);
+  try {
+    await Vendas.marcarFiadoQuitado(id);
+    await recarregarDados();
+    renderizarTudo();
+    mostrarToast('Venda marcada como quitada.', 'sucesso');
+  } catch (erro) {
+    mostrarToast(erro.message || 'Não foi possível marcar a venda como quitada. Verifique sua conexão e tente novamente.', 'erro');
+  } finally {
+    quitacaoEmAndamento.delete(id);
+  }
+}
+
+/** Salva o novo nome da empresa (aba Conta) e atualiza a interface imediatamente em caso de sucesso. */
+async function salvarNomeEmpresaConta(botao) {
+  const input = document.getElementById('inputNomeEmpresaConta');
+  const erroEl = document.getElementById('erroNomeEmpresaConta');
+  if (!input) return;
+
+  const novoNome = input.value.trim();
+  if (erroEl) erroEl.style.display = 'none';
+
+  if (!novoNome) {
+    if (erroEl) {
+      erroEl.textContent = 'Informe o nome da empresa.';
+      erroEl.style.display = '';
+    }
+    return;
+  }
+
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Salvando…';
+
+  try {
+    const resultado = await DB.atualizarNomeEmpresa(novoNome);
+    usuarioLogadoNomeEmpresa = resultado.nomeEmpresa;
+    mostrarToast('Nome da empresa atualizado com sucesso.', 'sucesso');
+    renderizarConteudo();
+  } catch (e) {
+    if (erroEl) {
+      erroEl.textContent = e.message || 'Erro ao atualizar o nome da empresa.';
+      erroEl.style.display = '';
+    } else {
+      mostrarToast(e.message || 'Erro ao atualizar o nome da empresa.', 'erro');
+    }
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+  }
 }
 
 async function fazerLogout() {
@@ -733,6 +801,193 @@ async function cancelarVendaComConfirmacao(id) {
     mostrarToast(erro.message || 'Não foi possível cancelar a venda. Verifique sua conexão e tente novamente.', 'erro');
   } finally {
     cancelamentoEmAndamento.delete(id);
+  }
+}
+
+// --- Aba Clientes ---
+
+function telaClientesHtml() {
+  return `
+    <div class="page">
+      <div class="filtros">
+        <input type="text" id="campoBuscaCliente" class="campo-busca" placeholder="Buscar cliente..."
+          value="${escaparHtml(buscaCliente)}" oninput="aplicarFiltroCliente()">
+      </div>
+      <button type="button" class="btn primary" id="btnNovoCliente" style="width:auto;padding:9px 16px;margin-bottom:14px;">+ Novo Cliente</button>
+      <div id="listaClientes"></div>
+    </div>`;
+}
+
+function telaVaziaClientes() {
+  return `<div class="empty">
+    <p class="titulo">Nenhum cliente cadastrado</p>
+    <p class="hint">Toque em "Novo Cliente" para cadastrar o primeiro.</p>
+  </div>`;
+}
+
+let _timerFiltroCliente = null;
+function aplicarFiltroCliente() {
+  const campo = document.getElementById('campoBuscaCliente');
+  buscaCliente = campo ? campo.value : '';
+  clearTimeout(_timerFiltroCliente);
+  _timerFiltroCliente = setTimeout(atualizarListaClientes, 200);
+}
+
+function atualizarListaClientes() {
+  const container = document.getElementById('listaClientes');
+  if (!container) return;
+  const termo = buscaCliente.trim().toLowerCase();
+  const filtrados = termo
+    ? clientesCache.filter(c => (c.nome || '').toLowerCase().includes(termo))
+    : clientesCache;
+
+  if (filtrados.length === 0) {
+    container.innerHTML = clientesCache.length === 0 ? telaVaziaClientes() : '<div class="sem-resultado">Nenhum cliente encontrado com esse filtro.</div>';
+  } else {
+    container.innerHTML = filtrados
+      .slice()
+      .sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'))
+      .map(cartaoCliente)
+      .join('');
+  }
+}
+
+/** Card de listagem da aba Clientes — toque para editar. */
+function cartaoCliente(cliente) {
+  const contato = [cliente.telefone, cliente.email].filter(Boolean).join(' · ');
+  return `
+    <div class="product-card" onclick="abrirEdicaoCliente('${escaparHtml(cliente.id)}')">
+      <div class="info">
+        <div class="name">${escaparHtml(cliente.nome)}</div>
+        ${contato ? `<div class="meta"><span class="price">${escaparHtml(contato)}</span></div>` : ''}
+      </div>
+    </div>`;
+}
+
+function abrirEdicaoCliente(id) {
+  const cliente = clientesCache.find(c => c.id === id);
+  if (cliente) abrirModalCliente(cliente);
+}
+
+function abrirModalCliente(cliente) {
+  idClienteEmEdicao = cliente ? cliente.id : null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-wrap';
+  wrap.id = 'clienteModalWrap';
+  wrap.innerHTML = `
+    <div class="modal">
+      <h2>${cliente ? 'Editar cliente' : 'Novo Cliente'}</h2>
+
+      <div class="field">
+        <label for="fClienteNome">Nome</label>
+        <input id="fClienteNome" type="text" placeholder="Ex: Dona Maria" value="${cliente ? escaparHtml(cliente.nome || '') : ''}">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="fClienteTelefone">Telefone</label>
+          <input id="fClienteTelefone" type="text" inputmode="tel" placeholder="(00) 00000-0000" value="${cliente ? escaparHtml(cliente.telefone || '') : ''}">
+        </div>
+        <div class="field">
+          <label for="fClienteEmail">E-mail</label>
+          <input id="fClienteEmail" type="email" placeholder="cliente@email.com" value="${cliente ? escaparHtml(cliente.email || '') : ''}">
+        </div>
+      </div>
+      <div class="field">
+        <label for="fClienteCpf">CPF</label>
+        <input id="fClienteCpf" type="text" inputmode="numeric" placeholder="000.000.000-00" value="${cliente ? escaparHtml(cliente.cpf || '') : ''}">
+      </div>
+      <div class="field">
+        <label for="fClienteEndereco">Endereço</label>
+        <input id="fClienteEndereco" type="text" placeholder="Rua, número, bairro" value="${cliente ? escaparHtml(cliente.endereco || '') : ''}">
+      </div>
+      <div class="field">
+        <label for="fClienteObservacoes">Observações</label>
+        <textarea id="fClienteObservacoes" rows="3" placeholder="Anotações internas">${cliente ? escaparHtml(cliente.observacoes || '') : ''}</textarea>
+      </div>
+
+      <p class="erro" id="erroCliente" style="display:none;"></p>
+      <div class="modal-actions">
+        ${cliente ? `<button type="button" class="btn danger" id="btnExcluirCliente" style="width:auto;padding:9px 16px;">Excluir</button>` : ''}
+        <button type="button" class="btn ghost" id="btnCancelarCliente">Cancelar</button>
+        <button type="button" class="btn primary" id="btnSalvarCliente">Salvar</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+
+  wrap.addEventListener('click', e => { if (e.target === wrap) fecharModalCliente(); });
+  document.getElementById('btnCancelarCliente').addEventListener('click', fecharModalCliente);
+  document.getElementById('btnSalvarCliente').addEventListener('click', salvarFormularioCliente);
+  const btnExcluir = document.getElementById('btnExcluirCliente');
+  if (btnExcluir) btnExcluir.addEventListener('click', () => excluirClienteComConfirmacao(cliente.id));
+}
+
+function fecharModalCliente() {
+  const el = document.getElementById('clienteModalWrap');
+  if (el) el.remove();
+  idClienteEmEdicao = null;
+}
+
+async function salvarFormularioCliente() {
+  const btnSalvar = document.getElementById('btnSalvarCliente');
+  const erroEl = document.getElementById('erroCliente');
+  if (btnSalvar.disabled) return; // já está salvando — ignora cliques repetidos
+
+  const nome = document.getElementById('fClienteNome').value.trim();
+  if (!nome) {
+    if (erroEl) {
+      erroEl.textContent = 'Informe o nome do cliente.';
+      erroEl.style.display = '';
+    }
+    return;
+  }
+  if (erroEl) erroEl.style.display = 'none';
+
+  const dados = {
+    nome,
+    telefone: document.getElementById('fClienteTelefone').value.trim(),
+    email: document.getElementById('fClienteEmail').value.trim(),
+    cpf: document.getElementById('fClienteCpf').value.trim(),
+    endereco: document.getElementById('fClienteEndereco').value.trim(),
+    observacoes: document.getElementById('fClienteObservacoes').value.trim()
+  };
+
+  btnSalvar.disabled = true;
+  const textoOriginal = btnSalvar.textContent;
+  btnSalvar.textContent = 'Salvando…';
+
+  try {
+    if (idClienteEmEdicao) {
+      await DB.editarCliente(idClienteEmEdicao, dados);
+    } else {
+      await DB.salvarCliente(dados);
+    }
+    clientesCache = await DB.listarClientes();
+    fecharModalCliente();
+    renderizarConteudo();
+    mostrarToast('Cliente salvo com sucesso.', 'sucesso');
+  } catch (erro) {
+    if (erroEl) {
+      erroEl.textContent = erro.message || 'Não foi possível salvar. Verifique sua conexão e tente novamente.';
+      erroEl.style.display = '';
+    } else {
+      mostrarToast(erro.message || 'Não foi possível salvar o cliente.', 'erro');
+    }
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = textoOriginal;
+  }
+}
+
+async function excluirClienteComConfirmacao(id) {
+  if (!await mostrarConfirm('Excluir este cliente?', { confirmText: 'Excluir', cancelText: 'Cancelar', tipo: 'perigo' })) return;
+  try {
+    await DB.excluirCliente(id);
+    clientesCache = await DB.listarClientes();
+    fecharModalCliente();
+    renderizarConteudo();
+    mostrarToast('Cliente excluído.', 'sucesso');
+  } catch (erro) {
+    mostrarToast(erro.message || 'Não foi possível excluir o cliente.', 'erro');
   }
 }
 
@@ -778,6 +1033,12 @@ else if (abaAtual === 'venda') {
     atualizarListaVendas();
   }
 
+  else if (abaAtual === 'clientes') {
+    main.innerHTML = telaClientesHtml();
+    atualizarListaClientes();
+    document.getElementById('btnNovoCliente').addEventListener('click', () => abrirModalCliente(null));
+  }
+
   else if (abaAtual === 'conta') {
     main.innerHTML = `
       <div class="page">
@@ -789,6 +1050,16 @@ else if (abaAtual === 'venda') {
           <p><strong>Logado como:</strong> ${escaparHtml(usuarioLogadoEmail || 'Carregando…')}</p>
           <button type="button" class="btn danger" id="btnLogout" style="width:auto;padding:9px 16px;margin-top:10px;">Sair da conta</button>
         </div>
+
+        ${usuarioLogadoPapel === 'dono' ? `
+        <div class="card-info">
+          <h3>Nome da empresa</h3>
+          <div class="field">
+            <input type="text" id="inputNomeEmpresaConta" class="filtro-select" value="${escaparHtml(usuarioLogadoNomeEmpresa || '')}">
+          </div>
+          <p class="erro" id="erroNomeEmpresaConta" style="display:none;"></p>
+          <button type="button" class="btn primary" id="btnSalvarNomeEmpresaConta" style="width:auto;padding:9px 16px;margin-top:10px;">Salvar</button>
+        </div>` : ''}
 
         <div class="card-info">
           <p><strong>Produtos cadastrados:</strong> ${produtosCache.length}</p>
@@ -814,6 +1085,11 @@ else if (abaAtual === 'venda') {
     `;
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
+
+    const btnSalvarNomeEmpresaConta = document.getElementById('btnSalvarNomeEmpresaConta');
+    if (btnSalvarNomeEmpresaConta) {
+      btnSalvarNomeEmpresaConta.addEventListener('click', () => salvarNomeEmpresaConta(btnSalvarNomeEmpresaConta));
+    }
 
     const btnCarregarExemploConta = document.getElementById('btnCarregarExemploConta');
     if (btnCarregarExemploConta) {
@@ -1277,10 +1553,15 @@ const ESTADO_ASSINATURA_UI = {
   FREE:     { rotulo: 'Ativo',              classe: 'ativo' },
 };
 
-const PLANOS_CATALOGO = [
-  { id: 'free',      nome: 'MEV Free',  precoTexto: 'R$ 0/mês' },
+const PLANOS_CATALOGO_MENSAL = [
+  { id: 'free',      nome: 'MEV Free',  precoTexto: 'Grátis' },
   { id: 'essencial', nome: 'Essencial', precoTexto: 'R$ 19,90/mês' },
   { id: 'pro',       nome: 'Pro',       precoTexto: 'R$ 39,90/mês' },
+];
+const PLANOS_CATALOGO_ANUAL = [
+  { id: 'free',            nome: 'MEV Free',  precoTexto: 'Grátis' },
+  { id: 'essencial_anual', nome: 'Essencial', precoTexto: 'R$ 16,58/mês · R$ 199/ano' },
+  { id: 'pro_anual',       nome: 'Pro',       precoTexto: 'R$ 33,25/mês · R$ 399/ano' },
 ];
 
 function formatarDataCurta(iso) {
@@ -1313,9 +1594,15 @@ function telaAssinaturaHtml(a) {
     : (ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' });
   const emCanceladoOuExpirado = !ehPlanoGratuito && (a.status === 'CANCELED' || a.status === 'EXPIRED');
 
-  const preco = a.planoId === 'free' || !a.precoCentavos
-    ? 'Grátis'
-    : formatarMoeda(a.precoCentavos / 100) + '/mês';
+  let preco;
+  if (a.planoId === 'free' || !a.precoCentavos) {
+    preco = 'Grátis';
+  } else if (a.ciclo === 'anual' || (a.planoId || '').endsWith('_anual')) {
+    // precoCentavos = total anual (ex: 19900 = R$ 199,00/ano)
+    preco = formatarMoeda(a.precoCentavos / 100) + '/ano';
+  } else {
+    preco = formatarMoeda(a.precoCentavos / 100) + '/mês';
+  }
 
   const proximaCobranca = a.planoId === 'free'
     ? 'Não se aplica (plano grátis)'
@@ -1325,9 +1612,10 @@ function telaAssinaturaHtml(a) {
 
   const formaPagamento = a.planoId === 'free'
     ? 'Nenhuma — plano grátis não exige pagamento'
-    : 'Cartão de crédito (gerenciado pelo seu gateway de pagamento)';
+    : 'Ativado manualmente — sem cobrança automática por enquanto';
 
   const podeAgir = ehPlanoGratuito || a.status !== 'CANCELED';
+  const cicloAtual = (a.planoId || '').endsWith('_anual') ? 'anual' : 'mensal';
 
   return `
     <div class="card-info card-plano-atual">
@@ -1360,20 +1648,58 @@ function telaAssinaturaHtml(a) {
 
     <div class="card-info">
       <h3>Planos disponíveis</h3>
-      <div class="lista-planos-troca">
-        ${PLANOS_CATALOGO.map(p => `
-          <div class="opcao-plano ${p.id === a.planoId && podeAgir ? 'atual' : ''}">
+
+      <div class="toggle-ciclo-wrap" style="display:flex;gap:6px;margin-bottom:16px;">
+        <button type="button" class="btn-ciclo${cicloAtual === 'mensal' ? ' ativo' : ''}" data-ciclo="mensal"
+          style="padding:7px 16px;border-radius:8px;border:1.5px solid var(--line,#D9D4C2);
+                 background:${cicloAtual === 'mensal' ? 'var(--accent,#1B3A2F)' : 'transparent'};
+                 color:${cicloAtual === 'mensal' ? '#fff' : 'inherit'};font-size:13px;font-weight:600;cursor:pointer;">
+          Mensal
+        </button>
+        <button type="button" class="btn-ciclo${cicloAtual === 'anual' ? ' ativo' : ''}" data-ciclo="anual"
+          style="padding:7px 16px;border-radius:8px;border:1.5px solid var(--line,#D9D4C2);
+                 background:${cicloAtual === 'anual' ? 'var(--accent,#1B3A2F)' : 'transparent'};
+                 color:${cicloAtual === 'anual' ? '#fff' : 'inherit'};font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          Anual <span style="background:#E2572B;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;">2 meses grátis</span>
+        </button>
+      </div>
+
+      <div class="lista-planos-troca" id="listaMensalAssinatura" style="${cicloAtual === 'anual' ? 'display:none' : ''}">
+        ${PLANOS_CATALOGO_MENSAL.map(p => {
+          const ehAtual = p.id === a.planoId && podeAgir;
+          const textoBotao = emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este');
+          return `
+          <div class="opcao-plano ${ehAtual ? 'atual' : ''}">
             <div>
               <p class="opcao-plano-nome">${escaparHtml(p.nome)}</p>
               <p class="opcao-plano-preco">${escaparHtml(p.precoTexto)}</p>
             </div>
-            ${p.id === a.planoId && podeAgir
+            ${ehAtual
               ? '<span class="opcao-plano-tag">Plano atual</span>'
-              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este')}</button>`
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${textoBotao}</button>`
             }
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
+
+      <div class="lista-planos-troca" id="listaAnualAssinatura" style="${cicloAtual === 'mensal' ? 'display:none' : ''}">
+        ${PLANOS_CATALOGO_ANUAL.map(p => {
+          const ehAtual = p.id === a.planoId && podeAgir;
+          const textoBotao = emCanceladoOuExpirado ? 'Reativar' : (PLANOS_ORDEM[p.id] > PLANOS_ORDEM[a.planoId] ? 'Fazer upgrade' : 'Mudar para este');
+          return `
+          <div class="opcao-plano ${ehAtual ? 'atual' : ''}">
+            <div>
+              <p class="opcao-plano-nome">${escaparHtml(p.nome)}</p>
+              <p class="opcao-plano-preco">${escaparHtml(p.precoTexto)}</p>
+            </div>
+            ${ehAtual
+              ? '<span class="opcao-plano-tag">Plano atual</span>'
+              : `<button type="button" class="btn ${p.id === 'free' ? '' : 'primary'} btn-trocar-plano" data-plano="${p.id}" style="width:auto;padding:8px 14px;">${textoBotao}</button>`
+            }
+          </div>`;
+        }).join('')}
+      </div>
+
       <p class="erro" id="erroAssinatura" style="display:none;margin-top:10px;"></p>
     </div>
 
@@ -1389,12 +1715,29 @@ function telaAssinaturaHtml(a) {
   `;
 }
 
-const NOME_PLANO_FALLBACK = { free: 'MEV Free', essencial: 'Essencial', pro: 'Pro' };
-const PLANOS_ORDEM = { free: 0, essencial: 1, pro: 2 };
+const NOME_PLANO_FALLBACK = { free: 'MEV Free', essencial: 'Essencial', pro: 'Pro', essencial_anual: 'Essencial Anual', pro_anual: 'Pro Anual' };
+const PLANOS_ORDEM = { free: 0, essencial: 1, essencial_anual: 1, pro: 2, pro_anual: 2 };
 
 function inicializarAcoesAssinatura() {
   document.querySelectorAll('.btn-trocar-plano').forEach(botao => {
     botao.addEventListener('click', () => trocarPlanoAssinatura(botao.dataset.plano, botao));
+  });
+
+  // Toggle mensal / anual na tela "Minha Assinatura"
+  document.querySelectorAll('.btn-ciclo').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.btn-ciclo').forEach(b => {
+        const ativo = b === btn;
+        b.classList.toggle('ativo', ativo);
+        b.style.background = ativo ? 'var(--accent,#1B3A2F)' : 'transparent';
+        b.style.color = ativo ? '#fff' : '';
+      });
+      const ciclo = btn.dataset.ciclo;
+      const listaMensal = document.getElementById('listaMensalAssinatura');
+      const listaAnual  = document.getElementById('listaAnualAssinatura');
+      if (listaMensal) listaMensal.style.display = ciclo === 'mensal' ? '' : 'none';
+      if (listaAnual)  listaAnual.style.display  = ciclo === 'anual'  ? '' : 'none';
+    });
   });
 
   const btnCancelar = document.getElementById('btnCancelarAssinatura');
@@ -1411,8 +1754,10 @@ function mostrarErroAssinatura(mensagem) {
 async function trocarPlanoAssinatura(planoId, botao) {
   if (!planoId || (botao && botao.disabled)) return;
   const textoOriginal = botao ? botao.textContent : '';
-  if (botao) { botao.disabled = true; botao.textContent = 'Aplicando…'; }
 
+  // Sem gateway de pagamento por enquanto: qualquer plano (grátis ou pago)
+  // é trocado direto pelo mesmo caminho, sem cobrança real.
+  if (botao) { botao.disabled = true; botao.textContent = 'Aplicando…'; }
   try {
     await DB.mudarPlano(planoId);
     await carregarTelaAssinatura();
@@ -1809,6 +2154,7 @@ function abrirComprovante() {
   if (itens.length === 0) return;
   const total = itens.reduce((soma, i) => soma + i.precoUnitario * i.quantidade, 0);
   formaPagamentoEscolhida = 'dinheiro';
+  clienteIdSelecionadoNaVenda = null;
 
   const wrap = document.createElement('div');
   wrap.className = 'modal-wrap';
@@ -1822,8 +2168,9 @@ function abrirComprovante() {
       <div class="rtotal"><span>Total</span><span>${formatarMoeda(total)}</span></div>
 
       <p class="pay-label" id="labelCliente">Nome do cliente <span id="spanClienteOpcional">(opcional)</span><span id="spanClienteObrigatorio" style="display:none;color:#E24B4A;"> (obrigatório no fiado)</span></p>
-      <div class="field" style="margin-bottom:6px;">
-        <input id="fCliente" type="text" placeholder="Ex: Dona Maria">
+      <div class="field autocomplete-wrap" style="margin-bottom:6px;position:relative;">
+        <input id="fCliente" type="text" placeholder="Ex: Dona Maria" autocomplete="off">
+        <div id="sugestoesCliente" class="autocomplete-sugestoes" style="display:none;"></div>
       </div>
 
       <p class="pay-label">Forma de pagamento</p>
@@ -1841,6 +2188,8 @@ function abrirComprovante() {
 
   wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
   document.getElementById('btnVoltar').addEventListener('click', () => wrap.remove());
+
+  configurarAutocompleteClienteVenda();
 
   document.getElementById('payOptions').addEventListener('click', e => {
     const botao = e.target.closest('.pay-btn');
@@ -1882,8 +2231,15 @@ function abrirComprovante() {
     btn.textContent = 'Registrando venda…';
 
     const cliente = document.getElementById('fCliente').value;
+    // Só envia clienteId se o texto atual do campo ainda bater com o cliente
+    // selecionado no autocomplete — se a pessoa editou o nome depois de
+    // escolher um cliente da lista, trata como digitação livre novamente.
+    const clienteSelecionado = clienteIdSelecionadoNaVenda
+      ? clientesCache.find(c => c.id === clienteIdSelecionadoNaVenda)
+      : null;
+    const clienteId = (clienteSelecionado && clienteSelecionado.nome === cliente.trim()) ? clienteSelecionado.id : null;
     try {
-      await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente });
+      await Vendas.registrarVenda(itens, { formaPagamento: formaPagamentoEscolhida, cliente, clienteId });
       carrinho = {};
       await recarregarDados();
       wrap.remove();
@@ -1896,7 +2252,60 @@ function abrirComprovante() {
   });
 }
 
-// --- Exportações ---
+/**
+ * Liga o campo "Nome do cliente" do comprovante a uma lista de sugestões
+ * pesquisada em clientesCache enquanto a pessoa digita — sem impedir a
+ * digitação livre de um nome que ainda não está cadastrado.
+ */
+function configurarAutocompleteClienteVenda() {
+  const input = document.getElementById('fCliente');
+  const lista = document.getElementById('sugestoesCliente');
+  if (!input || !lista) return;
+
+  let selecionandoCliente = false;
+  const renderSugestoes = () => {
+    if (selecionandoCliente) { selecionandoCliente = false; return; }
+    const termo = input.value.trim().toLowerCase();
+    clienteIdSelecionadoNaVenda = null;
+    if (!termo) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
+
+    const encontrados = clientesCache
+      .filter(c => (c.nome || '').toLowerCase().includes(termo))
+      .slice(0, 6);
+
+    if (encontrados.length === 0) { lista.style.display = 'none'; lista.innerHTML = ''; return; }
+
+    lista.innerHTML = encontrados.map(c => `
+      <div class="autocomplete-item" data-id="${escaparHtml(c.id)}">
+        <span>${escaparHtml(c.nome)}</span>
+        ${c.telefone ? `<span class="d">${escaparHtml(c.telefone)}</span>` : ''}
+      </div>`).join('');
+    lista.style.display = 'block';
+  };
+
+  input.addEventListener('input', renderSugestoes);
+  input.addEventListener('focus', renderSugestoes);
+
+  lista.addEventListener('click', e => {
+    const item = e.target.closest('.autocomplete-item');
+    if (!item) return;
+    const cliente = clientesCache.find(c => c.id === item.dataset.id);
+    if (!cliente) return;
+    selecionandoCliente = true;
+    input.value = cliente.nome;
+    clienteIdSelecionadoNaVenda = cliente.id;
+    lista.style.display = 'none';
+    lista.innerHTML = '';
+    input.dispatchEvent(new Event('input')); // reaproveita a validação de fiado já existente, sem apagar a seleção
+  });
+
+  document.addEventListener('click', function fecharAoClicarFora(e) {
+    if (!lista.isConnected) { document.removeEventListener('click', fecharAoClicarFora); return; }
+    if (e.target !== input && !lista.contains(e.target)) lista.style.display = 'none';
+  });
+}
+
+
 
 function baixarCsv(nomeArquivo, conteudo) {
   const blob = new Blob(['\ufeff' + conteudo], { type: 'text/csv;charset=utf-8;' });
@@ -2964,6 +3373,15 @@ function abrirConfigEtiquetas() {
       </div>
 
       <div class="field">
+        <label for="fAlturaCodigoBarras">Altura do código de barras</label>
+        <select id="fAlturaCodigoBarras" class="filtro-select">
+          <option value="10">Pequena</option>
+          <option value="14" selected>Média</option>
+          <option value="18">Grande</option>
+        </select>
+      </div>
+
+      <div class="field">
         <label>Quantidade por produto</label>
         <div class="etiquetas-lista-qtd" id="etiquetasListaQtd">
           ${produtosSelecionadosLista.map(p => `
@@ -3001,6 +3419,7 @@ function fecharPreviewEtiquetas() {
 }
 
 function _coletarConfigEtiquetas() {
+  const selectAltura = document.getElementById('fAlturaCodigoBarras');
   return {
     exibir: {
       nome: document.getElementById('checkNome').checked,
@@ -3008,7 +3427,8 @@ function _coletarConfigEtiquetas() {
       codigoBarras: document.getElementById('checkCodigoBarras').checked,
       preco: document.getElementById('checkPreco').checked,
       empresa: document.getElementById('checkEmpresa').checked
-    }
+    },
+    alturaCodigoBarras: selectAltura ? parseFloat(selectAltura.value) : null
   };
 }
 
@@ -3081,6 +3501,26 @@ function imprimirEtiquetas(itens, modeloId, config) {
 
 // --- Inicialização ---
 
+// Injeta o botão da aba "Clientes" na barra de navegação, clonando um botão
+// [data-tab] existente pra herdar exatamente o mesmo markup/estilo (o HTML
+// estático do projeto não faz parte deste arquivo, então a aba nova precisa
+// nascer aqui em vez de em index.html).
+(function injetarAbaClientes() {
+  if (document.querySelector('[data-tab="clientes"]')) return; // já existe (ex: HTML atualizado depois)
+  const referencia = document.querySelector('[data-tab="historico"]') || document.querySelector('[data-tab]');
+  if (!referencia) return;
+  const botaoClientes = referencia.cloneNode(true);
+  botaoClientes.dataset.tab = 'clientes';
+  if (botaoClientes.querySelector) {
+    // Se o botão de referência tiver ícone/texto em elementos filhos, troca só o texto visível.
+    const textoOriginal = referencia.textContent.trim();
+    botaoClientes.innerHTML = botaoClientes.innerHTML.replace(textoOriginal, 'Clientes');
+  } else {
+    botaoClientes.textContent = 'Clientes';
+  }
+  referencia.insertAdjacentElement('afterend', botaoClientes);
+})();
+
 document.querySelectorAll('[data-tab]').forEach(botao => {
   botao.addEventListener('click', () => {
     if (modoSelecaoEtiquetas && botao.dataset.tab !== 'estoque') cancelarSelecaoEtiquetas();
@@ -3137,8 +3577,8 @@ function aplicarRestricoesDePapel(papel) {
 
   const abasPorPapel = {
     // Aba Atividades só aparece para donos em planos pagos
-    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
-    vendedor: ['venda', 'conta', 'contato'],
+    dono: ['estoque', 'venda', 'clientes', 'historico', ...(ehPlanoPago ? ['atividades'] : []), 'conta', 'assinatura', 'contato'],
+    vendedor: ['venda', 'clientes', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };
   // null = ainda carregando: esconde todas as abas até o papel real chegar.

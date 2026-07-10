@@ -1834,7 +1834,7 @@ body.auth-page{
   }
 }
 /* --- Módulo de Importação de Produtos (wizard) --- */
-.import-modal{ max-width:640px; }
+.import-modal{ width:96vw; max-width:96vw; }
 
 .import-origens{
   display:grid; grid-template-columns:1fr 1fr; gap:10px;
@@ -1878,7 +1878,7 @@ body.auth-page{
 }
 
 .import-preview-tabela-wrap{
-  overflow-x:auto; border:1px solid var(--line); border-radius:10px; max-height:48vh; overflow-y:auto;
+  overflow-x:auto; border:1px solid var(--line); border-radius:10px; max-height:65vh; overflow-y:auto;
 }
 .import-preview-tabela{ border-collapse:collapse; width:100%; font-size:12.5px; }
 .import-preview-tabela th{

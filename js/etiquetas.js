@@ -186,7 +186,9 @@ function _htmlDeUmaEtiqueta(produto, modelo, config, nomeEmpresa) {
   if (exibir.codigoBarras) {
     const valorBarras = (produto.codigoBarras && produto.codigoBarras.trim()) || produto.id;
     const larguraBarraMm = Math.max(modelo.larguraMm - 6, 10);
-    const alturaBarraMm = Math.min(modelo.alturaMm * 0.42, 14);
+    const alturaBarraMm = config.alturaCodigoBarras != null
+      ? config.alturaCodigoBarras
+      : Math.min(modelo.alturaMm * 0.42, 14);
     const svg = gerarSvgCodigoBarras(valorBarras, larguraBarraMm, alturaBarraMm);
     if (svg) {
       partes.push(`<div class="et-barras">${svg}</div>`);

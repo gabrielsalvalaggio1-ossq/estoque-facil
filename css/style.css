@@ -767,6 +767,18 @@ main{
   cursor:pointer;
   font-family:'Inter',sans-serif;
 }
+.sale-row .btnQuitarFiado{
+  display:block;
+  margin-top:2px;
+  background:none; border:none;
+  color:#1D9E75;
+  font-size:11.5px;
+  font-weight:600;
+  padding:0;
+  cursor:pointer;
+  font-family:'Inter',sans-serif;
+}
+.sale-row .btnQuitarFiado:hover{ text-decoration:underline; }
 
 .tag{
   display:inline-block;

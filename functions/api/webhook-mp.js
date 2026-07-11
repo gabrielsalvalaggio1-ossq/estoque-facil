@@ -75,7 +75,7 @@ export async function onRequestPost({ request, env }) {
     return new Response('ok', { status: 200 });
   }
 
-  if (body.type !== 'preapproval') return new Response('ok', { status: 200 });
+  if (body.type !== 'preapproval' && body.type !== 'subscription_preapproval') return new Response('ok', { status: 200 });
 
   const preapprovalId = body.data && body.data.id;
   if (!preapprovalId) return new Response('ok', { status: 200 });

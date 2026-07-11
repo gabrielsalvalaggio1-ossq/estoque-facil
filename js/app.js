@@ -25,6 +25,18 @@ document.querySelectorAll('[data-tab]').forEach(botao => {
     }
 
     renderizarTudo();
+
+    // Aba "Estoque" sem produtos ainda: mostra a tela de boas-vindas em vez
+    // do estado vazio padrão (a menos que a pessoa já tenha dispensado).
+    if (abaAtual === 'estoque' && typeof deveMostrarBoasVindas === 'function' && deveMostrarBoasVindas()) {
+      renderizarTelaBoasVindas();
+    } else if (abaAtual !== 'estoque') {
+      // Navegar para qualquer outra aba já conta como "dar uma volta pelo app"
+      // pro checklist de primeiros passos.
+      localStorage.setItem('mevExplorouApp', '1');
+    }
+    if (typeof atualizarChecklistPrimeirosPassos === 'function') atualizarChecklistPrimeirosPassos();
+
     requestAnimationFrame(() => {
       if (abaAtual === 'estoque') document.getElementById('campoBusca')?.focus();
       if (abaAtual === 'venda')   document.getElementById('campoBuscaVenda')?.focus();
@@ -168,6 +180,21 @@ function aplicarRestricoesDePapel(papel) {
   }
 }
 
+/**
+ * Verdadeiro quando a pessoa logada deveria ver a tela de boas-vindas em
+ * tela cheia em vez do estado vazio padrão da aba Estoque: papel que
+ * gerencia estoque, catálogo vazio, e ainda não dispensou o guia.
+ * A tela em si (telaBoasVindasHtml/renderizarTelaBoasVindas) mora em
+ * ui-onboarding-importacao.js.
+ */
+function deveMostrarBoasVindas() {
+  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
+  return podeVerEstoque
+    && abaAtual === 'estoque'
+    && produtosCache.length === 0
+    && localStorage.getItem('mevBoasVindasDispensada') !== '1';
+}
+
 async function iniciar() {
   document.getElementById('dateLabel').textContent = dataDeHoje();
 
@@ -207,13 +234,16 @@ async function iniciar() {
 
   renderizarTudo();
 
-  if (produtosCache.length > 0) {
+  if (deveMostrarBoasVindas()) {
+    renderizarTelaBoasVindas();
+  } else if (produtosCache.length > 0) {
     const hojeStr = new Date().toISOString().slice(0, 10);
     const ultimoDiaComInsights = localStorage.getItem(CHAVE_INSIGHTS_ULTIMO_DIA);
     if (ultimoDiaComInsights !== hojeStr) {
       abrirTelaInsights();
     }
   }
+  if (typeof atualizarChecklistPrimeirosPassos === 'function') atualizarChecklistPrimeirosPassos();
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('service-worker.js').catch(err => {

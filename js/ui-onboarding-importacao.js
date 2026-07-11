@@ -172,6 +172,227 @@ function abrirTelaInsights() {
   });
 }
 
+// --- Tela de boas-vindas para conta nova (sem produtos ainda) ---
+//
+// Diferente da tela de insights acima (que é pra quem já tem dados) e do
+// modal abrirOnboarding() (que só oferece "carregar exemplo" x "começar do
+// zero" quando a pessoa toca em "Adicionar produto"), esta é a primeira
+// tela cheia que a pessoa vê ao entrar com uma conta vazia: substitui o
+// estado vazio padrão da aba Estoque por 3 ações principais, sem esconder
+// nada atrás de cliques. Quem chama e decide QUANDO mostrar é o app.js
+// (deveMostrarBoasVindas / renderizarTelaBoasVindas), porque só ele sabe em
+// que aba a pessoa está.
+
+const CHAVE_BOASVINDAS_DISPENSADA = 'mevBoasVindasDispensada';
+
+function telaBoasVindasHtml() {
+  const saudacaoNome = usuarioLogadoNomeEmpresa ? `, ${escaparHtml(usuarioLogadoNomeEmpresa)}` : '';
+  return `
+    <div class="boas-vindas-tela">
+      <div class="bv-emoji">👋</div>
+      <h2>Bem-vindo(a)${saudacaoNome}!</h2>
+      <p class="bv-sub">Vamos deixar tudo pronto pra você vender em poucos minutos. Por onde você quer começar?</p>
+
+      <div class="bv-acoes">
+        <button type="button" class="bv-card" data-acao="produto">
+          <span class="bv-card-icone" aria-hidden="true">📦</span>
+          <span class="bv-card-corpo">
+            <span class="bv-card-titulo">Cadastrar primeiro produto</span>
+            <span class="bv-card-desc">Nome, preço e estoque — leva menos de um minuto.</span>
+          </span>
+          <span class="bv-card-seta" aria-hidden="true">→</span>
+        </button>
+        <button type="button" class="bv-card" data-acao="importar">
+          <span class="bv-card-icone" aria-hidden="true">📥</span>
+          <span class="bv-card-corpo">
+            <span class="bv-card-titulo">Importar planilha</span>
+            <span class="bv-card-desc">Já tem uma lista em Excel, CSV ou NF-e? Suba tudo de uma vez.</span>
+          </span>
+          <span class="bv-card-seta" aria-hidden="true">→</span>
+        </button>
+        <button type="button" class="bv-card" data-acao="explorar">
+          <span class="bv-card-icone" aria-hidden="true">🧭</span>
+          <span class="bv-card-corpo">
+            <span class="bv-card-titulo">Explorar o app com dados de exemplo</span>
+            <span class="bv-card-desc">Carregamos produtos fictícios pra você conhecer o sistema primeiro.</span>
+          </span>
+          <span class="bv-card-seta" aria-hidden="true">→</span>
+        </button>
+      </div>
+
+      <button type="button" class="bv-pular" id="btnPularBoasVindas">Prefiro começar do zero, sem esse guia</button>
+    </div>
+  `;
+}
+
+/**
+ * Monta e conecta os eventos da tela de boas-vindas dentro de #main.
+ * Chamada pelo app.js sempre que deveMostrarBoasVindas() é verdadeiro.
+ */
+function renderizarTelaBoasVindas() {
+  const main = document.getElementById('main');
+  if (!main) return;
+  main.innerHTML = telaBoasVindasHtml();
+
+  main.querySelectorAll('.bv-card').forEach(card => {
+    card.addEventListener('click', () => {
+      // Já mostrou o guia de boas-vindas — evita repetir o modal antigo de
+      // "carregar exemplo x começar do zero" quando a pessoa tocar em
+      // "Adicionar produto" depois.
+      localStorage.setItem(CHAVE_ONBOARDING, '1');
+      const acao = card.dataset.acao;
+      if (acao === 'produto') {
+        abrirModalProduto(null);
+      } else if (acao === 'importar') {
+        abrirWizardImportacao();
+      } else if (acao === 'explorar') {
+        localStorage.setItem(CHAVE_EXPLOROU_APP, '1');
+        carregarDadosExemplo();
+      }
+    });
+  });
+
+  const btnPular = document.getElementById('btnPularBoasVindas');
+  if (btnPular) {
+    btnPular.addEventListener('click', () => {
+      localStorage.setItem(CHAVE_BOASVINDAS_DISPENSADA, '1');
+      renderizarTudo();
+    });
+  }
+
+  if (typeof atualizarChecklistPrimeirosPassos === 'function') atualizarChecklistPrimeirosPassos();
+}
+
+// --- Checklist de primeiros passos (flutuante, opcional, pode fechar) ---
+//
+// Widget persistente e leve — vive fora do #main (como o banner offline em
+// estados.js), então sobrevive a qualquer renderizarTudo() disparado por
+// outras telas. É atualizado a cada recarregarDados() (ver ui-base.js),
+// que é chamado depois de praticamente toda ação que muda dado no app.
+
+const CHAVE_CHECKLIST_FECHADO = 'mevChecklistFechado';
+const CHAVE_EXPLOROU_APP = 'mevExplorouApp';
+
+/** Fecha (recolhe) o painel do checklist, sem escondê-lo — usado antes de navegar pra outra tela. */
+function fecharPainelChecklist() {
+  const widget = document.getElementById('checklistWidget');
+  if (!widget) return;
+  widget.classList.remove('aberto');
+  const painel = document.getElementById('checklistPainel');
+  if (painel) painel.style.display = 'none';
+}
+
+function calcularPassosChecklist() {
+  const podeEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
+  const podeVenda   = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'vendedor';
+  const passos = [];
+
+  if (podeEstoque) {
+    passos.push({
+      id: 'produto',
+      label: 'Cadastre seu primeiro produto',
+      feito: produtosCache.length > 0,
+      acao: () => {
+        fecharPainelChecklist();
+        abaAtual = 'estoque';
+        renderizarTudo();
+        abrirModalProduto(null);
+      },
+    });
+  }
+  if (podeVenda) {
+    passos.push({
+      id: 'venda',
+      label: 'Registre sua primeira venda',
+      feito: vendasCache.length > 0,
+      acao: () => {
+        fecharPainelChecklist();
+        localStorage.setItem(CHAVE_EXPLOROU_APP, '1');
+        abaAtual = 'venda';
+        renderizarTudo();
+      },
+    });
+  }
+  passos.push({
+    id: 'explorar',
+    label: 'Dê uma volta pelas outras abas',
+    feito: localStorage.getItem(CHAVE_EXPLOROU_APP) === '1',
+    acao: () => {
+      localStorage.setItem(CHAVE_EXPLOROU_APP, '1');
+      fecharPainelChecklist();
+      atualizarChecklistPrimeirosPassos();
+    },
+  });
+
+  return passos;
+}
+
+function criarWidgetChecklistDom() {
+  const el = document.createElement('div');
+  el.id = 'checklistWidget';
+  el.className = 'checklist-widget';
+  (document.getElementById('app') || document.body).appendChild(el);
+  return el;
+}
+
+/**
+ * Recalcula os passos e redesenha o widget flutuante. Esconde o widget
+ * inteiro quando: não há empresa carregada, todos os passos já foram
+ * concluídos, a pessoa fechou o checklist, ou a tela de boas-vindas em
+ * tela cheia está sendo exibida (evita duas mensagens de onboarding juntas).
+ */
+function atualizarChecklistPrimeirosPassos() {
+  const fechado = localStorage.getItem(CHAVE_CHECKLIST_FECHADO) === '1';
+  const mostrandoBoasVindas = typeof deveMostrarBoasVindas === 'function' && deveMostrarBoasVindas();
+  const passos = calcularPassosChecklist();
+  const restantes = passos.filter(p => !p.feito).length;
+
+  let widget = document.getElementById('checklistWidget');
+  if (!usuarioLogadoPapel || restantes === 0 || fechado || mostrandoBoasVindas) {
+    if (widget) widget.style.display = 'none';
+    return;
+  }
+
+  if (!widget) widget = criarWidgetChecklistDom();
+  const painelAberto = widget.classList.contains('aberto');
+  widget.style.display = 'block';
+  widget.innerHTML = `
+    <button type="button" class="checklist-pill" id="checklistPillBtn">
+      <span class="checklist-pill-emoji" aria-hidden="true">🚀</span>
+      <span class="checklist-pill-texto">Primeiros passos</span>
+      <span class="checklist-pill-progresso">${passos.length - restantes}/${passos.length}</span>
+    </button>
+    <div class="checklist-painel" id="checklistPainel" style="display:${painelAberto ? 'block' : 'none'};">
+      <div class="checklist-painel-header">
+        <p class="checklist-painel-titulo">Primeiros passos</p>
+        <button type="button" class="checklist-fechar" id="checklistFecharBtn" aria-label="Fechar checklist">×</button>
+      </div>
+      <div class="checklist-lista">
+        ${passos.map(p => `
+          <button type="button" class="checklist-item ${p.feito ? 'feito' : ''}" data-id="${escaparHtml(p.id)}" ${p.feito ? 'disabled' : ''}>
+            <span class="checklist-check" aria-hidden="true">${p.feito ? '✓' : ''}</span>
+            <span class="checklist-label">${escaparHtml(p.label)}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('checklistPillBtn').addEventListener('click', () => {
+    widget.classList.toggle('aberto');
+    document.getElementById('checklistPainel').style.display = widget.classList.contains('aberto') ? 'block' : 'none';
+  });
+  document.getElementById('checklistFecharBtn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    localStorage.setItem(CHAVE_CHECKLIST_FECHADO, '1');
+    widget.style.display = 'none';
+  });
+  passos.filter(p => !p.feito).forEach(p => {
+    const botao = widget.querySelector(`.checklist-item[data-id="${p.id}"]`);
+    if (botao) botao.addEventListener('click', p.acao);
+  });
+}
+
 // --- Importação de Produtos (wizard) ---
 // Regras de parsing/validação/execução vivem em js/importacao.js
 // (window.Importacao) — aqui só desenhamos as telas e conectamos eventos,

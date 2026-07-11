@@ -132,10 +132,11 @@ function telaClientesHtml() {
 }
 
 function telaVaziaClientes() {
-  return `<div class="empty">
-    <p class="titulo">Nenhum cliente cadastrado</p>
-    <p class="hint">Toque em "Novo Cliente" para cadastrar o primeiro.</p>
-  </div>`;
+  return criarEstadoVazio({
+    icone: '🧑',
+    titulo: 'Nenhum cliente cadastrado',
+    dica: 'Toque em "Novo Cliente" para cadastrar o primeiro — ou cadastre direto na hora de fechar uma venda fiado.',
+  });
 }
 
 // ---------------------------------------------------------------------------

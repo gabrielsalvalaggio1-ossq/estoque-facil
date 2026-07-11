@@ -128,6 +128,25 @@ function escaparHtml(texto) {
   }[c]));
 }
 
+/**
+ * Estado vazio genérico e mais amigável — usado quando uma lista está
+ * completamente vazia (nenhum produto/venda/cliente cadastrado ainda), e
+ * não apenas sem resultado para um filtro (isso é criarSemResultado, em
+ * estados.js). Ícone grande + título + dica curta, com um botão de ação
+ * opcional (o próprio chamador conecta o clique, já que cada tela tem sua
+ * própria forma de abrir o cadastro correspondente).
+ */
+function criarEstadoVazio({ icone = '📭', titulo = '', dica = '', acaoLabel = '', acaoId = '' } = {}) {
+  return `
+    <div class="empty empty-amigavel">
+      <span class="empty-icone" aria-hidden="true">${icone}</span>
+      <p class="titulo">${escaparHtml(titulo)}</p>
+      ${dica ? `<p class="hint">${escaparHtml(dica)}</p>` : ''}
+      ${acaoLabel && acaoId ? `<button type="button" class="btn primary empty-acao" id="${escaparHtml(acaoId)}">${escaparHtml(acaoLabel)}</button>` : ''}
+    </div>
+  `;
+}
+
 function dataDeHoje() {
   return new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
@@ -151,6 +170,13 @@ async function recarregarDados() {
   // travar o resto do app (por isso não tem await bloqueando, nem throw).
   if (usuarioLogadoPapel === 'dono') {
     DB.buscarAssinatura().then(a => { assinaturaCache = a; }).catch(() => {});
+  }
+
+  // Atualiza o widget de "primeiros passos" (definido em
+  // ui-onboarding-importacao.js) sempre que os dados mudam — é o ponto
+  // central por onde praticamente toda ação do app passa depois de salvar.
+  if (typeof atualizarChecklistPrimeirosPassos === 'function') {
+    atualizarChecklistPrimeirosPassos();
   }
 }
 

@@ -199,17 +199,19 @@ function agruparProdutosEstoqueHtml(produtos, tipo) {
 }
 
 function telaVaziaEstoque() {
-  return `<div class="empty">
-    <p class="titulo">Nenhum produto ainda</p>
-    <p class="hint">Toque em "Adicionar produto" para cadastrar seu primeiro item.</p>
-  </div>`;
+  return criarEstadoVazio({
+    icone: '📦',
+    titulo: 'Nenhum produto ainda',
+    dica: 'Toque em "Adicionar produto" para cadastrar seu primeiro item, ou importe uma planilha inteira de uma vez.',
+  });
 }
 
 function telaVaziaVendas() {
-  return `<div class="empty">
-    <p class="titulo">Nenhuma venda registrada</p>
-    <p class="hint">Suas cobranças aparecem aqui.</p>
-  </div>`;
+  return criarEstadoVazio({
+    icone: '🧾',
+    titulo: 'Nenhuma venda registrada',
+    dica: 'Suas cobranças aparecem aqui assim que você fizer a primeira venda na aba Venda.',
+  });
 }
 
 /** Formata a quantidade em estoque de forma explícita quanto à unidade: '12 un' ou '2,500 kg'. */

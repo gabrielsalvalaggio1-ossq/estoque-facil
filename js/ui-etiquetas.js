@@ -244,14 +244,28 @@ function imprimirEtiquetas(itens, modeloId, config, modeloCustom) {
     mostrarToast('Não foi possível abrir a janela de impressão. Verifique se o navegador está bloqueando pop-ups.', 'info');
     return;
   }
+
+  // Fecha a UI do app ANTES de focar a janela de impressão — assim o
+  // MutationObserver do focus-trap descarta o elementoAnterior enquanto o
+  // foco ainda está no documento principal, evitando que o foco suma.
+  fecharPreviewEtiquetas();
+  cancelarSelecaoEtiquetas();
+
   janela.document.open();
   janela.document.write(documentoHtml);
   janela.document.close();
-  janela.onload = () => {
-    janela.focus();
-    janela.print();
-  };
 
-  fecharPreviewEtiquetas();
-  cancelarSelecaoEtiquetas();
+  // Não usamos janela.onload: após document.write + document.close em uma
+  // janela aberta por window.open, o onload frequentemente já disparou
+  // (Chrome/mobile) ou nunca dispara (Safari), deixando o print() sem ser
+  // chamado. setTimeout de 0 ms garante que o browser termine de parsear o
+  // documento antes de acionar o diálogo de impressão.
+  setTimeout(() => {
+    try {
+      janela.focus();
+      janela.print();
+    } catch (e) {
+      // Janela pode ter sido fechada manualmente pelo usuário — ignora.
+    }
+  }, 0);
 }

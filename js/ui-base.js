@@ -95,10 +95,22 @@ function aplicarFocusTrap(wrap) {
   const observer = new MutationObserver(() => {
     if (!document.body.contains(wrap)) {
       observer.disconnect();
-      if (elementoAnterior && typeof elementoAnterior.focus === 'function') elementoAnterior.focus();
+      // Só devolve o foco se o elemento ainda estiver no DOM — chamar
+      // .focus() num elemento órfão faz o foco "sumir" do documento inteiro,
+      // deixando o app sem resposta a teclado/cliques até um reload.
+      if (
+        elementoAnterior &&
+        typeof elementoAnterior.focus === 'function' &&
+        document.body.contains(elementoAnterior)
+      ) {
+        elementoAnterior.focus();
+      }
     }
   });
-  observer.observe(document.body, { childList: true });
+  // subtree:true é necessário para detectar remoções de netos (ex: o wrap
+  // do preview sendo removido dentro de imprimirEtiquetas, que chama
+  // fecharPreviewEtiquetas antes de cancelarSelecaoEtiquetas).
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 const ICONE_PRODUTO_PLACEHOLDER = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`;
@@ -392,4 +404,3 @@ function abrirScannerParaVender() {
     renderizarTudo();
   });
 }
-

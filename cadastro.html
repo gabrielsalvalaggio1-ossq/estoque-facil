@@ -125,7 +125,8 @@ async function cadastro() {
       const plano = params.get('plano');
       const ciclo = params.get('ciclo') || 'mensal';
       if (plano && plano !== 'free') {
-        window.location.href = `/index.html#checkout=${plano}_${ciclo === 'anual' ? 'anual' : 'mensal'}`;
+        const planoId = ciclo === 'anual' ? plano + '_anual' : plano;
+        window.location.href = `/index.html#checkout=${planoId}`;
       } else {
         window.location.href = "/index.html";
       }

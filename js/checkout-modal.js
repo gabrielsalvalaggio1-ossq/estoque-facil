@@ -17,6 +17,7 @@ const CHECKOUT_NOMES_PLANO = {
 };
 
 let _mpInstance = null;
+let _cardFormInstance = null;
 let _checkoutCallback = null;
 let _checkoutPlanoId = null;
 
@@ -264,6 +265,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
       },
     });
 
+    _cardFormInstance = cardForm;
+
     document.getElementById('btnCheckoutPagar').addEventListener('click', () => {
       cardForm.submit();
     });
@@ -322,6 +325,10 @@ function mostrarErroCheckout(mensagem) {
 }
 
 function fecharModalCheckoutMP() {
+  if (_cardFormInstance) {
+    try { _cardFormInstance.unmount(); } catch (e) { /* ignora se já desmontado */ }
+    _cardFormInstance = null;
+  }
   const overlay = document.getElementById('checkoutMPOverlay');
   if (overlay) overlay.remove();
   document.removeEventListener('keydown', _escCheckout);

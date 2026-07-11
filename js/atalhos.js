@@ -43,6 +43,7 @@
 
   document.addEventListener('keydown', function (e) {
     var ctrl = e.ctrlKey || e.metaKey;
+    if (!e.key) return; // ignora eventos sem key (ex: disparados por scripts)
     var tecla = e.key.toLowerCase(); // case-insensitive: evita problemas com CapsLock
 
     /* ─────────────────────────────────────────────────────────────────

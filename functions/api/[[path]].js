@@ -1023,6 +1023,126 @@ export async function onRequest(context) {
     return json(bloqueioAssinatura, 402);
   }
 
+
+  // ── Checkout Transparente Mercado Pago ────────────────────────────────────
+  // GET /api/checkout-mp-iniciar  → devolve a public key pro frontend montar o cardForm
+  if (primeiro === 'checkout-mp-iniciar' && request.method === 'GET') {
+    const publicKey = env.MP_PUBLIC_KEY_TEST;
+    if (!publicKey) return json({ error: 'Chave pública do Mercado Pago não configurada.' }, 500);
+    return json({ publicKey });
+  }
+
+  // POST /api/checkout-mp-assinar  → cria a assinatura com o token do cartão
+  if (primeiro === 'checkout-mp-assinar' && request.method === 'POST') {
+    if (membro.papel !== 'dono') {
+      return json({ error: 'Só o dono da empresa pode assinar um plano.' }, 403);
+    }
+
+    let corpo;
+    try { corpo = await request.json(); } catch (e) {
+      return json({ error: 'Corpo da requisição inválido.' }, 400);
+    }
+
+    const { token, planoId, nomeCartao, cpf } = corpo || {};
+    if (!token) return json({ error: 'Token do cartão não informado.' }, 400);
+    if (!planoId) return json({ error: 'Plano não informado.' }, 400);
+
+    const accessToken = env.MP_ACCESS_TOKEN_TEST;
+    if (!accessToken) return json({ error: 'Token de acesso do Mercado Pago não configurado.' }, 500);
+
+    const PLANO_PARA_PREAPPROVAL = {
+      essencial:       env.MP_PLAN_ESSENCIAL_MENSAL,
+      essencial_anual: env.MP_PLAN_ESSENCIAL_ANUAL,
+      pro:             env.MP_PLAN_PRO_MENSAL,
+      pro_anual:       env.MP_PLAN_PRO_ANUAL,
+    };
+
+    const preapprovalPlanId = PLANO_PARA_PREAPPROVAL[planoId];
+    if (!preapprovalPlanId) {
+      return json({ error: `Plano "${planoId}" não mapeado para o Mercado Pago.` }, 400);
+    }
+
+    // Busca o email do usuário para usar como payer_email
+    const usuarioRow = await db.prepare('SELECT email FROM usuarios WHERE email = ?').bind(email).first();
+    const payerEmail = usuarioRow ? usuarioRow.email : email;
+
+    // Cria a assinatura (preapproval) no Mercado Pago
+    let mpResposta;
+    try {
+      const mpResp = await fetch('https://api.mercadopago.com/preapproval', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          preapproval_plan_id: preapprovalPlanId,
+          card_token_id: token,
+          payer_email: payerEmail,
+          ...(cpf && { payer: { identification: { type: 'CPF', number: cpf } } }),
+        }),
+      });
+      mpResposta = await mpResp.json();
+      if (!mpResp.ok) {
+        console.error('MP preapproval error:', JSON.stringify(mpResposta));
+        return json({ error: mpResposta.message || 'Erro ao criar assinatura no Mercado Pago.' }, 502);
+      }
+    } catch (e) {
+      return json({ error: 'Falha ao comunicar com o Mercado Pago: ' + e.message }, 502);
+    }
+
+    const mpStatus = mpResposta.status; // authorized, pending, cancelled...
+    const planoAtivado = mpStatus === 'authorized';
+
+    if (planoAtivado) {
+      // Ativa o plano no banco, igual ao mudar_plano
+      const empresaId = membro.empresaId;
+      const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
+
+      let dataExpiracao = null;
+      const data = new Date();
+      if (planoId.endsWith('_anual')) {
+        data.setFullYear(data.getFullYear() + 1);
+      } else {
+        data.setDate(data.getDate() + 30);
+      }
+      dataExpiracao = data.toISOString();
+
+      await db.prepare(`
+        UPDATE assinaturas
+        SET status = 'CANCELED', cancelado_em = datetime('now'),
+            motivo_cancelamento = 'Upgrade via checkout', atualizado_em = datetime('now')
+        WHERE empresa_id = ? AND status IN ('FREE','TRIAL','ACTIVE','PAST_DUE')
+      `).bind(empresaId).run();
+
+      invalidarCachePlano(empresaId);
+
+      await db.prepare(`
+        INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao)
+        VALUES (?, ?, ?, ?, 'ACTIVE', datetime('now'), ?)
+      `).bind(`sub-${empresaId}-${Date.now()}`, empresaId, usuarioDono ? usuarioDono.id : null, planoId, dataExpiracao).run();
+
+      await db.prepare(
+        'UPDATE usuarios SET plano_atual = ?, status_assinatura = ?, data_inicio_assinatura = datetime(\'now\'), data_expiracao = ? WHERE email = ?'
+      ).bind(planoId, 'ACTIVE', dataExpiracao, email).run();
+
+      await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
+
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel,
+        acao: 'assinou_plano', store: 'assinatura', registroId: empresaId,
+        descricao: `Assinou o plano ${planoId} via cartão de crédito`,
+      });
+    }
+
+    return json({
+      planoAtivado,
+      mpStatus,
+      preapprovalId: mpResposta.id,
+    });
+  }
+  // ── Fim Checkout Mercado Pago ─────────────────────────────────────────────
+
   if (primeiro === 'membros') {
     try {
       return await tratarRotaMembros(db, email, membro, partes[1], request);

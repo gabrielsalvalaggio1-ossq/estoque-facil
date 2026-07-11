@@ -224,18 +224,25 @@ function mostrarErroAssinatura(mensagem) {
 
 async function trocarPlanoAssinatura(planoId, botao) {
   if (!planoId || (botao && botao.disabled)) return;
-  const textoOriginal = botao ? botao.textContent : '';
 
-  // Sem gateway de pagamento por enquanto: qualquer plano (grátis ou pago)
-  // é trocado direto pelo mesmo caminho, sem cobrança real.
-  if (botao) { botao.disabled = true; botao.textContent = 'Aplicando…'; }
-  try {
-    await DB.mudarPlano(planoId);
-    await carregarTelaAssinatura();
-  } catch (erro) {
-    mostrarErroAssinatura(erro.message || 'Não foi possível trocar de plano agora.');
-    if (botao) { botao.disabled = false; botao.textContent = textoOriginal; }
+  // Plano grátis: não precisa de pagamento, troca direto
+  if (planoId === 'free') {
+    const textoOriginal = botao ? botao.textContent : '';
+    if (botao) { botao.disabled = true; botao.textContent = 'Aplicando…'; }
+    try {
+      await DB.mudarPlano(planoId);
+      await carregarTelaAssinatura();
+    } catch (erro) {
+      mostrarErroAssinatura(erro.message || 'Não foi possível trocar de plano agora.');
+      if (botao) { botao.disabled = false; botao.textContent = textoOriginal; }
+    }
+    return;
   }
+
+  // Plano pago: abre o modal de checkout com cartão
+  abrirModalCheckoutMP(planoId, async () => {
+    await carregarTelaAssinatura();
+  });
 }
 
 function pedirConfirmacaoCancelarAssinatura() {

@@ -578,7 +578,7 @@
           <li><span class="check">✓</span> Importação de produtos (CSV, XLSX, XML NF-e)</li>
           <li><span class="check">✓</span> Suporte por WhatsApp</li>
         </ul>
-        <a class="plan-cta" href="/cadastro.html?plano=essencial" id="ctaEssencial">Assinar o Essencial</a>
+        <a class="plan-cta" href="#" id="ctaEssencial" onclick="event.preventDefault(); clicarAssinar('essencial')">Assinar o Essencial</a>
         <div class="plan-foot">Cancele quando quiser</div>
       </div>
 
@@ -595,7 +595,7 @@
           <li><span class="check">✓</span> Auditoria completa — quem fez o quê e quando</li>
           <li><span class="check">✓</span> Suporte prioritário</li>
         </ul>
-        <a class="plan-cta" href="/cadastro.html?plano=pro" id="ctaPro">Assinar o Pro</a>
+        <a class="plan-cta" href="#" id="ctaPro" onclick="event.preventDefault(); clicarAssinar('pro')">Assinar o Pro</a>
         <div class="plan-foot">Cancele quando quiser</div>
       </div>
     </div>
@@ -792,8 +792,8 @@
       });
       periodos.forEach(el => { el.textContent = anual ? el.dataset.periodoAnual : el.dataset.periodoMensal; });
 
-      if (ctaEssencial) ctaEssencial.href = `/cadastro.html?plano=essencial&ciclo=${anual ? 'anual' : 'mensal'}`;
-      if (ctaPro) ctaPro.href = `/cadastro.html?plano=pro&ciclo=${anual ? 'anual' : 'mensal'}`;
+      if (ctaEssencial) ctaEssencial.dataset.ciclo = anual ? 'anual' : 'mensal';
+      if (ctaPro) ctaPro.dataset.ciclo = anual ? 'anual' : 'mensal';
     }
 
     function alternar(){ anual = !anual; aplicar(); }
@@ -809,5 +809,7 @@
   })();
 </script>
 
+<script src="/js/db.js"></script>
+<script src="/js/checkout-modal.js"></script>
 </body>
 </html>

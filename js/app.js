@@ -248,4 +248,22 @@ async function criarEmpresaEContinuar() {
 // durante o carregamento inicial — as abas corretas aparecem após
 // aplicarRestricoesDePapel() ser chamado dentro de iniciar().
 aplicarRestricoesDePapel(null);
-iniciar();
+iniciar().then(() => {
+  // Se o usuário veio do cadastro com um plano pré-selecionado
+  // (ex: #checkout=essencial_mensal), abre o modal de pagamento automaticamente
+  const hash = window.location.hash;
+  if (hash.startsWith('#checkout=')) {
+    const planoId = hash.replace('#checkout=', '');
+    // Limpa o hash pra não abrir de novo se recarregar
+    history.replaceState(null, '', window.location.pathname);
+    // Aguarda um frame pra garantir que o app terminou de renderizar
+    requestAnimationFrame(() => {
+      if (typeof abrirModalCheckoutMP === 'function' && planoId) {
+        abrirModalCheckoutMP(planoId, async () => {
+          await recarregarDados();
+          renderizarTudo();
+        });
+      }
+    });
+  }
+});

@@ -208,6 +208,22 @@ async function excluirMeta(id) {
   return remover('metas', id);
 }
 
+
+// --- Checkout Mercado Pago (Checkout Transparente) ---
+async function iniciarCheckout() {
+  const resp = await fetch("/api/checkout-mp/iniciar");
+  return tratarResposta(resp);
+}
+
+async function assinarComCartao({ token, planoId, nomeCartao, cpf }) {
+  const resp = await fetch("/api/checkout-mp/assinar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token, planoId, nomeCartao, cpf }),
+  });
+  return tratarResposta(resp);
+}
+
 async function cancelarAssinatura(motivo) {
   const resp = await fetch('/api/assinatura', {
     method: 'POST',
@@ -313,6 +329,8 @@ window.DB = {
   buscarAssinatura,
   mudarPlano,
   cancelarAssinatura,
+  iniciarCheckout,
+  assinarComCartao,
   listarAtividades,
   listarImportacoes,
   registrarImportacao,

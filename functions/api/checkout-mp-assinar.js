@@ -1,7 +1,6 @@
 /**
  * functions/api/checkout-mp-assinar.js
  * POST /api/checkout-mp-assinar
- * Recebe token do cartão + planoId, cria a assinatura no MP e ativa no banco.
  */
 
 async function sha256Hex(texto) {
@@ -93,14 +92,22 @@ export async function onRequestPost({ request, env }) {
   const accessToken = env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN_TEST;
   if (!accessToken) return json({ error: 'Access Token do MP não configurado.' }, 500);
 
+  // Monta o nome do pagador
+  const primeiroNome = nomeCartao ? nomeCartao.split(' ')[0] : 'Titular';
+  const sobrenome = nomeCartao && nomeCartao.includes(' ')
+    ? nomeCartao.split(' ').slice(1).join(' ')
+    : 'Cartao';
+
   const payload = {
     preapproval_plan_id: mpPlanId,
     card_token_id: token,
     payer_email: email,
+    payer_first_name: primeiroNome,
+    payer_last_name: sobrenome,
     external_reference: `${membro.empresaId}|${planoId}`,
-    ...(nomeCartao && { payer_first_name: nomeCartao.split(' ')[0] || nomeCartao }),
-    ...(nomeCartao && nomeCartao.includes(' ') && { payer_last_name: nomeCartao.split(' ').slice(1).join(' ') }),
   };
+
+  console.log('MP payload:', JSON.stringify({ ...payload, card_token_id: '[REDACTED]' }));
 
   const mpRes = await fetch('https://api.mercadopago.com/preapproval', {
     method: 'POST',
@@ -113,19 +120,25 @@ export async function onRequestPost({ request, env }) {
   });
 
   const mpData = await mpRes.json();
+  console.log('MP resposta completa:', JSON.stringify(mpData));
 
   if (!mpRes.ok) {
-    console.error('Erro MP preapproval:', JSON.stringify(mpData));
-    return json({ error: mpData.message || mpData.error || 'Erro ao processar pagamento.' }, 502);
+    // Retorna o erro completo do MP para facilitar debug
+    return json({
+      error: mpData.message || mpData.error || 'Erro ao processar pagamento.',
+      mp_status: mpRes.status,
+      mp_detalhe: mpData,
+    }, 502);
   }
 
-  if (mpData.status === 'authorized') {
+  // authorized = aprovado, pending = em análise (também ativamos)
+  if (mpData.status === 'authorized' || mpData.status === 'pending') {
     await ativarPlanoNoBanco(db, membro.empresaId, planoId, email, mpData.id);
   }
 
   return json({
     ok: true,
     status: mpData.status,
-    planoAtivado: mpData.status === 'authorized',
+    planoAtivado: mpData.status === 'authorized' || mpData.status === 'pending',
   });
 }

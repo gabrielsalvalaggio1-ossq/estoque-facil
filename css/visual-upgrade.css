@@ -1,54 +1,45 @@
 /* =====================================================================
-   visual-upgrade.css
-   Melhorias visuais — adicione um <link> para este arquivo após os
-   outros CSS em index.html:
-   <link rel="stylesheet" href="css/visual-upgrade.css">
+   visual-upgrade.css  — melhorias visuais
+   Adicione APÓS todos os outros CSS em index.html:
+   <link rel="stylesheet" href="css/visual-upgrade.css" media="print" onload="this.media='all'">
    ===================================================================== */
 
-/* ── Variáveis adicionais ─────────────────────────────────────────── */
 :root {
-  --ledger-mid: #234F40;
-  --paper-card: #FFFFFF;
-  --shadow-sm: 0 1px 3px rgba(27,58,47,.07), 0 1px 2px rgba(0,0,0,.04);
-  --shadow-md: 0 4px 12px rgba(27,58,47,.09), 0 2px 4px rgba(0,0,0,.05);
-  --shadow-lg: 0 8px 24px rgba(27,58,47,.12), 0 3px 8px rgba(0,0,0,.06);
-  --radius-card: 14px;
-  --radius-inner: 9px;
-  --transition: 0.18s ease;
+  --white: #FFFFFF;
+  --shadow-sm: 0 1px 4px rgba(27,58,47,.08), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 14px rgba(27,58,47,.11), 0 2px 5px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 28px rgba(27,58,47,.14), 0 3px 8px rgba(0,0,0,.07);
+  --transition: 0.17s ease;
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SIDEBAR — mais elegante, com separadores e indicador ativo claro
+   SIDEBAR
    ══════════════════════════════════════════════════════════════════ */
 @media (min-width: 1000px) {
   .sidebar {
+    background: linear-gradient(160deg, #1E4233 0%, var(--ledger-dark) 100%);
+    border-right: 1px solid rgba(255,255,255,0.05);
+    box-shadow: 2px 0 16px rgba(0,0,0,.2);
     width: 220px;
-    background: linear-gradient(160deg, var(--ledger) 0%, var(--ledger-dark) 100%);
-    padding: 20px 12px 28px;
-    border-right: 1px solid rgba(255,255,255,0.06);
-    box-shadow: 2px 0 12px rgba(0,0,0,0.18);
     gap: 2px;
   }
 
   .brand {
-    padding: 4px 10px 24px;
-    margin-bottom: 4px;
+    padding: 4px 10px 22px;
     border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 6px;
   }
 
   .brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 34px; height: 34px;
     border-radius: 10px;
-    background: var(--coral);
+    box-shadow: 0 3px 8px rgba(226,87,43,.4);
     font-size: 16px;
-    box-shadow: 0 3px 8px rgba(226,87,43,0.4);
   }
 
   .brand-name {
     font-size: 14.5px;
     font-weight: 700;
-    letter-spacing: -0.01em;
     line-height: 1.25;
   }
 
@@ -57,14 +48,12 @@
     font-weight: 500;
     padding: 10px 12px;
     border-radius: 9px;
-    color: rgba(199,211,203,0.85);
-    letter-spacing: -0.01em;
+    color: rgba(199,211,203,.85);
     transition: background var(--transition), color var(--transition), transform var(--transition);
-    position: relative;
   }
 
   .side-item:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,.08);
     color: #fff;
     transform: translateX(2px);
   }
@@ -76,174 +65,112 @@
     box-shadow: var(--shadow-sm);
   }
 
-  /* Separador visual antes do Exportar */
+  /* Separador antes do Exportar — sem mexer no posicionamento */
   #btnExportarSidebar {
-    margin-top: 8px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid rgba(255,255,255,.07);
+    padding-top: 14px;
+    margin-top: 6px;
   }
 
-  /* E-mail no rodapé da sidebar */
-  #sidebarEmail {
-    margin-top: auto !important;
-    padding: 16px 10px 2px !important;
-    border-top: 1px solid rgba(255,255,255,0.07) !important;
-    font-size: 11px !important;
-    opacity: 0.6 !important;
-  }
-
+  /* Sair — tom de alerta suave */
   #btnLogoutSidebar {
-    color: rgba(199,211,203,0.65) !important;
+    color: rgba(199,211,203,.55);
     font-size: 13px;
   }
   #btnLogoutSidebar:hover {
-    color: #F3DED6 !important;
-    background: rgba(226,87,43,0.12) !important;
+    color: #F3DED6;
+    background: rgba(226,87,43,.12);
   }
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   HEADER — respiro e estatísticas com mais presença
+   HEADER
    ══════════════════════════════════════════════════════════════════ */
 header.top {
-  background: linear-gradient(135deg, var(--ledger) 0%, #163527 100%);
+  background: linear-gradient(135deg, #1E4233 0%, var(--ledger-dark) 100%);
   position: relative;
   overflow: hidden;
 }
 
-/* Textura sutil no header */
+/* Brilho decorativo âmbar no canto */
 header.top::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle at 80% 20%, rgba(217,164,65,.08) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 85% 15%, rgba(217,164,65,.1) 0%, transparent 55%);
   pointer-events: none;
 }
 
 header.top h1 {
-  font-size: 28px;
   letter-spacing: -0.02em;
 }
 
-header.top .sub {
-  font-size: 13.5px;
-  color: rgba(199,211,203,0.8);
-}
-
-/* Stat cards — saindo da cor do header, mais elegantes */
-.stats {
-  padding: 16px 20px 0;
-  gap: 10px;
-}
-
+/* Stats — glass cards sobre o header verde */
 .stat {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,.11);
+  border: 1px solid rgba(255,255,255,.13);
   border-radius: 12px;
-  padding: 12px 14px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
   transition: background var(--transition);
 }
 
-.stat:hover {
-  background: rgba(255,255,255,0.14);
-}
+.stat:hover { background: rgba(255,255,255,.16); }
 
 .stat .lbl {
+  color: rgba(199,211,203,.7);
   font-size: 10px;
-  color: rgba(199,211,203,0.75);
   letter-spacing: .1em;
 }
 
 .stat .val {
-  font-size: 20px;
   color: #fff;
-  text-shadow: 0 1px 3px rgba(0,0,0,.15);
+  font-size: 20px;
 }
 
-/* Estoque baixo com tom de alerta */
-#statLowWrap .val {
-  color: var(--amber);
-}
+/* Estoque baixo → âmbar */
+#statLowWrap .val { color: var(--amber); }
 
 header.top .topsellers {
   font-size: 11.5px;
-  color: rgba(199,211,203,0.65);
-  margin: 12px 0 0;
-  padding-bottom: 2px;
-}
-
-header.top .topsellers strong {
-  color: var(--amber);
+  color: rgba(199,211,203,.6);
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   TABS — mais limpas, linha mais fina
+   TABS
    ══════════════════════════════════════════════════════════════════ */
-nav.tabs {
-  border-bottom-color: var(--line);
-}
-
-nav.tabs button {
-  font-size: 13px;
-  font-weight: 500;
-  padding: 11px 14px 13px;
-  transition: color var(--transition);
-}
-
+nav.tabs button { font-size: 13px; }
 nav.tabs button.active {
   font-weight: 700;
   border-bottom-width: 2.5px;
-  border-color: var(--coral);
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   CARDS GERAIS — mais brancos, sombra ao invés de borda
-   ══════════════════════════════════════════════════════════════════ */
-.product-card,
-.card-info {
-  background: var(--paper-card);
-  border-color: rgba(217,212,194,0.5);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition), transform var(--transition);
-}
-
-.product-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   CENTRAL DE DADOS — a grande melhoria
+   CENTRAL DE DADOS — principal melhoria
+   Os cd-cartao/cd-bloco precisam de fundo BRANCO para contrastar
+   com o fundo bege (#EFEBDD) do #app no desktop.
    ══════════════════════════════════════════════════════════════════ */
 
-/* Background levemente diferenciado */
-@media (min-width: 1000px) {
-  #app {
-    background: #F2EFE5;
-  }
-}
-
-/* Cartões de KPI — mais impactantes */
+/* Cards de KPI */
 .cd-cartao {
-  background: var(--paper-card);
-  border: none;
-  border-radius: var(--radius-card);
+  background: var(--white) !important;
+  border: none !important;
+  border-radius: 14px;
   padding: 18px 18px 16px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition), transform var(--transition);
   position: relative;
   overflow: hidden;
+  transition: box-shadow var(--transition), transform var(--transition);
 }
 
+/* Sotaque colorido no topo de cada card */
 .cd-cartao::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--ledger), transparent);
-  opacity: 0.3;
+  background: var(--ledger);
+  opacity: .2;
+  border-radius: 14px 14px 0 0;
 }
 
 .cd-cartao:hover {
@@ -254,7 +181,7 @@ nav.tabs button.active {
 .cd-cartao-rotulo {
   font-size: 10.5px;
   letter-spacing: .08em;
-  opacity: 0.7;
+  opacity: .65;
   margin-bottom: 8px;
 }
 
@@ -264,23 +191,11 @@ nav.tabs button.active {
   color: var(--ledger);
 }
 
-.cd-cartao-sub {
-  font-size: 11.5px;
-  opacity: 0.6;
-  margin-top: 4px;
-}
-
-/* Grid de cartões com mais respiro */
-.cd-grid-cartoes {
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-/* Blocos de gráfico */
+/* Blocos de gráfico e listas */
 .cd-bloco {
-  background: var(--paper-card);
-  border: none;
-  border-radius: var(--radius-card);
+  background: var(--white) !important;
+  border: none !important;
+  border-radius: 14px;
   padding: 20px;
   box-shadow: var(--shadow-sm);
 }
@@ -289,32 +204,25 @@ nav.tabs button.active {
   font-size: 15px;
   letter-spacing: -0.01em;
   margin-bottom: 16px;
-  color: var(--ledger);
 }
 
 /* Filtros de período */
-.cd-filtros {
-  gap: 8px;
-  margin: 12px 0 20px;
-}
-
 .cd-filtro-btn {
-  background: var(--paper-card);
+  background: var(--white);
   border: 1.5px solid var(--line);
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 600;
   padding: 6px 14px;
   color: var(--ink-soft);
-  letter-spacing: 0.01em;
-  transition: all var(--transition);
   box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
 }
 
 .cd-filtro-btn:hover {
-  background: var(--paper-dim);
   border-color: var(--ledger);
   color: var(--ledger);
+  background: var(--paper);
   box-shadow: none;
 }
 
@@ -322,43 +230,7 @@ nav.tabs button.active {
   background: var(--ledger);
   color: var(--paper);
   border-color: var(--ledger);
-  box-shadow: 0 2px 8px rgba(27,58,47,0.25);
-}
-
-/* Topo da central */
-.cd-central .cd-topo {
-  margin-bottom: 12px;
-}
-
-.cd-plano-tag {
-  background: var(--paper-card);
-  border: 1.5px solid var(--line);
-  font-weight: 700;
-  box-shadow: var(--shadow-sm);
-}
-
-.cd-btn-restaurar {
-  background: var(--paper-card);
-  border: 1.5px solid var(--line);
-  font-weight: 600;
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition);
-}
-
-.cd-btn-restaurar:hover {
-  background: var(--paper-dim);
-  border-color: var(--ledger);
-}
-
-/* Listas dentro dos blocos */
-.cd-lista li {
-  font-size: 13.5px;
-  padding: 9px 0;
-  border-color: rgba(217,212,194,0.5);
-}
-
-.cd-lista li:last-child {
-  border-bottom: none;
+  box-shadow: 0 2px 8px rgba(27,58,47,.25);
 }
 
 /* Alertas inteligentes */
@@ -371,142 +243,116 @@ nav.tabs button.active {
 }
 
 .cd-alerta-alerta {
-  background: #FEF2EC;
-  border-color: rgba(226,87,43,0.15);
+  background: #FEF2EC !important;
+  border-color: rgba(226,87,43,.18);
 }
 
 .cd-alerta-positivo {
-  background: #EBF3EC;
-  border-color: rgba(27,58,47,0.12);
+  background: #EBF3EE !important;
+  border-color: rgba(27,58,47,.12);
 }
 
-/* Tags de comparativo */
-.cd-comparativo-tag {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-
-.cd-comparativo-tag.cd-up {
-  background: #E0EDDF;
-  color: #1A5C30;
-}
-
-.cd-comparativo-tag.cd-down {
-  background: #FDECEA;
-  color: #8F2E14;
-}
+/* Tags comparativo */
+.cd-comparativo-tag.cd-up   { background: #E0EDDF; color: #1A5C30; }
+.cd-comparativo-tag.cd-down { background: #FDECEA; color: #8F2E14; }
 
 /* Metas */
 .cd-meta {
-  background: var(--paper-card);
-  border-radius: var(--radius-card);
+  background: var(--white) !important;
+  border-radius: 14px;
   padding: 16px;
   box-shadow: var(--shadow-sm);
 }
 
-.cd-meta-barra {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--paper-dim);
-  margin-bottom: 10px;
-}
-
 .cd-meta-progresso {
   background: linear-gradient(90deg, var(--ledger), var(--amber));
-  border-radius: 999px;
 }
 
 /* Widgets ocultos */
 .cd-widgets-ocultos {
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,.6);
   border: 1.5px dashed var(--line);
-  border-radius: var(--radius-card);
-  padding: 12px 14px;
+  border-radius: 14px;
+}
+
+/* Listas */
+.cd-lista li {
+  font-size: 13.5px;
+  padding: 9px 0;
+  border-color: var(--paper-dim);
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   DASHBOARD INSIGHTS — refinamentos
+   DASHBOARD INSIGHTS
    ══════════════════════════════════════════════════════════════════ */
 .di-bloco {
-  background: var(--paper-card);
-  border: none;
-  border-radius: var(--radius-card);
+  background: var(--white) !important;
+  border: none !important;
+  border-radius: 14px;
   box-shadow: var(--shadow-sm);
 }
 
-.di-tag.up    { background: #E0EDDF; color: #1A5C30; }
-.di-tag.down  { background: #FDECEA; color: #8F2E14; }
+.di-tag.up   { background: #E0EDDF; color: #1A5C30; }
+.di-tag.down { background: #FDECEA; color: #8F2E14; }
 
 /* ══════════════════════════════════════════════════════════════════
-   BOTÕES — mais sofisticados
+   PRODUCT CARDS
+   ══════════════════════════════════════════════════════════════════ */
+.product-card {
+  background: var(--white);
+  border-color: rgba(217,212,194,.5);
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.product-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   BOTÃO DESTAQUE
    ══════════════════════════════════════════════════════════════════ */
 .btn-destaque {
-  border-radius: 12px;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-  box-shadow: 0 4px 14px rgba(143,46,20,.3), 0 1px 3px rgba(0,0,0,.12);
+  box-shadow: 0 4px 14px rgba(143,46,20,.3), 0 1px 3px rgba(0,0,0,.1);
   transition: box-shadow var(--transition), transform var(--transition), filter var(--transition);
 }
 
 .btn-destaque:hover {
-  box-shadow: 0 6px 18px rgba(143,46,20,.35), 0 2px 6px rgba(0,0,0,.12);
-  filter: brightness(1.04);
+  box-shadow: 0 6px 18px rgba(143,46,20,.36);
+  filter: brightness(1.05);
 }
 
 .btn-destaque:active {
-  transform: scale(0.97);
+  transform: scale(.97);
   box-shadow: 0 2px 6px rgba(143,46,20,.2);
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   MAIN CONTENT — respiro geral
+   RESPIRO DESKTOP
    ══════════════════════════════════════════════════════════════════ */
 @media (min-width: 1000px) {
-  main {
-    padding: 20px 36px 40px;
-  }
-
-  header.top {
-    padding: 24px 36px 20px;
-  }
-
-  .stats {
-    padding: 16px 36px 0;
-    max-width: 700px;
-  }
+  main { padding: 20px 36px 40px; }
+  header.top { padding: 24px 36px 20px; }
+  .stats { padding: 16px 36px 0; max-width: 700px; }
 }
 
 @media (min-width: 1280px) {
-  main {
-    padding: 24px 40px 48px;
-  }
-
-  header.top {
-    padding: 28px 40px 22px;
-  }
-
-  .stats {
-    padding: 18px 40px 0;
-    max-width: 760px;
-  }
+  main { padding: 24px 44px 48px; }
+  header.top { padding: 28px 44px 22px; }
+  .stats { padding: 18px 44px 0; max-width: 780px; }
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SCROLLBAR — discreta e bonita (WebKit)
+   SCROLLBAR DISCRETA
    ══════════════════════════════════════════════════════════════════ */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(27,58,47,0.18);
+  background: rgba(27,58,47,.18);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(27,58,47,0.32);
+  background: rgba(27,58,47,.32);
 }

@@ -242,7 +242,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         cardNumber: { id: 'checkoutNumeroCartao', placeholder: '0000 0000 0000 0000' },
         expirationDate: { id: 'checkoutValidade', placeholder: 'MM/AA' },
         securityCode: { id: 'checkoutCVV', placeholder: '123' },
-        cardholderName: { id: 'checkoutNomeTitular', placeholder: 'Como está no cartão' },
+        cardholderName: { id: 'checkoutNomeTitular' },
         identificationType: { id: 'checkoutTipoDoc' }, // campo oculto
         identificationNumber: { id: 'checkoutCPF' },
         installments: { id: 'checkoutParcelas' }, // campo oculto

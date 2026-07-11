@@ -211,12 +211,12 @@ async function excluirMeta(id) {
 
 // --- Checkout Mercado Pago (Checkout Transparente) ---
 async function iniciarCheckout() {
-  const resp = await fetch("/api/checkout-mp/iniciar");
+  const resp = await fetch("/api/checkout-mp-iniciar");
   return tratarResposta(resp);
 }
 
 async function assinarComCartao({ token, planoId, nomeCartao, cpf }) {
-  const resp = await fetch("/api/checkout-mp/assinar", {
+  const resp = await fetch("/api/checkout-mp-assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ token, planoId, nomeCartao, cpf }),

@@ -254,7 +254,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
           document.getElementById('checkoutMPForm').style.display = 'block';
         },
         onError: (erros) => {
-          console.error('MP CardForm erros:', erros);
+          console.error('MP CardForm erros:', JSON.stringify(erros));
+          mostrarErroCheckout('ERRO SDK: ' + JSON.stringify(erros));
         },
         onSubmit: async (event) => {
           event.preventDefault();
@@ -269,9 +270,10 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
     });
 
   } catch (erro) {
+    console.error('checkout-modal catch:', erro);
     document.getElementById('checkoutMPCarregando').style.display = 'none';
     document.getElementById('checkoutMPForm').style.display = 'block';
-    mostrarErroCheckout(erro.message || 'Erro ao carregar o formulário de pagamento.');
+    mostrarErroCheckout('CATCH: ' + (erro.message || JSON.stringify(erro)));
   }
 }
 

@@ -145,9 +145,10 @@ function validarRegistro(store, registro) {
 }
 
 /**
- * Central de Dados > Metas é um recurso exclusivo do plano Pro (mensal ou
- * anual) — planos Free/Essencial não podem cadastrar metas, só visualizar
- * a Central de Dados na versão simplificada (ver js/central-dados.js).
+ * Central de Dados (dashboard com insights avançados) é um recurso exclusivo
+ * do plano Pro (mensal ou anual) — Free e Essencial não veem a aba (gating
+ * em aplicarRestricoesDePapel, app.js). Dentro dela, o cadastro de Metas
+ * (ver js/central-dados.js) usa este mesmo helper para o bloqueio no backend.
  */
 function ehPlanoPro(planoId) {
   return planoId === 'pro' || planoId === 'pro_anual';

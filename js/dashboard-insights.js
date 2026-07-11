@@ -6,7 +6,7 @@
  *   2. Melhor faixa de horário
  *   3. Comparativo mês atual vs. mês anterior (receita + quantidade)
  *   4. Gráfico SVG dos últimos 7 dias (barras inline, zero Canvas)
- *   5. Metas mensais rápidas (configuráveis pelo dono mesmo no Essencial)
+ *   5. Metas mensais rápidas (configuráveis pelo dono)
  *   6. Alertas automáticos enriquecidos (estoque crítico, produto parado,
  *      meta em risco, tendência de queda)
  *
@@ -24,9 +24,11 @@
 ;(function () {
   'use strict';
 
-  // ── Chave de localStorage para metas rápidas (Essencial) ─────────────────
-  // As metas do plano Pro vivem no D1; estas vivem só no navegador e são
-  // exibidas somente na seção de insights — sem conflito.
+  // ── Chave de localStorage para metas rápidas ──────────────────────────────
+  // Este arquivo inteiro só é alcançado por quem já está na aba Central,
+  // hoje restrita ao plano Pro (ver aplicarRestricoesDePapel em app.js).
+  // Estas metas rápidas vivem só no navegador (ao contrário das metas do
+  // D1) e são exibidas somente na seção de insights — sem conflito.
   const CHAVE_META_RAPIDA = 'mev_meta_mensal_rapida';
 
   // ── Helpers de data ───────────────────────────────────────────────────────
@@ -372,8 +374,8 @@
       </div>` : '';
 
     // ── 5. Meta mensal rápida ────────────────────────────────────────────────
-    // Aparece para o dono em qualquer plano. No Pro, é complementar
-    // às metas do D1 (mais completas). No Essencial, é a única opção.
+    // Aparece para o dono (plano Pro, já que é a única forma de chegar
+    // aqui). É complementar às metas "oficiais" do D1, mais completas.
     const receitaMes = comp.receita.atual;
     const htmlMeta = ehDono ? `
       <div class="di-bloco">

@@ -75,15 +75,17 @@ document.addEventListener('keydown', (e) => {
  * Esconde as abas que o papel da pessoa logada não deveria ver:
  * vendedor só mexe em Venda, estoquista só mexe em Estoque, dono vê tudo.
  * Conta e Contato ficam liberados pra todo mundo.
- * Recursos pagos (aba Atividades e importação de produtos) ficam ocultos
- * para usuários no plano gratuito.
+ * Importação de produtos fica oculta para usuários no plano gratuito.
+ * Central (dashboard com insights avançados) e Atividades (auditoria)
+ * são recursos exclusivos do plano Pro — Essencial não vê nenhuma das duas.
  */
 function aplicarRestricoesDePapel(papel) {
   const ehPlanoPago = usuarioLogadoPlano && usuarioLogadoPlano !== 'gratis' && usuarioLogadoPlano !== 'free';
+  const ehPlanoPro = usuarioLogadoPlano === 'pro' || usuarioLogadoPlano === 'pro_anual';
 
   const abasPorPapel = {
-    // Aba Atividades só aparece para donos em planos pagos
-    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPago ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
+    // Abas Central e Atividades só aparecem para donos no plano Pro
+    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
     vendedor: ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato']
   };

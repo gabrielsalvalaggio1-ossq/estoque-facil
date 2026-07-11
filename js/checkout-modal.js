@@ -97,6 +97,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         </div>
 
         <select id="checkoutIssuer" style="display:none;"></select>
+        <select id="checkoutTipoDoc" style="display:none;"></select>
+        <select id="checkoutParcelas" style="display:none;"></select>
         <p class="checkout-mp-erro" id="checkoutMPErro" style="display:none;"></p>
 
         <button type="button" class="checkout-mp-btn-pagar" id="btnCheckoutPagar">

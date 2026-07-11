@@ -262,9 +262,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         cardExpirationYear: { id: 'checkoutAno', placeholder: 'AA' },
         securityCode: { id: 'checkoutCVV', placeholder: '123' },
         cardholderName: { id: 'checkoutNomeTitular' },
-        identificationType: { id: 'checkoutTipoDoc' }, // campo oculto
         issuer: { id: 'checkoutIssuer' }, // campo oculto
-        identificationNumber: { id: 'checkoutCPF' },
         installments: { id: 'checkoutParcelas' }, // campo oculto
       },
       callbacks: {
@@ -279,8 +277,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         },
         onSubmit: async (event) => {
           event.preventDefault();
-          const { token, paymentMethodId, issuerId, cardholderName, identificationNumber } = cardForm.getCardFormData();
-          const cpfLimpo = (identificationNumber || '').replace(/\D/g, '');
+          const { token, cardholderName } = cardForm.getCardFormData();
+          const cpfLimpo = (document.getElementById('checkoutCPF')?.value || '').replace(/\D/g, '');
           await processarPagamento({ token, nomeCartao: cardholderName, cpf: cpfLimpo });
         },
       },

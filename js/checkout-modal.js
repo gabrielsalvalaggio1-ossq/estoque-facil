@@ -17,7 +17,6 @@ const CHECKOUT_NOMES_PLANO = {
 };
 
 let _mpInstance = null;
-let _cardFormInstance = null;
 let _checkoutCallback = null;
 let _checkoutPlanoId = null;
 
@@ -62,7 +61,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         Carregando formulário seguro…
       </div>
 
-      <div id="checkoutMPForm" style="display:none;">
+      <form id="checkoutMPForm" style="display:none;" onsubmit="return false;">
         <div class="checkout-mp-field">
           <label for="checkoutNumeroCartao">Número do cartão</label>
           <div id="checkoutNumeroCartao" class="checkout-mp-input-mp"></div>
@@ -102,7 +101,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         <p class="checkout-mp-seguro">
           Pagamento processado pelo Mercado Pago · Seus dados não passam pelos nossos servidores
         </p>
-      </div>
+      </form>
 
       <div id="checkoutMPSucesso" style="display:none;" class="checkout-mp-sucesso">
         <div class="checkout-mp-sucesso-icone">✓</div>
@@ -240,7 +239,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
       amount: '0', // o valor real é determinado pelo plano no backend
       iframe: true,
       form: {
-        id: 'checkoutMPForm', // não é um <form> real, mas o MP usa o id pra encontrar os campos
+        id: 'checkoutMPForm', // deve ser um <form> real para o SDK do MP montar os iframes
         cardNumber: { id: 'checkoutNumeroCartao', placeholder: '0000 0000 0000 0000' },
         expirationDate: { id: 'checkoutValidade', placeholder: 'MM/AA' },
         securityCode: { id: 'checkoutCVV', placeholder: '123' },
@@ -264,8 +263,6 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         },
       },
     });
-
-    _cardFormInstance = cardForm;
 
     document.getElementById('btnCheckoutPagar').addEventListener('click', () => {
       cardForm.submit();
@@ -325,10 +322,6 @@ function mostrarErroCheckout(mensagem) {
 }
 
 function fecharModalCheckoutMP() {
-  if (_cardFormInstance) {
-    try { _cardFormInstance.unmount(); } catch (e) { /* ignora se já desmontado */ }
-    _cardFormInstance = null;
-  }
   const overlay = document.getElementById('checkoutMPOverlay');
   if (overlay) overlay.remove();
   document.removeEventListener('keydown', _escCheckout);

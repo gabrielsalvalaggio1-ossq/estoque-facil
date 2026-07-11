@@ -808,8 +808,17 @@
     aplicar();
   })();
 </script>
-
+<!-- final do body, antes de </body> -->
 <script src="/js/db.js"></script>
 <script src="/js/checkout-modal.js"></script>
+<script>
+  function clicarAssinar(planoBase) {
+    const anual = document.getElementById('switchBilling').classList.contains('on');
+    const planoId = anual ? planoBase + '_anual' : planoBase;
+    abrirModalCheckoutMP(planoId, () => {
+      window.location.href = '/';
+    });
+  }
+</script>
 </body>
 </html>

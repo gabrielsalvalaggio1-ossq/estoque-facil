@@ -185,10 +185,23 @@ export async function onRequestPost(context) {
       });
       const mpData = await mpRes.json();
       if (!mpRes.ok) return json({ error: mpData.message || 'Erro ao gerar boleto.', mp_detalhe: mpData }, 502);
+
+      // Em ambiente de teste o MP cria o boleto mas rejeita automaticamente (sem boletoUrl)
+      const boletoUrl = mpData.transaction_details?.external_resource_url;
+      if (!boletoUrl || mpData.status === 'rejected') {
+        return json({
+          ok: true,
+          pagamentoId: String(mpData.id),
+          status: 'rejected',
+          boletoUrl: null,
+          boletoLinhaDigitavel: null,
+        });
+      }
+
       return json({
         ok: true,
         pagamentoId: String(mpData.id),
-        boletoUrl: mpData.transaction_details?.external_resource_url,
+        boletoUrl,
         boletoLinhaDigitavel: mpData.barcode?.content,
         status: mpData.status,
       });

@@ -27,6 +27,7 @@ function _temBoleto(planoId) {
 }
 
 let _mpInstance = null;
+let _cardFormInstance = null;   // rastreia o cardForm para destruir ao fechar
 let _checkoutCallback = null;
 let _checkoutPlanoId = null;
 
@@ -397,7 +398,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
     if (!window.DB) throw new Error('Módulo de dados não carregado. Recarregue a página.');
     const { publicKey } = await window.DB.iniciarCheckout();
     const mp = await carregarSDKMercadoPago(publicKey);
-    const cardForm = mp.cardForm({
+    _cardFormInstance = mp.cardForm({
       amount: CHECKOUT_VALORES_PLANO[_checkoutPlanoId] || '19.90',
       iframe: true,
       form: {
@@ -421,14 +422,14 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         },
         onSubmit: async (event) => {
           event.preventDefault();
-          const { token, cardholderName } = cardForm.getCardFormData();
+          const { token, cardholderName } = _cardFormInstance.getCardFormData();
           const cpf = (document.getElementById('checkoutCPF')?.value || '').replace(/\D/g, '');
           await _processarCartao({ token, nomeCartao: cardholderName, cpf });
         },
       },
     });
 
-    document.getElementById('btnCheckoutPagar').addEventListener('click', () => cardForm.submit());
+    document.getElementById('btnCheckoutPagar').addEventListener('click', () => _cardFormInstance.submit());
 
   } catch (erro) {
     document.getElementById('checkoutMPCarregando').style.display = 'none';
@@ -483,11 +484,12 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         document.getElementById('checkoutBoletoGerado').style.display = '';
         document.getElementById('checkoutBoletoLinhaDigitavel').value = res.boletoLinhaDigitavel || '';
         document.getElementById('checkoutBoletoPDF').href = res.boletoUrl;
-      } else if (res.status === 'rejected') {
-        _mostrarErro('checkoutMPErroBoleto', 'Boleto não aprovado pelo Mercado Pago. Em ambiente de teste o boleto não é processado — tente em produção ou use Pix.');
+      } else if (res.status === 'rejected' || (!res.boletoUrl && res.ok)) {
+        // Em ambiente de teste o boleto é criado mas rejeitado automaticamente (sem boletoUrl)
+        _mostrarErro('checkoutMPErroBoleto', 'Em ambiente de teste o boleto não é processado — tente em produção ou use Pix.');
         btn.disabled = false; btn.textContent = 'Gerar boleto';
       } else {
-        _mostrarErro('checkoutMPErroBoleto', 'Erro ao gerar boleto. Tente novamente.');
+        _mostrarErro('checkoutMPErroBoleto', res.error || 'Erro ao gerar boleto. Tente novamente.');
         btn.disabled = false; btn.textContent = 'Gerar boleto';
       }
     } catch (e) {
@@ -570,6 +572,15 @@ function mostrarErroCheckout(mensagem) { _mostrarErro('checkoutMPErroCartao', me
 
 function fecharModalCheckoutMP() {
   if (_pollingInterval) { clearInterval(_pollingInterval); _pollingInterval = null; }
+
+  // Destroi o cardForm antes de remover o DOM para evitar erro na reabertura do modal
+  if (_cardFormInstance) {
+    try { _cardFormInstance.unmount(); } catch (_) {}
+    _cardFormInstance = null;
+  }
+  // Reseta a instância do MP para que o cardForm seja recriado com os novos elementos do DOM
+  _mpInstance = null;
+
   const overlay = document.getElementById('checkoutMPOverlay');
   if (overlay) overlay.remove();
   document.removeEventListener('keydown', _escCheckout);

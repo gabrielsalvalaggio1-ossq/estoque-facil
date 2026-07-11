@@ -232,7 +232,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
 
   // Carrega SDK e monta o formulário
   try {
-    const { publicKey } = await DB.iniciarCheckout();
+    if (!window.DB) throw new Error('Módulo de dados não carregado. Recarregue a página e tente novamente.');
+    const { publicKey } = await window.DB.iniciarCheckout();
     const mp = await carregarSDKMercadoPago(publicKey);
     const cardForm = mp.cardForm({
       amount: '0', // o valor real é determinado pelo plano no backend
@@ -287,7 +288,7 @@ async function processarPagamento({ token, nomeCartao, cpf }) {
   if (erroEl) erroEl.style.display = 'none';
 
   try {
-    const resultado = await DB.assinarComCartao({
+    const resultado = await window.DB.assinarComCartao({
       token,
       planoId: _checkoutPlanoId,
       nomeCartao,

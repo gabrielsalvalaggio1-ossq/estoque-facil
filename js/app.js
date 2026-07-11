@@ -105,6 +105,12 @@ function aplicarRestricoesDePapel(papel) {
     botao.style.display = podeImportar ? '' : 'none';
   });
 
+  // Etiquetas de preço: dono e estoquista podem pelo papel,
+  // mas apenas em planos pagos (Essencial ou Pro — recurso premium).
+  const podeEtiquetas = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
+  const btnEtiquetas = document.getElementById('btnSelecionarEtiquetas');
+  if (btnEtiquetas) btnEtiquetas.style.display = podeEtiquetas ? '' : 'none';
+
   // KPI "Vendido no mês" e Exportar: só o dono vê
   const ehFuncionario = papel === 'vendedor' || papel === 'estoquista';
   const statMesWrap = document.getElementById('statMes')?.closest('.stat');

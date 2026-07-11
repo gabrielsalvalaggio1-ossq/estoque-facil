@@ -69,8 +69,12 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
 
         <div class="checkout-mp-row">
           <div class="checkout-mp-field">
-            <label for="checkoutValidade">Validade</label>
-            <div id="checkoutValidade" class="checkout-mp-input-mp"></div>
+            <label for="checkoutMes">Mês</label>
+            <div id="checkoutMes" class="checkout-mp-input-mp"></div>
+          </div>
+          <div class="checkout-mp-field">
+            <label for="checkoutAno">Ano</label>
+            <div id="checkoutAno" class="checkout-mp-input-mp"></div>
           </div>
           <div class="checkout-mp-field">
             <label for="checkoutCVV">CVV</label>
@@ -172,8 +176,11 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
       }
       .checkout-mp-input-mp {
         border: 1.5px solid #D9D4C2; border-radius: 9px;
-        padding: 12px 14px; background: #FBFAF3;
-        min-height: 46px; transition: border-color .2s;
+        padding: 0; background: #FBFAF3;
+        height: 46px; overflow: hidden; transition: border-color .2s;
+      }
+      .checkout-mp-input-mp iframe {
+        width: 100%; height: 46px; border: none; display: block;
       }
       .checkout-mp-input-mp:focus-within { border-color: #1B3A2F; }
       .checkout-mp-input {
@@ -183,7 +190,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         transition: border-color .2s;
       }
       .checkout-mp-input:focus { border-color: #1B3A2F; }
-      .checkout-mp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .checkout-mp-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
       .checkout-mp-erro {
         background: #FCE4DA; color: #8F2E14; border-radius: 8px;
         padding: 10px 14px; font-size: 13.5px; margin-bottom: 14px;
@@ -242,7 +249,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
       form: {
         id: 'checkoutMPForm', // deve ser um <form> real para o SDK do MP montar os iframes
         cardNumber: { id: 'checkoutNumeroCartao', placeholder: '0000 0000 0000 0000' },
-        expirationDate: { id: 'checkoutValidade', placeholder: 'MM/AA' },
+        cardExpirationMonth: { id: 'checkoutMes', placeholder: 'MM' },
+        cardExpirationYear: { id: 'checkoutAno', placeholder: 'AA' },
         securityCode: { id: 'checkoutCVV', placeholder: '123' },
         cardholderName: { id: 'checkoutNomeTitular' },
         identificationType: { id: 'checkoutTipoDoc' }, // campo oculto

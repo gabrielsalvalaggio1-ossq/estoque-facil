@@ -372,6 +372,19 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
       document.getElementById('checkoutPainelPix').style.display = aba === 'pix' ? '' : 'none';
       const painelBoleto = document.getElementById('checkoutPainelBoleto');
       if (painelBoleto) painelBoleto.style.display = aba === 'boleto' ? '' : 'none';
+
+      // Se voltou pra aba cartão e o form já foi montado, remove o loading
+      if (aba === 'cartao') {
+        const form = document.getElementById('checkoutMPForm');
+        const loading = document.getElementById('checkoutMPCarregando');
+        if (form && form.style.display !== 'none') return; // já visível
+        if (form && loading && loading.style.display === 'none') return; // já ok
+        // SDK já inicializado mas form ainda oculto — força exibição
+        if (_mpInstance && form) {
+          if (loading) loading.style.display = 'none';
+          form.style.display = 'block';
+        }
+      }
     });
   });
 
@@ -470,6 +483,12 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         document.getElementById('checkoutBoletoGerado').style.display = '';
         document.getElementById('checkoutBoletoLinhaDigitavel').value = res.boletoLinhaDigitavel || '';
         document.getElementById('checkoutBoletoPDF').href = res.boletoUrl;
+      } else if (res.status === 'rejected') {
+        _mostrarErro('checkoutMPErroBoleto', 'Boleto não aprovado pelo Mercado Pago. Em ambiente de teste o boleto não é processado — tente em produção ou use Pix.');
+        btn.disabled = false; btn.textContent = 'Gerar boleto';
+      } else {
+        _mostrarErro('checkoutMPErroBoleto', 'Erro ao gerar boleto. Tente novamente.');
+        btn.disabled = false; btn.textContent = 'Gerar boleto';
       }
     } catch (e) {
       _mostrarErro('checkoutMPErroBoleto', e.message || 'Erro ao gerar boleto.');

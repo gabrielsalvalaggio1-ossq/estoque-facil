@@ -92,6 +92,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
             autocomplete="off" maxlength="14" inputmode="numeric">
         </div>
 
+        <select id="checkoutIssuer" style="display:none;"></select>
         <p class="checkout-mp-erro" id="checkoutMPErro" style="display:none;"></p>
 
         <button type="button" class="checkout-mp-btn-pagar" id="btnCheckoutPagar">
@@ -245,6 +246,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         securityCode: { id: 'checkoutCVV', placeholder: '123' },
         cardholderName: { id: 'checkoutNomeTitular' },
         identificationType: { id: 'checkoutTipoDoc' }, // campo oculto
+        issuer: { id: 'checkoutIssuer' }, // campo oculto
         identificationNumber: { id: 'checkoutCPF' },
         installments: { id: 'checkoutParcelas' }, // campo oculto
       },
@@ -254,8 +256,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
           document.getElementById('checkoutMPForm').style.display = 'block';
         },
         onError: (erros) => {
-          console.error('MP CardForm erros:', JSON.stringify(erros));
-          mostrarErroCheckout('ERRO SDK: ' + JSON.stringify(erros));
+          console.error('MP CardForm erros:', erros);
         },
         onSubmit: async (event) => {
           event.preventDefault();
@@ -270,10 +271,9 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
     });
 
   } catch (erro) {
-    console.error('checkout-modal catch:', erro);
     document.getElementById('checkoutMPCarregando').style.display = 'none';
     document.getElementById('checkoutMPForm').style.display = 'block';
-    mostrarErroCheckout('CATCH: ' + (erro.message || JSON.stringify(erro)));
+    mostrarErroCheckout(erro.message || 'Erro ao carregar o formulário de pagamento.');
   }
 }
 

@@ -2,16 +2,11 @@
  * functions/api/webhook-mp.js
  *
  * Recebe notificações do Mercado Pago sobre assinaturas (preapproval).
- * Funciona como segurança extra além do retorno direto do checkout:
- * mesmo se o browser do usuário fechar antes da confirmação, o webhook
- * garante que o plano vai ser ativado/cancelado corretamente.
- *
- * Configure no painel do MP:
- *   URL: https://estoque-facil.pages.dev/api/webhook-mp
- *   Evento: preapproval
+ * Valida a assinatura do webhook antes de processar qualquer coisa.
  *
  * Variáveis de ambiente:
  *   MP_ACCESS_TOKEN_TEST ou MP_ACCESS_TOKEN
+ *   MP_WEBHOOK_SECRET  ← assinatura secreta gerada pelo MP
  */
 
 function json(dados, status = 200) {
@@ -22,13 +17,58 @@ function json(dados, status = 200) {
 
 function calcularExpiracao(planoId) {
   const data = new Date();
-  planoId.endsWith('_anual') ? data.setFullYear(data.getFullYear() + 1) : data.setMonth(data.getMonth() + 1);
+  planoId.endsWith('_anual')
+    ? data.setFullYear(data.getFullYear() + 1)
+    : data.setMonth(data.getMonth() + 1);
   return data.toISOString();
+}
+
+/**
+ * Valida a assinatura HMAC-SHA256 que o MP envia no header
+ * x-signature junto com o timestamp (x-request-id).
+ * Sem isso, qualquer pessoa poderia POST no endpoint e ativar planos.
+ */
+async function validarAssinaturaMP(request, secret) {
+  const xSignature = request.headers.get('x-signature') || '';
+  const xRequestId = request.headers.get('x-request-id') || '';
+
+  // O MP manda: ts=TIMESTAMP,v1=HASH
+  const ts = (xSignature.match(/ts=([^,]+)/) || [])[1] || '';
+  const v1 = (xSignature.match(/v1=([^,]+)/) || [])[1] || '';
+
+  if (!ts || !v1) return false;
+
+  // Monta a string que o MP assinou: id;ts;
+  const url = new URL(request.url);
+  const queryId = url.searchParams.get('data.id') || '';
+  const mensagem = `id:${queryId};request-id:${xRequestId};ts:${ts};`;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false, ['sign']
+  );
+  const assinatura = await crypto.subtle.sign('HMAC', key, encoder.encode(mensagem));
+  const hash = Array.from(new Uint8Array(assinatura))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return hash === v1;
 }
 
 export async function onRequestPost({ request, env }) {
   const db = env.DB;
   if (!db) return new Response('ok', { status: 200 });
+
+  // Valida assinatura do webhook
+  const secret = env.MP_WEBHOOK_SECRET;
+  if (secret) {
+    const valido = await validarAssinaturaMP(request, secret);
+    if (!valido) {
+      console.warn('Webhook MP: assinatura inválida — requisição rejeitada');
+      return new Response('unauthorized', { status: 401 });
+    }
+  }
 
   let body;
   try { body = await request.json(); } catch {
@@ -49,8 +89,6 @@ export async function onRequestPost({ request, env }) {
   if (!mpRes.ok) return new Response('ok', { status: 200 });
 
   const assinatura = await mpRes.json();
-
-  // external_reference = "empresaId|planoId"
   const [empresaId, planoId] = (assinatura.external_reference || '').split('|');
   if (!empresaId || !planoId) return new Response('ok', { status: 200 });
 
@@ -60,9 +98,8 @@ export async function onRequestPost({ request, env }) {
     if (status === 'authorized') {
       const dataExpiracao = calcularExpiracao(planoId);
 
-      // Idempotente: se já existe assinatura com esse mp_preapproval_id, não duplica
       const jaExiste = await db
-        .prepare(`SELECT id FROM assinaturas WHERE mp_preapproval_id = ?`)
+        .prepare('SELECT id FROM assinaturas WHERE mp_preapproval_id = ?')
         .bind(preapprovalId).first();
 
       if (!jaExiste) {
@@ -85,8 +122,7 @@ export async function onRequestPost({ request, env }) {
       const dono = await db.prepare('SELECT dono_email FROM empresas WHERE id = ?').bind(empresaId).first();
       if (dono && dono.dono_email) {
         await db.prepare(`
-          UPDATE usuarios SET plano_atual = ?, status_assinatura = 'ACTIVE', data_expiracao = ?
-          WHERE email = ?
+          UPDATE usuarios SET plano_atual = ?, status_assinatura = 'ACTIVE', data_expiracao = ? WHERE email = ?
         `).bind(planoId, dataExpiracao, dono.dono_email).run();
       }
 
@@ -98,7 +134,6 @@ export async function onRequestPost({ request, env }) {
         WHERE empresa_id = ? AND mp_preapproval_id = ?
       `).bind(`Cancelado via MP (${status})`, empresaId, preapprovalId).run();
 
-      // Garante que existe uma linha free ativa
       await db.prepare(`
         INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
         VALUES (?, ?, NULL, 'free', 'ACTIVE', datetime('now'))

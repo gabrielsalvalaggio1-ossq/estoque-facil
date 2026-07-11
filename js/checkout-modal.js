@@ -280,7 +280,8 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
         onSubmit: async (event) => {
           event.preventDefault();
           const { token, paymentMethodId, issuerId, cardholderName, identificationNumber } = cardForm.getCardFormData();
-          await processarPagamento({ token, nomeCartao: cardholderName, cpf: identificationNumber });
+          const cpfLimpo = (identificationNumber || '').replace(/\D/g, '');
+          await processarPagamento({ token, nomeCartao: cardholderName, cpf: cpfLimpo });
         },
       },
     });

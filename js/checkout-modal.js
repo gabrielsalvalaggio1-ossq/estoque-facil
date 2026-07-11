@@ -16,6 +16,13 @@ const CHECKOUT_NOMES_PLANO = {
   pro_anual:       'Pro Anual — R$ 399,00/ano',
 };
 
+const CHECKOUT_VALORES_PLANO = {
+  essencial:       '19.90',
+  essencial_anual: '199.00',
+  pro:             '39.90',
+  pro_anual:       '399.00',
+};
+
 let _mpInstance = null;
 let _checkoutCallback = null;
 let _checkoutPlanoId = null;
@@ -246,7 +253,7 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
     const { publicKey } = await window.DB.iniciarCheckout();
     const mp = await carregarSDKMercadoPago(publicKey);
     const cardForm = mp.cardForm({
-      amount: '0', // o valor real é determinado pelo plano no backend
+      amount: CHECKOUT_VALORES_PLANO[_checkoutPlanoId] || '19.90',
       iframe: true,
       form: {
         id: 'checkoutMPForm', // deve ser um <form> real para o SDK do MP montar os iframes

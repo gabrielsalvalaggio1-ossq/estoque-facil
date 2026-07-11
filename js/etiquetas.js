@@ -145,8 +145,26 @@ const MODELOS_ETIQUETA = {
   }
 };
 
+const MODELO_PERSONALIZADO_ID = 'personalizado';
+
 function listarModelosEtiqueta() {
   return Object.values(MODELOS_ETIQUETA);
+}
+
+/**
+ * Constrói um objeto de modelo a partir de dimensões livres (mm).
+ * Usado quando o usuário escolhe "Personalizado" no select.
+ */
+function criarModeloPersonalizado(larguraMm, alturaMm, folha) {
+  return {
+    id: MODELO_PERSONALIZADO_ID,
+    nome: `Personalizado ${larguraMm} × ${alturaMm} mm`,
+    larguraMm: parseFloat(larguraMm) || 50,
+    alturaMm: parseFloat(alturaMm) || 30,
+    folha: folha || 'continua',
+    margemMm: folha === 'grade-a4' ? 8 : 0,
+    espacamentoMm: folha === 'grade-a4' ? 3 : 0,
+  };
 }
 
 // -------------------------------------------------------------------------
@@ -212,8 +230,8 @@ function _htmlDeUmaEtiqueta(produto, modelo, config, nomeEmpresa) {
  *
  * itens = [{ produto, quantidade }]
  */
-function gerarHtmlFolhaEtiquetas(itens, modeloId, config, nomeEmpresa) {
-  const modelo = MODELOS_ETIQUETA[modeloId] || MODELOS_ETIQUETA.padrao_50x30;
+function gerarHtmlFolhaEtiquetas(itens, modeloId, config, nomeEmpresa, modeloCustom) {
+  const modelo = modeloCustom || MODELOS_ETIQUETA[modeloId] || MODELOS_ETIQUETA.padrao_50x30;
   const etiquetasHtml = [];
   itens.forEach(({ produto, quantidade }) => {
     const qtd = Math.max(1, parseInt(quantidade, 10) || 1);
@@ -262,8 +280,8 @@ function _cssEtiquetas(modelo) {
 }
 
 /** HTML completo (documento inteiro) pronto pra abrir numa aba/iframe de impressão. */
-function gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, nomeEmpresa) {
-  const { modelo, html } = gerarHtmlFolhaEtiquetas(itens, modeloId, config, nomeEmpresa);
+function gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, nomeEmpresa, modeloCustom) {
+  const { modelo, html } = gerarHtmlFolhaEtiquetas(itens, modeloId, config, nomeEmpresa, modeloCustom);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -279,7 +297,9 @@ function gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, nomeEmpresa) 
 
 window.Etiquetas = {
   MODELOS_ETIQUETA,
+  MODELO_PERSONALIZADO_ID,
   listarModelosEtiqueta,
+  criarModeloPersonalizado,
   gerarHtmlFolhaEtiquetas,
   gerarDocumentoImpressaoEtiquetas,
   gerarSvgCodigoBarras,

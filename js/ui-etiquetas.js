@@ -75,7 +75,29 @@ function abrirConfigEtiquetas() {
         <label for="fModeloEtiqueta">Modelo de etiqueta</label>
         <select id="fModeloEtiqueta" class="filtro-select">
           ${modelos.map(m => `<option value="${m.id}" ${m.id === 'padrao_50x30' ? 'selected' : ''}>${escaparHtml(m.nome)}</option>`).join('')}
+          <option value="personalizado">Personalizado (inserir medidas)</option>
         </select>
+      </div>
+
+      <div class="field" id="campoPersonalizado" style="display:none;">
+        <label>Medidas personalizadas</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <label style="display:flex; flex-direction:column; gap:3px; font-size:13px;">
+            Largura (mm)
+            <input type="number" id="fLarguraMm" min="10" max="300" step="0.5" value="50" class="filtro-select" style="width:90px;">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:3px; font-size:13px;">
+            Altura (mm)
+            <input type="number" id="fAlturaMm" min="10" max="300" step="0.5" value="30" class="filtro-select" style="width:90px;">
+          </label>
+          <label style="display:flex; flex-direction:column; gap:3px; font-size:13px;">
+            Tipo de folha
+            <select id="fFolhaPersonalizado" class="filtro-select" style="width:160px;">
+              <option value="continua">Rolo / Térmica</option>
+              <option value="grade-a4">Folha A4 adesiva</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="field">
@@ -124,6 +146,12 @@ function abrirConfigEtiquetas() {
   document.getElementById('btnPreVisualizarEtiquetas').addEventListener('click', () => {
     abrirPreviewEtiquetas(produtosSelecionadosLista);
   });
+
+  // Mostra/oculta campos de medidas personalizadas
+  document.getElementById('fModeloEtiqueta').addEventListener('change', function() {
+    document.getElementById('campoPersonalizado').style.display =
+      this.value === 'personalizado' ? '' : 'none';
+  });
 }
 
 function fecharModalEtiquetas() {
@@ -150,6 +178,15 @@ function _coletarConfigEtiquetas() {
   };
 }
 
+function _coletarModeloCustom() {
+  const modeloId = document.getElementById('fModeloEtiqueta').value;
+  if (modeloId !== 'personalizado') return null;
+  const largura = parseFloat(document.getElementById('fLarguraMm').value) || 50;
+  const altura = parseFloat(document.getElementById('fAlturaMm').value) || 30;
+  const folha = document.getElementById('fFolhaPersonalizado').value;
+  return Etiquetas.criarModeloPersonalizado(largura, altura, folha);
+}
+
 function _coletarItensEtiquetas(produtosSelecionadosLista) {
   return produtosSelecionadosLista.map(p => {
     const input = document.querySelector(`.input-qtd-etiqueta[data-produto-id="${p.id}"]`);
@@ -162,10 +199,11 @@ function _coletarItensEtiquetas(produtosSelecionadosLista) {
 function abrirPreviewEtiquetas(produtosSelecionadosLista) {
   const modeloId = document.getElementById('fModeloEtiqueta').value;
   const config = _coletarConfigEtiquetas();
+  const modeloCustom = _coletarModeloCustom();
   const itens = _coletarItensEtiquetas(produtosSelecionadosLista);
   const totalEtiquetas = itens.reduce((soma, i) => soma + i.quantidade, 0);
 
-  const { modelo, html } = Etiquetas.gerarHtmlFolhaEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa);
+  const { modelo, html } = Etiquetas.gerarHtmlFolhaEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa, modeloCustom);
 
   fecharModalEtiquetas();
 
@@ -194,13 +232,13 @@ function abrirPreviewEtiquetas(produtosSelecionadosLista) {
     abrirConfigEtiquetas();
   });
   document.getElementById('btnImprimirEtiquetasFinal').addEventListener('click', () => {
-    imprimirEtiquetas(itens, modeloId, config);
+    imprimirEtiquetas(itens, modeloId, config, modeloCustom);
   });
 }
 
 /** Abre uma aba nova só com a folha de etiquetas (CSS de impressão isolado do resto do app) e dispara o print(). */
-function imprimirEtiquetas(itens, modeloId, config) {
-  const documentoHtml = Etiquetas.gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa);
+function imprimirEtiquetas(itens, modeloId, config, modeloCustom) {
+  const documentoHtml = Etiquetas.gerarDocumentoImpressaoEtiquetas(itens, modeloId, config, usuarioLogadoNomeEmpresa, modeloCustom);
   const janela = window.open('', '_blank');
   if (!janela) {
     mostrarToast('Não foi possível abrir a janela de impressão. Verifique se o navegador está bloqueando pop-ups.', 'info');
@@ -217,4 +255,3 @@ function imprimirEtiquetas(itens, modeloId, config) {
   fecharPreviewEtiquetas();
   cancelarSelecaoEtiquetas();
 }
-

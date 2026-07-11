@@ -111,10 +111,17 @@ export async function onRequestPost({ request, env }) {
           WHERE empresa_id = ? AND status IN ('FREE','TRIAL','ACTIVE','PAST_DUE')
         `).bind(empresaId).run();
 
+        const empresaRow = await db.prepare('SELECT dono_email FROM empresas WHERE id = ? LIMIT 1').bind(empresaId).first();
+        const donoEmail = empresaRow && empresaRow.dono_email;
+        const usuarioRow = donoEmail
+          ? await db.prepare('SELECT id FROM usuarios WHERE email = ? LIMIT 1').bind(donoEmail).first()
+          : null;
+        if (!usuarioRow) throw new Error('Usuário dono não encontrado para empresa: ' + empresaId);
+
         await db.prepare(`
           INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao, mp_preapproval_id)
-          VALUES (?, ?, NULL, ?, 'ACTIVE', datetime('now'), ?, ?)
-        `).bind(`sub-mp-${preapprovalId}`, empresaId, planoId, dataExpiracao, preapprovalId).run();
+          VALUES (?, ?, ?, ?, 'ACTIVE', datetime('now'), ?, ?)
+        `).bind(`sub-mp-${preapprovalId}`, empresaId, usuarioRow.id, planoId, dataExpiracao, preapprovalId).run();
       }
 
       await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
@@ -134,14 +141,20 @@ export async function onRequestPost({ request, env }) {
         WHERE empresa_id = ? AND mp_preapproval_id = ?
       `).bind(`Cancelado via MP (${status})`, empresaId, preapprovalId).run();
 
+      const donoParaFree = await db.prepare('SELECT dono_email FROM empresas WHERE id = ? LIMIT 1').bind(empresaId).first();
+      const usuarioParaFree = donoParaFree
+        ? await db.prepare('SELECT id FROM usuarios WHERE email = ? LIMIT 1').bind(donoParaFree.dono_email).first()
+        : null;
+      if (!usuarioParaFree) throw new Error('Usuário dono não encontrado ao reverter para free: ' + empresaId);
+
       await db.prepare(`
         INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
-        VALUES (?, ?, NULL, 'free', 'ACTIVE', datetime('now'))
-      `).bind(`sub-free-${empresaId}-${Date.now()}`, empresaId).run();
+        VALUES (?, ?, ?, 'free', 'ACTIVE', datetime('now'))
+      `).bind(`sub-free-${empresaId}-${Date.now()}`, empresaId, usuarioParaFree.id).run();
 
       await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind('free', empresaId).run();
 
-      const dono = await db.prepare('SELECT dono_email FROM empresas WHERE id = ?').bind(empresaId).first();
+      const dono = donoParaFree;
       if (dono && dono.dono_email) {
         await db.prepare(`
           UPDATE usuarios SET plano_atual = 'free', status_assinatura = 'CANCELED' WHERE email = ?

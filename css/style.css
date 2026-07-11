@@ -2347,3 +2347,425 @@ body.auth-page{
     opacity:1; position:static; justify-content:flex-end; margin-bottom:4px;
   }
 }
+
+/* ==========================================================================
+   DASHBOARD INSIGHTS PRO — Estilos adicionais
+   Todos os seletores começam com .di- ou .pro-paywall- para não colidir.
+   Importado/concatenado ao style.css existente.
+   ========================================================================== */
+
+/* ── Wrapper geral ─────────────────────────────────────────────────────────── */
+.di-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Bloco base ────────────────────────────────────────────────────────────── */
+.di-bloco {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+  margin-bottom: 14px;
+}
+.di-bloco-ok {
+  border-color: #B8D9C7;
+  background: #F2FAF5;
+}
+.di-bloco-alerta {
+  border-color: #F5DDA5;
+  background: #FFFBF0;
+}
+
+.di-titulo-secao {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .10em;
+  color: var(--ink-soft);
+  margin: 0 0 14px;
+}
+
+/* ── Filtros de período ────────────────────────────────────────────────────── */
+.di-filtros-wrap {
+  margin: 0 0 18px;
+}
+.di-filtros-btns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.di-filtro-btn {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s, transform .1s;
+  font-family: 'Inter', sans-serif;
+}
+.di-filtro-btn:hover { background: var(--paper-dim); }
+.di-filtro-btn:active { transform: scale(0.97); }
+.di-filtro-btn.ativo {
+  background: var(--ledger);
+  color: var(--paper);
+  border-color: var(--ledger);
+}
+
+/* Datas personalizadas */
+.di-custom-datas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: var(--paper-dim);
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.di-custom-sep { color: var(--ink-soft); font-size: 13px; }
+.di-input-data {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  flex: 1; min-width: 110px;
+}
+.di-input-data:focus {
+  outline: none;
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(217,164,65,.18);
+}
+.di-btn-aplicar { flex-shrink: 0; }
+
+/* ── Comparativo período ──────────────────────────────────────────────────── */
+.di-comp-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.di-comp-item {
+  background: var(--paper-dim);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.di-comp-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+.di-comp-val {
+  font-family: 'Fraunces', serif;
+  font-size: 19px; font-weight: 600; color: var(--ledger); line-height: 1.2;
+}
+.di-comp-sub { font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+
+.di-tag {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 7px; border-radius: 5px;
+  width: fit-content; margin-top: 2px;
+}
+.di-tag.up     { background: #DCE8E0; color: var(--ledger); }
+.di-tag.down   { background: #F3DED6; color: var(--coral-deep); }
+.di-tag.neutro { background: var(--paper-dim); color: var(--ink-soft); }
+
+/* ── Gráfico de vendas ─────────────────────────────────────────────────────── */
+.di-grafico-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.di-grafico-header .di-titulo-secao { margin: 0; }
+.di-grafico-kpis {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.di-kpi {
+  display: flex; flex-direction: column; align-items: flex-end;
+}
+.di-kpi-val {
+  font-family: 'Fraunces', serif;
+  font-size: 15px; font-weight: 600; color: var(--ledger); line-height: 1;
+}
+.di-kpi-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--ink-soft);
+}
+.di-kpi-sep { color: var(--line); font-size: 14px; }
+
+.di-grafico-wrap {
+  padding: 4px 0 0;
+  overflow: hidden;
+}
+.di-vazio {
+  font-size: 13px; color: var(--ink-soft); margin: 8px 0 0;
+  text-align: center; opacity: .75;
+}
+.di-vazio-ok {
+  color: #1B7A4F; opacity: 1; font-weight: 600;
+}
+
+/* ── Grid de 2 colunas ────────────────────────────────────────────────────── */
+.di-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 0;
+}
+.di-grid-2col > .di-bloco { margin-bottom: 14px; }
+
+/* ── Ranking (produtos e clientes) ────────────────────────────────────────── */
+.di-ranking-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.di-ranking-item {
+  display: flex; align-items: center; gap: 10px;
+}
+.di-ranking-pos {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 700;
+  color: var(--ink-soft);
+  min-width: 16px; text-align: center;
+}
+.di-ranking-info {
+  flex: 1; min-width: 0;
+}
+.di-ranking-nome {
+  font-size: 13px; font-weight: 600; color: var(--ink);
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 4px;
+}
+.di-ranking-barra-wrap {
+  height: 5px; background: var(--paper-dim); border-radius: 999px; overflow: hidden;
+}
+.di-ranking-barra {
+  height: 100%; background: var(--ledger); border-radius: 999px;
+  transition: width .4s ease;
+}
+.di-ranking-barra--cliente { background: var(--amber); }
+.di-ranking-nums {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0;
+}
+.di-ranking-qtd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--ink-soft);
+}
+.di-ranking-rec {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11.5px; font-weight: 700; color: var(--ledger);
+}
+
+/* ── Devedores de fiado ────────────────────────────────────────────────────── */
+.di-bloco-topo-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 12px;
+}
+.di-bloco-topo-row .di-titulo-secao { margin: 0; }
+.di-total-divida {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 700; color: var(--coral-deep);
+  background: #F3DED6; padding: 3px 8px; border-radius: 5px;
+  white-space: nowrap;
+}
+
+.di-devedor-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.di-devedor-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 10px;
+  background: rgba(255,255,255,.6);
+  border: 1px solid #F5DDA5;
+  border-radius: 9px;
+}
+.di-devedor-nome {
+  flex: 1; font-size: 13px; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.di-devedor-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0;
+}
+.di-devedor-count {
+  font-size: 10.5px; color: var(--ink-soft);
+}
+.di-devedor-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; font-weight: 700; color: var(--coral-deep);
+}
+
+/* ── Estoque baixo ─────────────────────────────────────────────────────────── */
+.di-estoque-lista {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.di-estoque-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,.6);
+  border: 1px solid #F5DDA5;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.di-estoque-zerado {
+  background: #F3DED6 !important;
+  border-color: #E8C4B5 !important;
+}
+.di-estoque-nome {
+  flex: 1; font-weight: 600; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.di-estoque-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 1px; flex-shrink: 0;
+}
+.di-estoque-min {
+  font-size: 10px; color: var(--ink-soft);
+  font-family: 'IBM Plex Mono', monospace;
+}
+.di-estoque-atual {
+  font-size: 11.5px; font-weight: 700; color: var(--coral-deep);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* ── Padrões de venda ──────────────────────────────────────────────────────── */
+.di-padroes-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.di-padrao-card {
+  background: var(--paper-dim); border: 1px solid var(--line);
+  border-radius: 10px; padding: 12px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.di-padrao-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft);
+}
+.di-padrao-valor {
+  font-family: 'Fraunces', serif;
+  font-size: 18px; font-weight: 600; color: var(--ledger); line-height: 1.2;
+}
+.di-padrao-sub { font-size: 11px; color: var(--ink-soft); margin-top: 1px; }
+.di-dias-svg { margin-top: 8px; overflow: hidden; }
+
+/* ── Meta mensal rápida ────────────────────────────────────────────────────── */
+.di-meta-lbl { font-size: 13.5px; color: var(--ink); margin: 0 0 4px; }
+.di-meta-lbl strong { color: var(--ledger); }
+.di-meta-hint { font-size: 13px; color: var(--ink-soft); margin: 0 0 12px; line-height: 1.45; }
+.di-meta-form { display: flex; gap: 8px; align-items: center; }
+.di-meta-barra-wrap {
+  background: var(--paper-dim); border-radius: 999px; height: 8px;
+  overflow: hidden; margin: 8px 0 4px;
+}
+.di-meta-barra-fill {
+  height: 100%; border-radius: 999px; transition: width .4s ease;
+}
+.di-meta-info-row {
+  display: flex; justify-content: space-between;
+  font-size: 11.5px; color: var(--ink-soft);
+}
+.di-btn-link {
+  background: none; border: none; padding: 0; margin-top: 10px;
+  font-family: 'Inter', sans-serif; font-size: 12.5px; font-weight: 600;
+  color: var(--amber-deep); cursor: pointer; display: block;
+}
+.di-btn-link:hover { text-decoration: underline; }
+.di-input {
+  flex: 1; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px 12px; font-size: 14px; font-family: 'Inter', sans-serif;
+  background: var(--paper); transition: border-color .15s, box-shadow .15s; min-width: 0;
+}
+.di-input:focus {
+  outline: none; border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(217,164,65,.18);
+}
+
+/* ── Tela de bloqueio Pro (paywall) ────────────────────────────────────────── */
+.pro-paywall {
+  max-width: 420px;
+  margin: 32px auto;
+  text-align: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 32px 24px 28px;
+  box-shadow: 0 4px 24px rgba(27,58,47,.08);
+}
+.pro-paywall-icone {
+  font-size: 40px;
+  margin: 0 0 12px;
+  line-height: 1;
+}
+.pro-paywall-titulo {
+  font-family: 'Fraunces', serif;
+  font-size: 22px; font-weight: 700;
+  color: var(--ledger);
+  margin: 0 0 10px;
+}
+.pro-paywall-desc {
+  font-size: 14px; line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 18px;
+}
+.pro-paywall-lista {
+  list-style: none; margin: 0 0 20px; padding: 0;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.pro-paywall-lista li {
+  font-size: 13.5px; color: var(--ink);
+  padding: 8px 12px;
+  background: var(--paper-dim);
+  border-radius: 8px;
+  line-height: 1.35;
+}
+.pro-paywall-badge {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  background: var(--ledger); color: var(--paper);
+  padding: 4px 12px; border-radius: 999px;
+  margin-bottom: 14px;
+}
+.pro-paywall-cta {
+  width: 100%;
+  padding: 13px 20px;
+  font-size: 15px; font-weight: 700;
+  border-radius: 10px;
+  letter-spacing: .01em;
+}
+.pro-paywall-nota {
+  font-size: 11.5px; color: var(--ink-soft);
+  margin: 10px 0 0;
+}
+
+/* ── Responsividade: estreito ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .di-grid-2col {
+    grid-template-columns: 1fr;
+  }
+  .di-comp-grid,
+  .di-padroes-grid {
+    grid-template-columns: 1fr;
+  }
+  .di-filtro-btn {
+    font-size: 12.5px;
+    padding: 6px 12px;
+  }
+  .di-grafico-header {
+    flex-direction: column;
+  }
+  .di-kpi { align-items: flex-start; }
+  .di-grafico-kpis { justify-content: flex-start; }
+}

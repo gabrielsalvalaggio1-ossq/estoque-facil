@@ -1217,6 +1217,118 @@ export async function onRequest(context) {
     return json(results);
   }
 
+
+  // GET /api/dashboard-resumo — Endpoint otimizado para o Dashboard Pro.
+  // Agrega no servidor (D1) dados de vendas, produtos e fiado para o período
+  // informado. Restrito ao plano Pro e ao papel dono.
+  // Query params: inicio (ISO), fim (ISO) — ambos obrigatórios.
+  if (primeiro === 'dashboard-resumo' && request.method === 'GET') {
+    if (membro.papel !== 'dono') {
+      return json({ error: 'Só o dono da empresa pode acessar o dashboard.' }, 403);
+    }
+    const planoDash = await carregarPlanoDaEmpresa(db, membro.empresaId);
+    if (!planoDash || !ehPlanoPro(planoDash.planoId)) {
+      return json({
+        error: 'O Dashboard Pro é exclusivo do plano Pro. Faça upgrade para desbloquear.',
+        recurso: 'dashboard',
+        planoAtual: planoDash ? planoDash.planoId : null,
+        planoNecessario: 'pro',
+      }, 403);
+    }
+
+    const inicio = url.searchParams.get('inicio');
+    const fim    = url.searchParams.get('fim');
+    if (!inicio || !fim) {
+      return json({ error: 'Parâmetros "inicio" e "fim" são obrigatórios (ISO 8601).' }, 400);
+    }
+
+    const empresaId = membro.empresaId;
+
+    // Busca vendas no período (D1 filtra por criadoEm/data via JSON extract)
+    const { results: vendasRows } = await db
+      .prepare(`
+        SELECT dados FROM registros
+        WHERE empresa_id = ? AND store = 'vendas'
+          AND (
+            (json_extract(dados, '$.data') >= ? AND json_extract(dados, '$.data') <= ?)
+            OR
+            (json_extract(dados, '$.criadoEm') >= ? AND json_extract(dados, '$.criadoEm') <= ?)
+          )
+          AND json_extract(dados, '$.status') != 'cancelada'
+      `)
+      .bind(empresaId, inicio, fim + 'T23:59:59', inicio, fim + 'T23:59:59')
+      .all();
+
+    const vendas = vendasRows.map(r => { try { return JSON.parse(r.dados); } catch { return null; } }).filter(Boolean);
+
+    // Produtos com estoque baixo (abaixo do mínimo)
+    const { results: produtosRows } = await db
+      .prepare(`
+        SELECT dados FROM registros
+        WHERE empresa_id = ? AND store = 'produtos'
+          AND CAST(json_extract(dados, '$.estoque') AS REAL)
+              <= COALESCE(CAST(json_extract(dados, '$.estoqueMinimo') AS REAL), 0)
+      `)
+      .bind(empresaId)
+      .all();
+
+    const estoqueBaixo = produtosRows
+      .map(r => { try { return JSON.parse(r.dados); } catch { return null; } })
+      .filter(Boolean)
+      .map(p => ({ id: p.id, nome: p.nome, estoque: p.estoque, estoqueMinimo: p.estoqueMinimo || 0 }));
+
+    // Fiado em aberto (não cancelado, não quitado, pagamento = fiado)
+    const { results: fiadoRows } = await db
+      .prepare(`
+        SELECT dados FROM registros
+        WHERE empresa_id = ? AND store = 'vendas'
+          AND json_extract(dados, '$.pagamento') = 'fiado'
+          AND json_extract(dados, '$.status') != 'cancelada'
+          AND (json_extract(dados, '$.fiadoQuitado') IS NULL OR json_extract(dados, '$.fiadoQuitado') = 0)
+      `)
+      .bind(empresaId)
+      .all();
+
+    const fiado = fiadoRows
+      .map(r => { try { return JSON.parse(r.dados); } catch { return null; } })
+      .filter(Boolean)
+      .map(v => ({
+        id: v.id,
+        clienteNome: (v.cliente && v.cliente.nome) ? v.cliente.nome : (v.clienteNome || null),
+        total: v.total || 0,
+        data: v.data || v.criadoEm,
+      }));
+
+    // Receita e quantidade de vendas no período
+    const receita = vendas.reduce((s, v) => s + (v.total || 0), 0);
+    const qtdVendas = vendas.length;
+
+    // Top produtos (por quantidade de itens vendidos)
+    const contadorProdutos = {};
+    vendas.forEach(v => {
+      (v.itens || []).forEach(item => {
+        const nome = item.nome || item.id || '?';
+        if (!contadorProdutos[nome]) contadorProdutos[nome] = { nome, qtd: 0, receita: 0 };
+        contadorProdutos[nome].qtd     += item.quantidade || 1;
+        contadorProdutos[nome].receita += (item.preco || 0) * (item.quantidade || 1);
+      });
+    });
+    const topProdutos = Object.values(contadorProdutos).sort((a, b) => b.qtd - a.qtd).slice(0, 5);
+
+    // Top clientes (por valor total gasto no período)
+    const contadorClientes = {};
+    vendas.forEach(v => {
+      const nome = (v.cliente && v.cliente.nome) ? v.cliente.nome : (v.clienteNome || null);
+      if (!nome) return;
+      if (!contadorClientes[nome]) contadorClientes[nome] = { nome, compras: 0, total: 0 };
+      contadorClientes[nome].compras++;
+      contadorClientes[nome].total += v.total || 0;
+    });
+    const topClientes = Object.values(contadorClientes).sort((a, b) => b.total - a.total).slice(0, 5);
+
+    return json({ receita, qtdVendas, topProdutos, topClientes, estoqueBaixo, fiado, periodo: { inicio, fim } });
+  }
+
   // PATCH /api/produtos/:id/estoque — atualização atômica de estoque (C-03)
   // Substitui o padrão read-modify-write que sofria de race condition.
   // Aceita { delta: number, saidasDelta: number }:

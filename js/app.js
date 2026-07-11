@@ -7,26 +7,80 @@
 
 // --- Inicialização ---
 
-// Injeta o botão da aba "Clientes" na barra de navegação, clonando um botão
-// [data-tab] existente pra herdar exatamente o mesmo markup/estilo (o HTML
-// estático do projeto não faz parte deste arquivo, então a aba nova precisa
-// nascer aqui em vez de em index.html).
-// Aba Clientes removida da navegação principal.
-// Clientes agora são gerenciados diretamente no modal de venda
-// (campo "Informações do cliente" expansível).
-
 document.querySelectorAll('[data-tab]').forEach(botao => {
   botao.addEventListener('click', () => {
     if (modoSelecaoEtiquetas && botao.dataset.tab !== 'estoque') cancelarSelecaoEtiquetas();
     abaAtual = botao.dataset.tab;
+
+    // Bloqueio defensivo: se usuário não-Pro tentar acessar Central ou Atividades
+    // diretamente (ex: via JS console), exibe tela de upgrade em vez do conteúdo.
+    if (abaAtual === 'central' || abaAtual === 'atividades') {
+      const ehPlanoPro = usuarioLogadoPlano === 'pro' || usuarioLogadoPlano === 'pro_anual';
+      if (!ehPlanoPro) {
+        document.getElementById('main').innerHTML = criarTelaUpgradePro(abaAtual);
+        document.getElementById('main').querySelector('[data-acao="ir-para-assinatura"]')
+          ?.addEventListener('click', () => { abaAtual = 'assinatura'; renderizarTudo(); });
+        return;
+      }
+    }
+
     renderizarTudo();
-    // T4: auto-foca o campo de busca ao mudar de aba
     requestAnimationFrame(() => {
       if (abaAtual === 'estoque') document.getElementById('campoBusca')?.focus();
       if (abaAtual === 'venda')   document.getElementById('campoBuscaVenda')?.focus();
     });
   });
 });
+
+/**
+ * Tela de bloqueio exibida para usuários Free/Essencial que tentam acessar
+ * a Central de Dados (plano Pro) ou Atividades (plano Pro).
+ *
+ * Design: cartão centralizado com CTA para ir à aba Assinatura.
+ * NÃO substitui o bloqueio em central-dados.js — é uma segunda camada
+ * de defesa que também melhora o UX (CTA claro em vez de conteúdo vazio).
+ */
+function criarTelaUpgradePro(aba) {
+  const ehCentral = aba === 'central';
+  const icone  = ehCentral ? '📊' : '🕵️';
+  const titulo = ehCentral ? 'Dashboard Pro' : 'Histórico de Atividades';
+  const descricao = ehCentral
+    ? `Filtros de período, gráfico de vendas, ranking de produtos e clientes,
+       controle de fiado, alertas de estoque — tudo em um painel poderoso.
+       Disponível exclusivamente no plano Pro.`
+    : `Veja um registro completo de tudo que foi feito na sua conta: quem
+       cadastrou produto, fez venda, alterou preço e muito mais. Recurso
+       exclusivo do plano Pro.`;
+
+  const beneficios = ehCentral ? [
+    '📅 Filtro por hoje, semana, mês ou período personalizado',
+    '📊 Gráfico de vendas interativo por período',
+    '🏆 Produtos e clientes mais rentáveis',
+    '💳 Controle de devedores de fiado',
+    '📦 Alertas automáticos de estoque baixo',
+    '🎯 Metas mensais e comparativos',
+  ] : [
+    '🕵️ Auditoria completa de todas as ações',
+    '👥 Quem fez o quê e quando',
+    '🔍 Filtro por tipo de ação e colaborador',
+  ];
+
+  return `<div class="page">
+    <div class="pro-paywall">
+      <div class="pro-paywall-icone">${icone}</div>
+      <h2 class="pro-paywall-titulo">${titulo}</h2>
+      <p class="pro-paywall-desc">${descricao}</p>
+      <ul class="pro-paywall-lista">
+        ${beneficios.map(b => `<li>${b}</li>`).join('')}
+      </ul>
+      <div class="pro-paywall-badge">Plano Pro</div>
+      <button type="button" class="btn primary pro-paywall-cta" data-acao="ir-para-assinatura">
+        Ver planos e fazer upgrade →
+      </button>
+      <p class="pro-paywall-nota">Sem fidelidade · Cancele a qualquer momento</p>
+    </div>
+  </div>`;
+}
 
 document.getElementById('btnAddProduct').addEventListener('click', () => {
   const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
@@ -57,56 +111,44 @@ document.getElementById('btnExcluirSelecionadosLote').addEventListener('click', 
 document.getElementById('btnMudarCategoriaLote').addEventListener('click', abrirAlterarCategoriaLote);
 
 // Fecha o modal mais recente ao pressionar ESC.
-// Para o scanner (que tem lógica de parar câmera), procura o botão de fechar.
-// Para os demais modais, simula um clique no fundo escuro (mesma lógica do
-// "clique fora pra fechar" que cada modal já possui).
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  // Scanner tem cleanup de câmera — delega pro botão de cancelar
   const btnScanner = document.getElementById('btnFecharScanner');
   if (btnScanner) { btnScanner.click(); return; }
-  // Demais modais: aciona o handler de click-fora já existente em cada wrap
   const modais = document.querySelectorAll('.modal-wrap');
   if (!modais.length) return;
   modais[modais.length - 1].dispatchEvent(new MouseEvent('click', { bubbles: false }));
 });
 
 /**
- * Esconde as abas que o papel da pessoa logada não deveria ver:
- * vendedor só mexe em Venda, estoquista só mexe em Estoque, dono vê tudo.
- * Conta e Contato ficam liberados pra todo mundo.
- * Importação de produtos fica oculta para usuários no plano gratuito.
- * Central (dashboard com insights avançados) e Atividades (auditoria)
- * são recursos exclusivos do plano Pro — Essencial não vê nenhuma das duas.
+ * Esconde as abas que o papel da pessoa logada não deveria ver.
+ * A aba Central (dashboard Pro) e Atividades só aparecem para donos no plano Pro.
+ * Usuários Free e Essencial não veem essas abas na navegação.
  */
 function aplicarRestricoesDePapel(papel) {
   const ehPlanoPago = usuarioLogadoPlano && usuarioLogadoPlano !== 'gratis' && usuarioLogadoPlano !== 'free';
-  const ehPlanoPro = usuarioLogadoPlano === 'pro' || usuarioLogadoPlano === 'pro_anual';
+  const ehPlanoPro  = usuarioLogadoPlano === 'pro' || usuarioLogadoPlano === 'pro_anual';
 
   const abasPorPapel = {
-    // Abas Central e Atividades só aparecem para donos no plano Pro
+    // Central e Atividades: exclusivo para donos no plano Pro
     dono: ['estoque', 'venda', 'historico', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
-    vendedor: ['venda', 'conta', 'contato'],
-    estoquista: ['estoque', 'conta', 'contato']
+    vendedor:   ['venda', 'conta', 'contato'],
+    estoquista: ['estoque', 'conta', 'contato'],
   };
-  // null = ainda carregando: esconde todas as abas até o papel real chegar.
-  // Evita que vendedores/estoquistas vejam brevemente abas de dono durante o
-  // tempo entre o carregamento do JS e a resposta de /api/me.
+
   const permitidas = papel === null ? [] : (abasPorPapel[papel] || abasPorPapel.dono);
 
   document.querySelectorAll('[data-tab]').forEach(botao => {
     botao.style.display = permitidas.includes(botao.dataset.tab) ? '' : 'none';
   });
 
-  // Importação de Produtos: dono e estoquista podem pelo papel,
-  // mas apenas em planos pagos (recurso premium).
+  // Importação de Produtos: dono e estoquista podem, mas apenas em planos pagos.
   const podeImportar = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
   document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
     botao.style.display = podeImportar ? '' : 'none';
   });
 
-  // Etiquetas de preço: dono e estoquista podem pelo papel,
-  // mas apenas em planos pagos (Essencial ou Pro — recurso premium).
+  // Etiquetas de preço: planos pagos apenas.
   const podeEtiquetas = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
   const btnEtiquetas = document.getElementById('btnSelecionarEtiquetas');
   if (btnEtiquetas) btnEtiquetas.style.display = podeEtiquetas ? '' : 'none';
@@ -129,8 +171,6 @@ function aplicarRestricoesDePapel(papel) {
 async function iniciar() {
   document.getElementById('dateLabel').textContent = dataDeHoje();
 
-  // Evita a tela em branco enquanto os primeiros fetches ao D1 respondem
-  // (o app só passa a renderizar dados quando eles realmente chegaram).
   document.getElementById('main').innerHTML = criarSkeletonMain(6);
 
   let usuario;
@@ -146,8 +186,6 @@ async function iniciar() {
   const sidebarEmail = document.getElementById('sidebarEmail');
   if (sidebarEmail) sidebarEmail.textContent = usuarioLogadoEmail;
 
-  // E-mail autenticado mas ainda sem empresa nenhuma: mostra a tela de
-  // cadastro self-service em vez de tentar carregar estoque/vendas.
   if (!usuario.empresaId) {
     mostrarTelaCriarEmpresa();
     return;
@@ -185,9 +223,7 @@ async function iniciar() {
 }
 
 /**
- * Tela mostrada quando o e-mail logado ainda não pertence a nenhuma
- * empresa. Some com as abas e barras de ferramentas (não fazem sentido
- * ainda) e deixa só o formulário de cadastro.
+ * Tela mostrada quando o e-mail logado ainda não pertence a nenhuma empresa.
  */
 function mostrarTelaCriarEmpresa() {
   document.querySelectorAll('[data-tab]').forEach(botao => { botao.style.display = 'none'; });
@@ -242,7 +278,7 @@ async function criarEmpresaEContinuar() {
 
   try {
     await DB.criarEmpresa(nomeEmpresa);
-    await iniciar(); // agora a empresa existe — recarrega tudo do zero
+    await iniciar();
   } catch (e) {
     erro.textContent = e.message || 'Não foi possível criar a empresa. Tente novamente.';
     erro.style.display = 'block';
@@ -251,20 +287,12 @@ async function criarEmpresaEContinuar() {
   }
 }
 
-// Esconde todas as abas imediatamente (papel ainda é null).
-// Evita flash de conteúdo de "dono" para vendedores/estoquistas
-// durante o carregamento inicial — as abas corretas aparecem após
-// aplicarRestricoesDePapel() ser chamado dentro de iniciar().
 aplicarRestricoesDePapel(null);
 iniciar().then(() => {
-  // Se o usuário veio do cadastro com um plano pré-selecionado
-  // (ex: #checkout=essencial_mensal), abre o modal de pagamento automaticamente
   const hash = window.location.hash;
   if (hash.startsWith('#checkout=')) {
     const planoId = hash.replace('#checkout=', '');
-    // Limpa o hash pra não abrir de novo se recarregar
     history.replaceState(null, '', window.location.pathname);
-    // Aguarda um frame pra garantir que o app terminou de renderizar
     requestAnimationFrame(() => {
       if (typeof abrirModalCheckoutMP === 'function' && planoId) {
         abrirModalCheckoutMP(planoId, async () => {

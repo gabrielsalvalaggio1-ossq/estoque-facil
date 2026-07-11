@@ -88,9 +88,10 @@ export async function onRequestPost(context) {
     const planoId = corpo.planoId;
     const nomeCartao = corpo.nomeCartao || '';
     const cpf = corpo.cpf || '';
+    const metodo = corpo.metodo || 'cartao';
 
-    if (!token)   return json({ error: 'Token do cartão não recebido.' }, 400);
-    if (!PLANO_PARA_ENV[planoId]) return json({ error: 'Plano inválido: ' + planoId }, 400);
+    if (metodo === 'cartao' && !token) return json({ error: 'Token do cartão não recebido.' }, 400);
+    if (!PLANO_PARA_ENV[planoId] && metodo !== 'status') return json({ error: 'Plano inválido: ' + planoId }, 400);
 
     const membro = await db
       .prepare('SELECT m.empresa_id AS empresaId, m.papel FROM membros m WHERE m.usuario_email = ? LIMIT 1')
@@ -101,7 +102,6 @@ export async function onRequestPost(context) {
     const accessToken = env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN_TEST;
     if (!accessToken) return json({ error: 'Access Token do MP não configurado.' }, 500);
 
-    const metodo = corpo.metodo || 'cartao'; // 'cartao' | 'pix' | 'boleto' | 'status'
 
     // ── STATUS (polling do Pix) ──
     if (metodo === 'status') {

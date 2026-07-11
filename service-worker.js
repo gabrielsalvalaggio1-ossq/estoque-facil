@@ -109,6 +109,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // Requisições cross-origin (fontes, SDKs de terceiros, analytics) nunca
+  // devem passar pelo cache — o SW não tem como armazená-las de forma útil
+  // e tentar interceptá-las só gera erros de CSP no console.
+  if (url.origin !== self.location.origin) return;
+
   if (url.pathname.startsWith('/api/')) return; // deixa passar direto pro servidor
 
   // Páginas públicas/de entrada: sempre buscar da rede, nunca do cache (ver

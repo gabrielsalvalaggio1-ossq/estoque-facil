@@ -101,9 +101,100 @@ export async function onRequestPost(context) {
     const accessToken = env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN_TEST;
     if (!accessToken) return json({ error: 'Access Token do MP não configurado.' }, 500);
 
+    const metodo = corpo.metodo || 'cartao'; // 'cartao' | 'pix' | 'boleto' | 'status'
+
+    // ── STATUS (polling do Pix) ──
+    if (metodo === 'status') {
+      const pagamentoId = corpo.pagamentoId;
+      if (!pagamentoId) return json({ error: 'pagamentoId não informado.' }, 400);
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${pagamentoId}`, {
+        headers: { 'Authorization': 'Bearer ' + accessToken },
+      });
+      if (!mpRes.ok) return json({ planoAtivado: false });
+      const mpData = await mpRes.json();
+      if (mpData.status === 'approved') {
+        await ativarPlanoNoBanco(db, membro.empresaId, planoId, email, String(pagamentoId));
+        return json({ ok: true, planoAtivado: true });
+      }
+      return json({ planoAtivado: false, status: mpData.status });
+    }
+
     const ehTeste = accessToken.startsWith('TEST-');
     let mpId, mpStatus;
 
+    // ── PIX ──
+    if (metodo === 'pix') {
+      const cpfLimpo = (cpf || '').replace(/\D/g, '') || '12345678909';
+      const valor = PLANO_VALOR[planoId];
+      if (!valor) return json({ error: 'Valor do plano não encontrado.' }, 400);
+      const payload = {
+        transaction_amount: valor,
+        payment_method_id: 'pix',
+        description: 'MEV ' + planoId,
+        payer: {
+          email: email,
+          identification: { type: 'CPF', number: cpfLimpo },
+        },
+        external_reference: membro.empresaId + '|' + planoId,
+      };
+      const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': membro.empresaId + '-pix-' + planoId + '-' + Date.now(),
+        },
+        body: JSON.stringify(payload),
+      });
+      const mpData = await mpRes.json();
+      if (!mpRes.ok) return json({ error: mpData.message || 'Erro ao gerar Pix.', mp_detalhe: mpData }, 502);
+      const qrCode = mpData.point_of_interaction?.transaction_data?.qr_code;
+      const qrCodeBase64 = 'data:image/png;base64,' + (mpData.point_of_interaction?.transaction_data?.qr_code_base64 || '');
+      return json({ ok: true, pagamentoId: String(mpData.id), qrCode, qrCodeBase64, status: mpData.status });
+    }
+
+    // ── BOLETO ──
+    if (metodo === 'boleto') {
+      const cpfLimpo = (cpf || '').replace(/\D/g, '') || '12345678909';
+      const valor = PLANO_VALOR[planoId];
+      if (!valor) return json({ error: 'Valor do plano não encontrado.' }, 400);
+      if (!planoId.endsWith('_anual')) return json({ error: 'Boleto disponível apenas nos planos anuais.' }, 400);
+      const nomeTitular = corpo.nomeCartao || 'Titular';
+      const primeiroNome = nomeTitular.split(' ')[0];
+      const sobrenome = nomeTitular.includes(' ') ? nomeTitular.split(' ').slice(1).join(' ') : 'Sobrenome';
+      const payload = {
+        transaction_amount: valor,
+        payment_method_id: 'bolbradesco',
+        description: 'MEV ' + planoId,
+        payer: {
+          email: email,
+          first_name: primeiroNome,
+          last_name: sobrenome,
+          identification: { type: 'CPF', number: cpfLimpo },
+        },
+        external_reference: membro.empresaId + '|' + planoId,
+      };
+      const mpRes = await fetch('https://api.mercadopago.com/v1/payments', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + accessToken,
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': membro.empresaId + '-boleto-' + planoId + '-' + Date.now(),
+        },
+        body: JSON.stringify(payload),
+      });
+      const mpData = await mpRes.json();
+      if (!mpRes.ok) return json({ error: mpData.message || 'Erro ao gerar boleto.', mp_detalhe: mpData }, 502);
+      return json({
+        ok: true,
+        pagamentoId: String(mpData.id),
+        boletoUrl: mpData.transaction_details?.external_resource_url,
+        boletoLinhaDigitavel: mpData.barcode?.content,
+        status: mpData.status,
+      });
+    }
+
+    // ── CARTÃO ──
     if (ehTeste) {
       const valor = PLANO_VALOR[planoId];
       if (!valor) return json({ error: 'Valor do plano não encontrado.' }, 400);

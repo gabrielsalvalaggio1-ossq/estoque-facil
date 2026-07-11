@@ -75,13 +75,55 @@ export async function onRequestPost({ request, env }) {
     return new Response('ok', { status: 200 });
   }
 
+  const accessToken = env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN_TEST;
+  if (!accessToken) return new Response('ok', { status: 200 });
+
+  // ── Pagamento único (Pix / Boleto) ──
+  if (body.type === 'payment') {
+    const pagamentoId = body.data && body.data.id;
+    if (!pagamentoId) return new Response('ok', { status: 200 });
+
+    try {
+      const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${pagamentoId}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+      if (!mpRes.ok) return new Response('ok', { status: 200 });
+      const pagamento = await mpRes.json();
+
+      if (pagamento.status !== 'approved') return new Response('ok', { status: 200 });
+
+      const [empresaId, planoId] = (pagamento.external_reference || '').split('|');
+      if (!empresaId || !planoId) return new Response('ok', { status: 200 });
+
+      const empresaRow = await db.prepare('SELECT dono_email FROM empresas WHERE id = ? LIMIT 1').bind(empresaId).first();
+      if (!empresaRow) return new Response('ok', { status: 200 });
+
+      const usuarioRow = await db.prepare('SELECT id FROM usuarios WHERE email = ? LIMIT 1').bind(empresaRow.dono_email).first();
+      if (!usuarioRow) return new Response('ok', { status: 200 });
+
+      const dataExpiracao = calcularExpiracao(planoId);
+      const mpId = String(pagamentoId);
+
+      const jaExiste = await db.prepare('SELECT id FROM assinaturas WHERE mp_preapproval_id = ?').bind(mpId).first();
+      if (!jaExiste) {
+        await db.prepare(`UPDATE assinaturas SET status = 'CANCELED', cancelado_em = datetime('now'), motivo_cancelamento = 'Substituído por pagamento Pix/Boleto', atualizado_em = datetime('now') WHERE empresa_id = ? AND status IN ('FREE','TRIAL','ACTIVE','PAST_DUE')`).bind(empresaId).run();
+        await db.prepare(`INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao, mp_preapproval_id) VALUES (?, ?, ?, ?, 'ACTIVE', datetime('now'), ?, ?)`).bind('sub-mp-' + mpId, empresaId, usuarioRow.id, planoId, dataExpiracao, mpId).run();
+      }
+      await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
+      await db.prepare(`UPDATE usuarios SET plano_atual = ?, status_assinatura = 'ACTIVE', data_expiracao = ? WHERE email = ?`).bind(planoId, dataExpiracao, empresaRow.dono_email).run();
+
+    } catch (erro) {
+      console.error('Webhook pagamento Pix/Boleto erro:', erro.message);
+    }
+
+    return new Response('ok', { status: 200 });
+  }
+
+  // ── Assinatura recorrente (Cartão) ──
   if (body.type !== 'preapproval' && body.type !== 'subscription_preapproval') return new Response('ok', { status: 200 });
 
   const preapprovalId = body.data && body.data.id;
   if (!preapprovalId) return new Response('ok', { status: 200 });
-
-  const accessToken = env.MP_ACCESS_TOKEN || env.MP_ACCESS_TOKEN_TEST;
-  if (!accessToken) return new Response('ok', { status: 200 });
 
   const mpRes = await fetch(`https://api.mercadopago.com/preapproval/${preapprovalId}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },

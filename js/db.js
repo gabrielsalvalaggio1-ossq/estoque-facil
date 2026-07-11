@@ -215,11 +215,11 @@ async function iniciarCheckout() {
   return tratarResposta(resp);
 }
 
-async function assinarComCartao({ token, planoId, nomeCartao, cpf }) {
+async function assinarComCartao({ metodo, token, planoId, nomeCartao, cpf, pagamentoId }) {
   const resp = await fetch("/api/checkout-mp-assinar", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token, planoId, nomeCartao, cpf }),
+    body: JSON.stringify({ metodo: metodo || 'cartao', token, planoId, nomeCartao, cpf, pagamentoId }),
   });
   return tratarResposta(resp);
 }

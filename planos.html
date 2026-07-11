@@ -812,13 +812,40 @@
 <script src="/js/db.js"></script>
 <script src="/js/checkout-modal.js"></script>
 <script>
-  function clicarAssinar(planoBase) {
+  async function clicarAssinar(planoBase) {
+    // Verifica se o usuário está logado antes de abrir o checkout
+    try {
+      await window.DB.buscarUsuarioLogado();
+    } catch (e) {
+      // Não autenticado — salva o plano escolhido e redireciona para login
+      const anualPendente = document.getElementById('switchBilling').classList.contains('on');
+      const planoPendente = anualPendente ? planoBase + '_anual' : planoBase;
+      sessionStorage.setItem('plano_pendente', planoPendente);
+      window.location.href = '/login.html?next=planos&plano=' + planoPendente;
+      return;
+    }
+
     const anual = document.getElementById('switchBilling').classList.contains('on');
     const planoId = anual ? planoBase + '_anual' : planoBase;
     abrirModalCheckoutMP(planoId, () => {
       window.location.href = '/';
     });
   }
+
+  // Se voltou do login com um plano pendente, abre o modal automaticamente
+  (async function reabrirModalSePendente() {
+    const planoPendente = sessionStorage.getItem('plano_pendente');
+    if (!planoPendente) return;
+    try {
+      await window.DB.buscarUsuarioLogado();
+      sessionStorage.removeItem('plano_pendente');
+      abrirModalCheckoutMP(planoPendente, () => {
+        window.location.href = '/';
+      });
+    } catch (e) {
+      sessionStorage.removeItem('plano_pendente');
+    }
+  })();
 </script>
 </body>
 </html>

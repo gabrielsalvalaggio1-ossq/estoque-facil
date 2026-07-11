@@ -183,7 +183,11 @@ async function mudarPlano(planoId) {
 async function listarAtividades(filtros = {}) {
   const params = new URLSearchParams();
   if (filtros.store) params.set('store', filtros.store);
+  if (filtros.usuario) params.set('usuario', filtros.usuario);
+  if (filtros.inicio) params.set('inicio', filtros.inicio);
+  if (filtros.fim) params.set('fim', filtros.fim);
   if (filtros.limite) params.set('limite', String(filtros.limite));
+  if (filtros.offset) params.set('offset', String(filtros.offset));
   const qs = params.toString();
   const resp = await fetch(`/api/atividades${qs ? '?' + qs : ''}`);
   return tratarResposta(resp);

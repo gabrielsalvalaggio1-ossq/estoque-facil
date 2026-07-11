@@ -1194,7 +1194,12 @@ export async function onRequest(context) {
     const storeFiltro = url.searchParams.get('store');
     const storesFiltraveis = STORES_VALIDOS.concat(['membros', 'assinatura', 'empresa']);
     const limiteBruto = parseInt(url.searchParams.get('limite'), 10);
-    const limite = Number.isFinite(limiteBruto) ? Math.min(Math.max(limiteBruto, 1), 200) : 100;
+    const limite = Number.isFinite(limiteBruto) ? Math.min(Math.max(limiteBruto, 1), 100) : 30;
+    const offsetBruto = parseInt(url.searchParams.get('offset'), 10);
+    const offset = Number.isFinite(offsetBruto) && offsetBruto > 0 ? offsetBruto : 0;
+    const usuarioFiltro = url.searchParams.get('usuario');
+    const inicioFiltro = url.searchParams.get('inicio'); // 'YYYY-MM-DD'
+    const fimFiltro = url.searchParams.get('fim'); // 'YYYY-MM-DD'
 
     const condicoes = ['empresa_id = ?'];
     const binds = [membro.empresaId];
@@ -1202,7 +1207,21 @@ export async function onRequest(context) {
       condicoes.push('store = ?');
       binds.push(storeFiltro);
     }
+    if (usuarioFiltro) {
+      condicoes.push('usuario_email = ?');
+      binds.push(usuarioFiltro);
+    }
+    if (inicioFiltro && /^\d{4}-\d{2}-\d{2}$/.test(inicioFiltro)) {
+      condicoes.push('date(criado_em) >= date(?)');
+      binds.push(inicioFiltro);
+    }
+    if (fimFiltro && /^\d{4}-\d{2}-\d{2}$/.test(fimFiltro)) {
+      condicoes.push('date(criado_em) <= date(?)');
+      binds.push(fimFiltro);
+    }
 
+    // Busca um registro a mais que o limite pra saber se há próxima página,
+    // sem precisar de um segundo SELECT COUNT(*) separado.
     const { results } = await db
       .prepare(`
         SELECT id, usuario_email AS usuarioEmail, papel, acao, store, registro_id AS registroId,
@@ -1210,11 +1229,13 @@ export async function onRequest(context) {
         FROM atividades
         WHERE ${condicoes.join(' AND ')}
         ORDER BY criado_em DESC
-        LIMIT ${limite}
+        LIMIT ${limite + 1} OFFSET ${offset}
       `)
       .bind(...binds)
       .all();
-    return json(results);
+
+    const temMais = results.length > limite;
+    return json({ itens: temMais ? results.slice(0, limite) : results, temMais });
   }
 
 

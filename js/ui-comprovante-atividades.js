@@ -461,13 +461,46 @@ const ROTULOS_ACAO_ATIVIDADE = {
 const ROTULOS_STORE_ATIVIDADE = {
   produtos: 'Produtos',
   vendas: 'Vendas',
+  clientes: 'Clientes',
   movimentos: 'Movimentos',
   membros: 'Equipe',
   assinatura: 'Assinatura',
   empresa: 'Empresa',
+  metas: 'Metas',
 };
 
-let filtroAtividades = { store: '' };
+const ICONES_STORE_ATIVIDADE = {
+  produtos: '📦',
+  vendas: '🧾',
+  clientes: '🧑',
+  movimentos: '🔁',
+  membros: '👥',
+  assinatura: '💳',
+  empresa: '🏢',
+  metas: '🎯',
+};
+
+// Chips de tipo de ação exibidos no topo da tela — os quatro primeiros são
+// os mais usados no dia a dia (venda, produto, cliente, equipe); o restante
+// completa a lista de áreas que geram atividade no sistema.
+const TIPOS_ATIVIDADE = [
+  { valor: '', rotulo: 'Todas' },
+  { valor: 'vendas', rotulo: '🧾 Vendas' },
+  { valor: 'produtos', rotulo: '📦 Produtos' },
+  { valor: 'clientes', rotulo: '🧑 Clientes' },
+  { valor: 'membros', rotulo: '👥 Equipe' },
+  { valor: 'movimentos', rotulo: '🔁 Estoque' },
+  { valor: 'assinatura', rotulo: '💳 Assinatura' },
+  { valor: 'empresa', rotulo: '🏢 Empresa' },
+];
+
+const ATIVIDADES_POR_PAGINA = 20;
+
+let filtroAtividades = { store: '', usuario: '', inicio: '', fim: '' };
+
+// Estado da lista carregada (itens acumulados + paginação por scroll infinito).
+let estadoAtividades = { itens: [], offset: 0, temMais: true, carregando: false, erro: null };
+let observerAtividades = null;
 
 /** Monta um card avisando que o recurso pertence a um plano superior, com link pra upgrade. */
 function cartaoRecursoBloqueadoHtml(erro) {
@@ -481,26 +514,51 @@ function cartaoRecursoBloqueadoHtml(erro) {
   `;
 }
 
+function contarFiltrosAvancadosAtivos() {
+  return ['usuario', 'inicio', 'fim'].filter(chave => filtroAtividades[chave]).length;
+}
+
 function telaAtividadesHtml() {
   return `
     <div class="page">
       <h2>📜 Histórico de atividades</h2>
       <p class="hint">Veja quem fez cada ação dentro da sua empresa.</p>
 
-      <div class="field" style="max-width:260px;margin:12px 0;">
-        <label for="filtroAtividadeStore">Filtrar por área</label>
-        <select id="filtroAtividadeStore" class="filtro-select">
-          <option value="">Todas as áreas</option>
-          <option value="produtos">Produtos</option>
-          <option value="vendas">Vendas</option>
-          <option value="movimentos">Movimentos</option>
-          <option value="membros">Equipe</option>
-          <option value="assinatura">Assinatura</option>
-          <option value="empresa">Empresa</option>
-        </select>
+      <div class="atividades-filtros">
+        <div class="chips" id="chipsAtividadeTipo">
+          ${TIPOS_ATIVIDADE.map(t => `
+            <button type="button" class="chip${filtroAtividades.store === t.valor ? ' active' : ''}" data-store="${t.valor}">${t.rotulo}</button>
+          `).join('')}
+        </div>
+
+        <button type="button" class="link-mais-opcoes atividades-toggle-filtros" id="btnMaisFiltrosAtividade">
+          <span id="rotuloMaisFiltrosAtividade">⚙️ Mais filtros</span><span id="badgeFiltrosAtividade" class="atividades-filtro-badge" style="display:none;"></span>
+        </button>
+
+        <div id="painelMaisFiltrosAtividade" class="atividades-painel-filtros" style="display:none;">
+          <div class="field">
+            <label for="filtroAtividadeUsuario">Usuário</label>
+            <select id="filtroAtividadeUsuario" class="filtro-select" style="margin-bottom:0;">
+              <option value="">Todos os usuários</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label for="filtroAtividadeInicio">De</label>
+              <input type="date" id="filtroAtividadeInicio">
+            </div>
+            <div class="field">
+              <label for="filtroAtividadeFim">Até</label>
+              <input type="date" id="filtroAtividadeFim">
+            </div>
+          </div>
+          <button type="button" class="btn ghost" id="btnLimparFiltrosAtividade" style="width:auto;padding:8px 14px;margin-bottom:4px;">Limpar filtros</button>
+        </div>
       </div>
 
-      <div id="listaAtividades" class="team-list"><p class="team-msg">Carregando…</p></div>
+      <div id="listaAtividades" class="atividades-lista"><p class="team-msg">Carregando…</p></div>
+      <p id="rodapeAtividades" class="atividades-rodape" style="display:none;"></p>
+      <div id="sentinelAtividades"></div>
     </div>
   `;
 }
@@ -512,52 +570,194 @@ function formatarDataHoraAtividade(dataSql) {
   return data.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
-function linhaAtividadeHtml(atividade) {
-  const rotuloStore = ROTULOS_STORE_ATIVIDADE[atividade.store] || '';
+function atividadeCardHtml(atividade) {
+  const rotuloStore = ROTULOS_STORE_ATIVIDADE[atividade.store] || 'Geral';
+  const iconeStore = ICONES_STORE_ATIVIDADE[atividade.store] || '📌';
   const rotuloPapel = ROTULOS_PAPEL[atividade.papel] || atividade.papel || '';
-  const metaPartes = [atividade.usuarioEmail, rotuloPapel, rotuloStore, formatarDataHoraAtividade(atividade.criadoEm)]
-    .filter(Boolean)
-    .map(escaparHtml);
+  const papelClasse = ['dono', 'vendedor', 'estoquista'].includes(atividade.papel) ? atividade.papel : 'vendedor';
 
   return `
-    <div class="team-row">
-      <span class="team-avatar" aria-hidden="true">${escaparHtml(gerarIniciaisEmail(atividade.usuarioEmail))}</span>
-      <div class="team-info">
-        <span class="team-email">${escaparHtml(atividade.descricao)}</span>
-        <span class="hint" style="font-size:12px;">${metaPartes.join(' · ')}</span>
+    <div class="atividade-card">
+      <span class="atividade-icone" aria-hidden="true">${iconeStore}</span>
+      <div class="atividade-corpo">
+        <p class="atividade-desc">${escaparHtml(atividade.descricao)}</p>
+        <div class="atividade-meta">
+          <span class="atividade-user">
+            <span class="atividade-avatar" aria-hidden="true">${escaparHtml(gerarIniciaisEmail(atividade.usuarioEmail))}</span>
+            ${escaparHtml(atividade.usuarioEmail || '')}
+          </span>
+          ${rotuloPapel ? `<span class="role-chip ${papelClasse}"><span class="dot"></span>${escaparHtml(rotuloPapel)}</span>` : ''}
+          <span class="atividade-tag">${escaparHtml(rotuloStore)}</span>
+        </div>
+        <span class="atividade-data">${escaparHtml(formatarDataHoraAtividade(atividade.criadoEm))}</span>
       </div>
     </div>
   `;
 }
 
 async function carregarTelaAtividades() {
-  const seletor = document.getElementById('filtroAtividadeStore');
-  if (seletor) {
-    seletor.value = filtroAtividades.store;
-    seletor.addEventListener('change', () => {
-      filtroAtividades.store = seletor.value;
-      carregarListaAtividades();
+  // Reseta o estado a cada entrada na tela (evita misturar páginas de visitas anteriores).
+  estadoAtividades = { itens: [], offset: 0, temMais: true, carregando: false, erro: null };
+
+  document.querySelectorAll('#chipsAtividadeTipo .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      filtroAtividades.store = chip.dataset.store;
+      document.querySelectorAll('#chipsAtividadeTipo .chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.store === filtroAtividades.store);
+      });
+      carregarListaAtividades(true);
+    });
+  });
+
+  const btnMaisFiltros = document.getElementById('btnMaisFiltrosAtividade');
+  const painelFiltros = document.getElementById('painelMaisFiltrosAtividade');
+  if (btnMaisFiltros && painelFiltros) {
+    btnMaisFiltros.addEventListener('click', () => {
+      const aberto = painelFiltros.style.display !== 'none';
+      painelFiltros.style.display = aberto ? 'none' : 'block';
+      document.getElementById('rotuloMaisFiltrosAtividade').textContent = aberto ? '⚙️ Mais filtros' : '⚙️ Ocultar filtros';
     });
   }
-  await carregarListaAtividades();
+
+  const seletorUsuario = document.getElementById('filtroAtividadeUsuario');
+  if (seletorUsuario) {
+    try {
+      const membros = await DB.listarMembros();
+      seletorUsuario.innerHTML = '<option value="">Todos os usuários</option>' +
+        membros.map(m => `<option value="${escaparHtml(m.email)}">${escaparHtml(m.email)}</option>`).join('');
+      seletorUsuario.value = filtroAtividades.usuario;
+    } catch (e) { /* mantém só a opção "Todos" se não conseguir listar a equipe */ }
+    seletorUsuario.addEventListener('change', () => {
+      filtroAtividades.usuario = seletorUsuario.value;
+      atualizarBadgeFiltrosAtividade();
+      carregarListaAtividades(true);
+    });
+  }
+
+  const campoInicio = document.getElementById('filtroAtividadeInicio');
+  const campoFim = document.getElementById('filtroAtividadeFim');
+  if (campoInicio) {
+    campoInicio.value = filtroAtividades.inicio;
+    campoInicio.addEventListener('change', () => {
+      filtroAtividades.inicio = campoInicio.value;
+      atualizarBadgeFiltrosAtividade();
+      carregarListaAtividades(true);
+    });
+  }
+  if (campoFim) {
+    campoFim.value = filtroAtividades.fim;
+    campoFim.addEventListener('change', () => {
+      filtroAtividades.fim = campoFim.value;
+      atualizarBadgeFiltrosAtividade();
+      carregarListaAtividades(true);
+    });
+  }
+
+  const btnLimpar = document.getElementById('btnLimparFiltrosAtividade');
+  if (btnLimpar) {
+    btnLimpar.addEventListener('click', () => {
+      filtroAtividades.usuario = '';
+      filtroAtividades.inicio = '';
+      filtroAtividades.fim = '';
+      if (seletorUsuario) seletorUsuario.value = '';
+      if (campoInicio) campoInicio.value = '';
+      if (campoFim) campoFim.value = '';
+      atualizarBadgeFiltrosAtividade();
+      carregarListaAtividades(true);
+    });
+  }
+
+  atualizarBadgeFiltrosAtividade();
+  configurarScrollInfinitoAtividades();
+  await carregarListaAtividades(true);
 }
 
-async function carregarListaAtividades() {
+function atualizarBadgeFiltrosAtividade() {
+  const badge = document.getElementById('badgeFiltrosAtividade');
+  if (!badge) return;
+  const total = contarFiltrosAvancadosAtivos();
+  badge.textContent = String(total);
+  badge.style.display = total > 0 ? 'inline-flex' : 'none';
+}
+
+function configurarScrollInfinitoAtividades() {
+  if (observerAtividades) {
+    observerAtividades.disconnect();
+    observerAtividades = null;
+  }
+  const sentinela = document.getElementById('sentinelAtividades');
+  if (!sentinela || typeof IntersectionObserver === 'undefined') return;
+  observerAtividades = new IntersectionObserver((entradas) => {
+    entradas.forEach(entrada => {
+      if (entrada.isIntersecting) carregarListaAtividades(false);
+    });
+  }, { rootMargin: '200px' });
+  observerAtividades.observe(sentinela);
+}
+
+/**
+ * Carrega o histórico de atividades. Quando `reiniciar` é true, zera a lista
+ * e recomeça da primeira página (usado ao trocar filtros); caso contrário,
+ * busca a próxima página e adiciona ao final (usado pelo scroll infinito).
+ */
+async function carregarListaAtividades(reiniciar) {
   const container = document.getElementById('listaAtividades');
+  const rodape = document.getElementById('rodapeAtividades');
   if (!container) return;
-  container.innerHTML = '<p class="team-msg">Carregando…</p>';
+
+  if (reiniciar) {
+    estadoAtividades = { itens: [], offset: 0, temMais: true, carregando: false, erro: null };
+    container.innerHTML = '<p class="team-msg">Carregando…</p>';
+    if (rodape) rodape.style.display = 'none';
+  }
+
+  if (estadoAtividades.carregando || !estadoAtividades.temMais) return;
+  estadoAtividades.carregando = true;
+  if (rodape && estadoAtividades.itens.length > 0) {
+    rodape.style.display = 'block';
+    rodape.textContent = 'Carregando mais…';
+  }
 
   try {
-    const atividades = await DB.listarAtividades({ store: filtroAtividades.store || undefined });
-    if (atividades.length === 0) {
-      container.innerHTML = '<p class="team-msg">Nenhuma atividade registrada ainda.</p>';
-      return;
+    const resposta = await DB.listarAtividades({
+      store: filtroAtividades.store || undefined,
+      usuario: filtroAtividades.usuario || undefined,
+      inicio: filtroAtividades.inicio || undefined,
+      fim: filtroAtividades.fim || undefined,
+      limite: ATIVIDADES_POR_PAGINA,
+      offset: estadoAtividades.offset,
+    });
+    const itens = (resposta && resposta.itens) || [];
+    estadoAtividades.itens = estadoAtividades.itens.concat(itens);
+    estadoAtividades.offset += itens.length;
+    estadoAtividades.temMais = !!(resposta && resposta.temMais);
+
+    if (estadoAtividades.itens.length === 0) {
+      container.innerHTML = '<p class="team-msg">Nenhuma atividade encontrada com esses filtros.</p>';
+    } else {
+      container.innerHTML = estadoAtividades.itens.map(atividadeCardHtml).join('');
     }
-    container.innerHTML = atividades.map(linhaAtividadeHtml).join('');
+
+    if (rodape) {
+      if (!estadoAtividades.temMais && estadoAtividades.itens.length > 0) {
+        rodape.style.display = 'block';
+        rodape.textContent = 'Fim do histórico.';
+      } else {
+        rodape.style.display = 'none';
+      }
+    }
   } catch (erro) {
-    container.innerHTML = erro && erro.recurso
-      ? cartaoRecursoBloqueadoHtml(erro)
-      : `<p class="erro" style="margin:0;">${escaparHtml((erro && erro.message) || 'Não foi possível carregar o histórico de atividades.')}</p>`;
+    estadoAtividades.temMais = false; // evita novas tentativas automáticas via scroll
+    if (estadoAtividades.itens.length === 0) {
+      container.innerHTML = erro && erro.recurso
+        ? cartaoRecursoBloqueadoHtml(erro)
+        : `<p class="erro" style="margin:0;">${escaparHtml((erro && erro.message) || 'Não foi possível carregar o histórico de atividades.')}</p>`;
+    } else if (rodape) {
+      rodape.style.display = 'block';
+      rodape.textContent = 'Não foi possível carregar mais atividades.';
+    }
+  } finally {
+    estadoAtividades.carregando = false;
   }
 }
 

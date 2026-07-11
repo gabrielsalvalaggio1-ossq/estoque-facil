@@ -54,13 +54,19 @@ function calcularExpiracao(planoId) {
 async function ativarPlanoNoBanco(db, empresaId, planoId, email, mpId) {
   const dataExpiracao = calcularExpiracao(planoId);
 
+  const usuario = await db
+    .prepare('SELECT id FROM usuarios WHERE email = ? LIMIT 1')
+    .bind(email).first();
+  if (!usuario) throw new Error('Usuário não encontrado para o e-mail: ' + email);
+  const usuarioId = usuario.id;
+
   await db.prepare(
     'UPDATE assinaturas SET status = \'CANCELED\', cancelado_em = datetime(\'now\'), motivo_cancelamento = \'Substituído por nova assinatura\', atualizado_em = datetime(\'now\') WHERE empresa_id = ? AND status IN (\'FREE\',\'TRIAL\',\'ACTIVE\',\'PAST_DUE\')'
   ).bind(empresaId).run();
 
   await db.prepare(
-    'INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao, mp_preapproval_id) VALUES (?, ?, NULL, ?, \'ACTIVE\', datetime(\'now\'), ?, ?)'
-  ).bind('sub-mp-' + mpId, empresaId, planoId, dataExpiracao, mpId).run();
+    'INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao, mp_preapproval_id) VALUES (?, ?, ?, ?, \'ACTIVE\', datetime(\'now\'), ?, ?)'
+  ).bind('sub-mp-' + mpId, empresaId, usuarioId, planoId, dataExpiracao, mpId).run();
 
   await db.prepare('UPDATE empresas SET plano = ? WHERE id = ?').bind(planoId, empresaId).run();
   await db.prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = \'ACTIVE\', data_expiracao = ? WHERE email = ?').bind(planoId, dataExpiracao, email).run();

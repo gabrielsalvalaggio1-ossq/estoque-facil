@@ -9,7 +9,7 @@
 // isso força o novo service worker a reinstalar o cache (senão o browser
 // continuaria usando o cache antigo, sem os arquivos novos, até um
 // unregister manual). Sempre suba esse número ao alterar ARQUIVOS_ESSENCIAIS.
-const CACHE_NAME = 'meu-estoque-v10';
+const CACHE_NAME = 'meu-estoque-v11';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',
@@ -19,9 +19,9 @@ const ARQUIVOS_ESSENCIAIS = [
   // CSS — todo arquivo referenciado em <link rel="stylesheet"> no index.html
   './css/style.css',
   './css/microinteracoes.css',
-  './venda-rapida.css',
-  './estoque-inteligencia.css',
-  './carrinho-inteligente.css',
+  './css/venda-rapida.css',
+  './css/estoque-inteligencia.css',
+  './css/carrinho-inteligente.css',
   './css/clientes-t9.css',
   './css/dashboard-insights.css',
   './css/estados.css',
@@ -40,7 +40,7 @@ const ARQUIVOS_ESSENCIAIS = [
   './js/dashboard-insights.js',
   './js/etiquetas.js',
   './js/ui-base.js',
-  './estoque-inteligencia.js',
+  './js/estoque-inteligencia.js',
   './js/ui-estoque-venda.js',
   './js/ui-clientes-render.js',
   './js/ui-produto-modal.js',
@@ -50,9 +50,9 @@ const ARQUIVOS_ESSENCIAIS = [
   './js/ui-etiquetas.js',
   './js/estados.js',
   './js/app.js',
-  './venda-rapida.js',
+  './js/venda-rapida.js',
   './js/atalhos.js',
-  './carrinho-inteligente.js',
+  './js/carrinho-inteligente.js',
   './js/init.js',
 
   './icons/icon-192.png',

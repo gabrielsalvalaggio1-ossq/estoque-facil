@@ -273,7 +273,9 @@ async function abrirModalCheckoutMP(planoId, callbackSucesso) {
           document.getElementById('checkoutMPForm').style.display = 'block';
         },
         onError: (erros) => {
+          const msg = Array.isArray(erros) ? erros.map(e => e.message || e.cause || JSON.stringify(e)).join('; ') : JSON.stringify(erros);
           console.error('MP CardForm erros:', erros);
+          mostrarErroCheckout('SDK: ' + msg);
         },
         onSubmit: async (event) => {
           event.preventDefault();

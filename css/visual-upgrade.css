@@ -1,0 +1,512 @@
+/* =====================================================================
+   visual-upgrade.css
+   Melhorias visuais — adicione um <link> para este arquivo após os
+   outros CSS em index.html:
+   <link rel="stylesheet" href="css/visual-upgrade.css">
+   ===================================================================== */
+
+/* ── Variáveis adicionais ─────────────────────────────────────────── */
+:root {
+  --ledger-mid: #234F40;
+  --paper-card: #FFFFFF;
+  --shadow-sm: 0 1px 3px rgba(27,58,47,.07), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(27,58,47,.09), 0 2px 4px rgba(0,0,0,.05);
+  --shadow-lg: 0 8px 24px rgba(27,58,47,.12), 0 3px 8px rgba(0,0,0,.06);
+  --radius-card: 14px;
+  --radius-inner: 9px;
+  --transition: 0.18s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SIDEBAR — mais elegante, com separadores e indicador ativo claro
+   ══════════════════════════════════════════════════════════════════ */
+@media (min-width: 1000px) {
+  .sidebar {
+    width: 220px;
+    background: linear-gradient(160deg, var(--ledger) 0%, var(--ledger-dark) 100%);
+    padding: 20px 12px 28px;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    box-shadow: 2px 0 12px rgba(0,0,0,0.18);
+    gap: 2px;
+  }
+
+  .brand {
+    padding: 4px 10px 24px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--coral);
+    font-size: 16px;
+    box-shadow: 0 3px 8px rgba(226,87,43,0.4);
+  }
+
+  .brand-name {
+    font-size: 14.5px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+  }
+
+  .side-item {
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 10px 12px;
+    border-radius: 9px;
+    color: rgba(199,211,203,0.85);
+    letter-spacing: -0.01em;
+    transition: background var(--transition), color var(--transition), transform var(--transition);
+    position: relative;
+  }
+
+  .side-item:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    transform: translateX(2px);
+  }
+
+  .side-item.active {
+    background: var(--paper);
+    color: var(--ledger);
+    font-weight: 700;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Separador visual antes do Exportar */
+  #btnExportarSidebar {
+    margin-top: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* E-mail no rodapé da sidebar */
+  #sidebarEmail {
+    margin-top: auto !important;
+    padding: 16px 10px 2px !important;
+    border-top: 1px solid rgba(255,255,255,0.07) !important;
+    font-size: 11px !important;
+    opacity: 0.6 !important;
+  }
+
+  #btnLogoutSidebar {
+    color: rgba(199,211,203,0.65) !important;
+    font-size: 13px;
+  }
+  #btnLogoutSidebar:hover {
+    color: #F3DED6 !important;
+    background: rgba(226,87,43,0.12) !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HEADER — respiro e estatísticas com mais presença
+   ══════════════════════════════════════════════════════════════════ */
+header.top {
+  background: linear-gradient(135deg, var(--ledger) 0%, #163527 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Textura sutil no header */
+header.top::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 80% 20%, rgba(217,164,65,.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+header.top h1 {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+}
+
+header.top .sub {
+  font-size: 13.5px;
+  color: rgba(199,211,203,0.8);
+}
+
+/* Stat cards — saindo da cor do header, mais elegantes */
+.stats {
+  padding: 16px 20px 0;
+  gap: 10px;
+}
+
+.stat {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  backdrop-filter: blur(4px);
+  transition: background var(--transition);
+}
+
+.stat:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+.stat .lbl {
+  font-size: 10px;
+  color: rgba(199,211,203,0.75);
+  letter-spacing: .1em;
+}
+
+.stat .val {
+  font-size: 20px;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+
+/* Estoque baixo com tom de alerta */
+#statLowWrap .val {
+  color: var(--amber);
+}
+
+header.top .topsellers {
+  font-size: 11.5px;
+  color: rgba(199,211,203,0.65);
+  margin: 12px 0 0;
+  padding-bottom: 2px;
+}
+
+header.top .topsellers strong {
+  color: var(--amber);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TABS — mais limpas, linha mais fina
+   ══════════════════════════════════════════════════════════════════ */
+nav.tabs {
+  border-bottom-color: var(--line);
+}
+
+nav.tabs button {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 11px 14px 13px;
+  transition: color var(--transition);
+}
+
+nav.tabs button.active {
+  font-weight: 700;
+  border-bottom-width: 2.5px;
+  border-color: var(--coral);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CARDS GERAIS — mais brancos, sombra ao invés de borda
+   ══════════════════════════════════════════════════════════════════ */
+.product-card,
+.card-info {
+  background: var(--paper-card);
+  border-color: rgba(217,212,194,0.5);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+
+.product-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CENTRAL DE DADOS — a grande melhoria
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Background levemente diferenciado */
+@media (min-width: 1000px) {
+  #app {
+    background: #F2EFE5;
+  }
+}
+
+/* Cartões de KPI — mais impactantes */
+.cd-cartao {
+  background: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-card);
+  padding: 18px 18px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition), transform var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.cd-cartao::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--ledger), transparent);
+  opacity: 0.3;
+}
+
+.cd-cartao:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.cd-cartao-rotulo {
+  font-size: 10.5px;
+  letter-spacing: .08em;
+  opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.cd-cartao-valor {
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--ledger);
+}
+
+.cd-cartao-sub {
+  font-size: 11.5px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+/* Grid de cartões com mais respiro */
+.cd-grid-cartoes {
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* Blocos de gráfico */
+.cd-bloco {
+  background: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-card);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cd-bloco h3 {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  margin-bottom: 16px;
+  color: var(--ledger);
+}
+
+/* Filtros de período */
+.cd-filtros {
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.cd-filtro-btn {
+  background: var(--paper-card);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  color: var(--ink-soft);
+  letter-spacing: 0.01em;
+  transition: all var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.cd-filtro-btn:hover {
+  background: var(--paper-dim);
+  border-color: var(--ledger);
+  color: var(--ledger);
+  box-shadow: none;
+}
+
+.cd-filtro-btn.ativo {
+  background: var(--ledger);
+  color: var(--paper);
+  border-color: var(--ledger);
+  box-shadow: 0 2px 8px rgba(27,58,47,0.25);
+}
+
+/* Topo da central */
+.cd-central .cd-topo {
+  margin-bottom: 12px;
+}
+
+.cd-plano-tag {
+  background: var(--paper-card);
+  border: 1.5px solid var(--line);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+.cd-btn-restaurar {
+  background: var(--paper-card);
+  border: 1.5px solid var(--line);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition);
+}
+
+.cd-btn-restaurar:hover {
+  background: var(--paper-dim);
+  border-color: var(--ledger);
+}
+
+/* Listas dentro dos blocos */
+.cd-lista li {
+  font-size: 13.5px;
+  padding: 9px 0;
+  border-color: rgba(217,212,194,0.5);
+}
+
+.cd-lista li:last-child {
+  border-bottom: none;
+}
+
+/* Alertas inteligentes */
+.cd-alerta {
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid transparent;
+}
+
+.cd-alerta-alerta {
+  background: #FEF2EC;
+  border-color: rgba(226,87,43,0.15);
+}
+
+.cd-alerta-positivo {
+  background: #EBF3EC;
+  border-color: rgba(27,58,47,0.12);
+}
+
+/* Tags de comparativo */
+.cd-comparativo-tag {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.cd-comparativo-tag.cd-up {
+  background: #E0EDDF;
+  color: #1A5C30;
+}
+
+.cd-comparativo-tag.cd-down {
+  background: #FDECEA;
+  color: #8F2E14;
+}
+
+/* Metas */
+.cd-meta {
+  background: var(--paper-card);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cd-meta-barra {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--paper-dim);
+  margin-bottom: 10px;
+}
+
+.cd-meta-progresso {
+  background: linear-gradient(90deg, var(--ledger), var(--amber));
+  border-radius: 999px;
+}
+
+/* Widgets ocultos */
+.cd-widgets-ocultos {
+  background: rgba(255,255,255,0.6);
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-card);
+  padding: 12px 14px;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DASHBOARD INSIGHTS — refinamentos
+   ══════════════════════════════════════════════════════════════════ */
+.di-bloco {
+  background: var(--paper-card);
+  border: none;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.di-tag.up    { background: #E0EDDF; color: #1A5C30; }
+.di-tag.down  { background: #FDECEA; color: #8F2E14; }
+
+/* ══════════════════════════════════════════════════════════════════
+   BOTÕES — mais sofisticados
+   ══════════════════════════════════════════════════════════════════ */
+.btn-destaque {
+  border-radius: 12px;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px rgba(143,46,20,.3), 0 1px 3px rgba(0,0,0,.12);
+  transition: box-shadow var(--transition), transform var(--transition), filter var(--transition);
+}
+
+.btn-destaque:hover {
+  box-shadow: 0 6px 18px rgba(143,46,20,.35), 0 2px 6px rgba(0,0,0,.12);
+  filter: brightness(1.04);
+}
+
+.btn-destaque:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 6px rgba(143,46,20,.2);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MAIN CONTENT — respiro geral
+   ══════════════════════════════════════════════════════════════════ */
+@media (min-width: 1000px) {
+  main {
+    padding: 20px 36px 40px;
+  }
+
+  header.top {
+    padding: 24px 36px 20px;
+  }
+
+  .stats {
+    padding: 16px 36px 0;
+    max-width: 700px;
+  }
+}
+
+@media (min-width: 1280px) {
+  main {
+    padding: 24px 40px 48px;
+  }
+
+  header.top {
+    padding: 28px 40px 22px;
+  }
+
+  .stats {
+    padding: 18px 40px 0;
+    max-width: 760px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SCROLLBAR — discreta e bonita (WebKit)
+   ══════════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(27,58,47,0.18);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(27,58,47,0.32);
+}

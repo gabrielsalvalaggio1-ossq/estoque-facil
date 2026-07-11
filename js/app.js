@@ -222,6 +222,9 @@ async function iniciar() {
   usuarioLogadoPlano = usuario.plano || 'gratis';
   usuarioLogadoNomeEmpresa = usuario.nomeEmpresa || '';
   usuarioLogadoNomeDono = usuario.nomeDono || '';
+  if (sidebarEmail) {
+    sidebarEmail.textContent = usuarioLogadoNomeEmpresa || usuarioLogadoEmail;
+  }
   aplicarRestricoesDePapel(usuarioLogadoPapel);
 
   try {

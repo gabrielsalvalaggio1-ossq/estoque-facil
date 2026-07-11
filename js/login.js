@@ -46,7 +46,10 @@ async function login() {
     const data = await res.json();
 
     if (data.ok) {
-      window.location.href = '/index.html';
+      // Se veio com ?next=planos, volta pra lá (o plano_pendente já está no sessionStorage)
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get('next');
+      window.location.href = next === 'planos' ? '/planos.html' : '/index.html';
       return;
     }
     erroEl.textContent = data.error || 'Erro no login.';
@@ -63,6 +66,19 @@ async function login() {
 document.addEventListener('DOMContentLoaded', function () {
   var btnVoltar = document.querySelector('.auth-voltar');
   if (btnVoltar) btnVoltar.addEventListener('click', voltar);
+
+  // Se veio com ?plano=X, atualiza o link "Criar conta" para passar o plano
+  var params = new URLSearchParams(window.location.search);
+  var planoParam = params.get('plano');
+  if (planoParam) {
+    var linkCadastro = document.querySelector('a[href="/cadastro.html"]');
+    if (linkCadastro) {
+      // Detecta ciclo pelo sufixo do planoId (essencial_anual → anual)
+      var ciclo = planoParam.endsWith('_anual') ? 'anual' : 'mensal';
+      var planoBase = planoParam.replace('_anual', '').replace('_mensal', '');
+      linkCadastro.href = '/cadastro.html?plano=' + planoBase + '&ciclo=' + ciclo;
+    }
+  }
 
   var formLogin = document.querySelector('.auth-form');
   if (formLogin) {

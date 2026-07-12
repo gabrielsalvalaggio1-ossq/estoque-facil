@@ -640,6 +640,7 @@ function renderizarConteudo() {
   }
 
   else if (abaAtual === 'contato') {
+    const kbdStyle = 'background:var(--paper-dim,#f3f4f6);border:1px solid var(--line,#d1d5db);border-radius:5px;padding:2px 8px;font-family:monospace;font-size:0.8rem;white-space:nowrap;';
     main.innerHTML = `
       <div class="page">
         <h2>📞 Contato e Suporte</h2>
@@ -652,9 +653,43 @@ function renderizarConteudo() {
 
         <div class="card-info">
           <h3>Ajuda rápida</h3>
-          <p>• Adicionar produtos → botão "Adicionar produto"</p>
-          <p>• Fazer vendas → aba "Venda"</p>
-          <p>• Exportar dados → botão Exportar</p>
+          <p>• Adicionar produtos → botão "Adicionar produto" na aba Estoque</p>
+          <p>• Fazer vendas → aba "Venda", adicione itens ao carrinho</p>
+          <p>• Exportar dados → botão Exportar na aba Central de Dados</p>
+          <p>• Cadastrar clientes → aba "Clientes"</p>
+          <p>• Ver histórico de vendas → aba "Histórico"</p>
+          <p>• Gerenciar equipe → aba "Conta" → Minha equipe</p>
+        </div>
+
+        <div class="card-info">
+          <h3>⌨️ Atalhos de teclado</h3>
+          <div style="display:grid;gap:0.5rem;margin-top:0.25rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Novo produto</span>
+              <span style="display:flex;gap:0.35rem;">
+                <kbd style="${kbdStyle}">Alt</kbd>
+                <kbd style="${kbdStyle}">N</kbd>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Buscar / focar campo de pesquisa</span>
+              <kbd style="${kbdStyle}">/</kbd>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Salvar formulário aberto</span>
+              <span style="display:flex;gap:0.35rem;">
+                <kbd style="${kbdStyle}">Alt</kbd>
+                <kbd style="${kbdStyle}">S</kbd>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Fechar modal / janela</span>
+              <kbd style="${kbdStyle}">ESC</kbd>
+            </div>
+          </div>
+          <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--ink-soft,#9ca3af);">
+            💡 Os atalhos não funcionam quando você está digitando em campos de texto.
+          </p>
         </div>
       </div>
     `;

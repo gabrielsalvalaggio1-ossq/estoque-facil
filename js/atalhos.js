@@ -2,14 +2,20 @@
  * atalhos.js – Atalhos globais de teclado (T12 do Roadmap MEV)
  *
  * Atalhos:
- *   Ctrl+N / ⌘N     → Novo produto (navega para Estoque se necessário)
- *   Ctrl+F / ⌘F / / → Foca o campo de busca do tab atual
- *   Ctrl+S / ⌘S     → Salva o formulário/modal aberto (só botões de salvar explícitos)
- *   ESC             → Fecha modal (gerenciado em app.js — não duplicado aqui)
+ *   Alt+N       → Novo produto (navega para Estoque se necessário)
+ *   /           → Foca o campo de busca da aba atual (fora de campos de texto)
+ *   Alt+S       → Salva o formulário/modal aberto (só botões de salvar explícitos)
+ *   ESC         → Fecha modal (gerenciado em app.js — não duplicado aqui)
+ *
+ * Por que Alt em vez de Ctrl:
+ *   Ctrl+N, Ctrl+F e Ctrl+S são atalhos reservados pelo browser (nova janela,
+ *   busca nativa, salvar página). O browser os processa antes de qualquer
+ *   keydown da página — preventDefault() não tem efeito. Alt+N e Alt+S não
+ *   têm significado padrão nos browsers modernos e chegam ao app normalmente.
  *
  * Regras:
  *   - Nenhum atalho dispara quando o foco está em input/textarea/select/contenteditable.
- *   - Ctrl+S só age em botões de salvar conhecidos — jamais clica em botões genéricos
+ *   - Alt+S só age em botões de salvar conhecidos — jamais clica em botões genéricos
  *     ou de confirmação, para evitar ações destrutivas acidentais.
  *   - Comparações de tecla são case-insensitive (e.key.toLowerCase()).
  */
@@ -41,21 +47,21 @@
     return null;
   }
 
-  // capture:true garante que interceptamos Ctrl+F antes do browser abrir a busca nativa.
   document.addEventListener('keydown', function (e) {
+    var alt  = e.altKey;
     var ctrl = e.ctrlKey || e.metaKey;
-    if (!e.key) return; // ignora eventos sem key (ex: disparados por scripts)
-    var tecla = e.key.toLowerCase(); // case-insensitive: evita problemas com CapsLock
+    if (!e.key) return;
+    var tecla = e.key.toLowerCase();
 
     /* ─────────────────────────────────────────────────────────────────
-       Ctrl+N / ⌘N : Novo produto
+       Alt+N : Novo produto
        Não dispara quando o usuário está digitando.
        ───────────────────────────────────────────────────────────────── */
-    if (ctrl && tecla === 'n' && !estaDigitando(e)) {
+    if (alt && !ctrl && tecla === 'n' && !estaDigitando(e)) {
       e.preventDefault();
 
       var papel = (typeof usuarioLogadoPapel !== 'undefined') ? usuarioLogadoPapel : null;
-      var podeGerenciar = papel === 'dono' || papel === 'estoquista';
+      var podeGerenciar = papel === 'dono' || papel === 'estoquista' || papel === 'gerente';
       if (!podeGerenciar) {
         if (typeof mostrarToast === 'function') mostrarToast('Sem permissão para adicionar produtos.', 'erro');
         return;
@@ -76,20 +82,18 @@
     }
 
     /* ─────────────────────────────────────────────────────────────────
-       Ctrl+F / ⌘F  ou  /  (fora de campo) : Focar campo de busca
-       Ambos só disparam fora de campos de digitação.
+       /  (fora de campo) : Focar campo de busca da aba atual
+       Só dispara fora de campos de digitação e sem modificadores.
        ───────────────────────────────────────────────────────────────── */
-    var ehBarra = tecla === '/' && !ctrl && !e.altKey && !e.shiftKey;
-
-    if (((ctrl && tecla === 'f') || ehBarra) && !estaDigitando(e)) {
+    if (tecla === '/' && !ctrl && !alt && !e.shiftKey && !estaDigitando(e)) {
       e.preventDefault();
 
       var campo = primeiroVisivel([
-        '#campoBusca',                   // Estoque — id fixo em ui-estoque-venda.js
-        '#campoBuscaVenda',              // Venda — id fixo em ui-estoque-venda.js
-        'input[placeholder*="uscar"]',   // fallback genérico (Buscar / buscar)
+        '#campoBusca',                  // Estoque
+        '#campoBuscaVenda',             // Venda
+        'input[placeholder*="uscar"]',  // fallback genérico
         'input[type="search"]',
-        'main input[type="text"]',       // qualquer input de texto dentro do main
+        'main input[type="text"]',
       ]);
 
       if (campo) {
@@ -100,20 +104,16 @@
     }
 
     /* ─────────────────────────────────────────────────────────────────
-       Ctrl+S / ⌘S : Salvar formulário/modal aberto
-       Só age em botões de salvar EXPLICITAMENTE conhecidos — jamais em
-       botões genéricos como "button:last-of-type" ou "button.primary",
-       que podem representar confirmações destrutivas.
+       Alt+S : Salvar formulário/modal aberto
+       Só age em botões de salvar EXPLICITAMENTE conhecidos.
        ───────────────────────────────────────────────────────────────── */
-    if (ctrl && tecla === 's') {
+    if (alt && !ctrl && tecla === 's') {
       var modais = document.querySelectorAll('.modal-wrap');
-      if (!modais.length) return; // sem modal → não bloqueia Ctrl+S do navegador
+      if (!modais.length) return;
 
       e.preventDefault();
       var ultimoModal = modais[modais.length - 1];
 
-      // Procura apenas por botões de salvar com atributos/classes explícitas;
-      // NÃO usa fallbacks genéricos para não disparar confirm/delete por acidente.
       var btnSalvar =
         ultimoModal.querySelector('button[data-acao="salvar"]') ||
         ultimoModal.querySelector('#btnSalvar') ||
@@ -126,7 +126,7 @@
       }
       return;
     }
-  }, true); // true = capture phase → intercepta Ctrl+F antes do browser
+  });
 
   /* ─────────────────────────────────────────────────────────────────
      Dica de atalhos na primeira visita (3,5 s após carregamento)
@@ -134,10 +134,10 @@
   window.addEventListener('load', function () {
     setTimeout(function () {
       if (typeof mostrarToast !== 'function') return;
-      var CHAVE = 'mev_dica_atalhos_v1';
+      var CHAVE = 'mev_dica_atalhos_v2';
       if (localStorage.getItem(CHAVE)) return;
       localStorage.setItem(CHAVE, '1');
-      mostrarToast('Dica: Ctrl+N novo produto · Ctrl+F busca · Ctrl+S salvar', 'info');
+      mostrarToast('Dica: Alt+N novo produto · / busca · Alt+S salvar', 'info');
     }, 3500);
   });
 

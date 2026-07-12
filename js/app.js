@@ -95,7 +95,7 @@ function criarTelaUpgradePro(aba) {
 }
 
 document.getElementById('btnAddProduct').addEventListener('click', () => {
-  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
+  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista' || usuarioLogadoPapel === 'gerente';
   const jaViuOnboarding = localStorage.getItem(CHAVE_ONBOARDING);
   if (podeVerEstoque && produtosCache.length === 0 && !jaViuOnboarding) {
     abrirOnboarding();
@@ -143,9 +143,10 @@ function aplicarRestricoesDePapel(papel) {
 
   const abasPorPapel = {
     // Central e Atividades: exclusivo para donos no plano Pro
-    dono: ['estoque', 'venda', 'historico', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
+    dono:       ['estoque', 'venda', 'historico', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
     vendedor:   ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato'],
+    gerente:    ['estoque', 'venda', 'historico', 'conta', 'contato'],
   };
 
   const permitidas = papel === null ? [] : (abasPorPapel[papel] || abasPorPapel.dono);
@@ -154,14 +155,14 @@ function aplicarRestricoesDePapel(papel) {
     botao.style.display = permitidas.includes(botao.dataset.tab) ? '' : 'none';
   });
 
-  // Importação de Produtos: dono e estoquista podem, mas apenas em planos pagos.
-  const podeImportar = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
+  // Importação de Produtos: dono, estoquista e gerente podem, mas apenas em planos pagos.
+  const podeImportar = (papel === 'dono' || papel === 'estoquista' || papel === 'gerente') && ehPlanoPago;
   document.querySelectorAll('[data-acao="importar-produtos"]').forEach(botao => {
     botao.style.display = podeImportar ? '' : 'none';
   });
 
   // Etiquetas de preço: planos pagos apenas.
-  const podeEtiquetas = (papel === 'dono' || papel === 'estoquista') && ehPlanoPago;
+  const podeEtiquetas = (papel === 'dono' || papel === 'estoquista' || papel === 'gerente') && ehPlanoPago;
   const btnEtiquetas = document.getElementById('btnSelecionarEtiquetas');
   if (btnEtiquetas) btnEtiquetas.style.display = podeEtiquetas ? '' : 'none';
 
@@ -188,7 +189,7 @@ function aplicarRestricoesDePapel(papel) {
  * ui-onboarding-importacao.js.
  */
 function deveMostrarBoasVindas() {
-  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
+  const podeVerEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista' || usuarioLogadoPapel === 'gerente';
   return podeVerEstoque
     && abaAtual === 'estoque'
     && produtosCache.length === 0

@@ -878,6 +878,8 @@ main{
 .role-chip.vendedor .dot{ background:var(--ledger); }
 .role-chip.estoquista{ background:#F3DED6; color:var(--coral-deep); }
 .role-chip.estoquista .dot{ background:var(--coral-deep); }
+.role-chip.gerente{ background:#DDE3F0; color:#2D4A8A; }
+.role-chip.gerente .dot{ background:#2D4A8A; }
 
 /* Formulário "adicionar membro" — separado do restante por um respiro maior */
 .team-add{

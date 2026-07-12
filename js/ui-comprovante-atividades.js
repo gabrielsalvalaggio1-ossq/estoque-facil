@@ -574,7 +574,7 @@ function atividadeCardHtml(atividade) {
   const rotuloStore = ROTULOS_STORE_ATIVIDADE[atividade.store] || 'Geral';
   const iconeStore = ICONES_STORE_ATIVIDADE[atividade.store] || '📌';
   const rotuloPapel = ROTULOS_PAPEL[atividade.papel] || atividade.papel || '';
-  const papelClasse = ['dono', 'vendedor', 'estoquista'].includes(atividade.papel) ? atividade.papel : 'vendedor';
+  const papelClasse = ['dono', 'vendedor', 'estoquista', 'gerente'].includes(atividade.papel) ? atividade.papel : 'vendedor';
 
   return `
     <div class="atividade-card">

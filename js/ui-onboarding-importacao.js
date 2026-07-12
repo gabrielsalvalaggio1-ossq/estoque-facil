@@ -102,6 +102,19 @@ function montarCardsInsights() {
       nota: estoqueBaixo > 0 ? 'Toque para ver quais' : 'Tudo certo por aqui',
       acao: estoqueBaixo > 0 ? irParaEstoqueBaixoDoInsight : null
     });
+  } else if (usuarioLogadoPapel === 'gerente') {
+    const { inicioHoje } = _limitesHojeOntem();
+    const { totalItens, estoqueBaixo } = Produtos.calcularEstatisticas(produtosCache);
+    const vendasHoje = vendasCache
+      .filter(v => v.status !== 'cancelada' && new Date(v.data) >= inicioHoje)
+      .reduce((soma, v) => soma + v.total, 0);
+    cards.push({ id: 'totalProdutos', icone: '📦', label: 'Produtos cadastrados', valor: String(totalItens), nota: '' });
+    cards.push({
+      id: 'estoqueBaixo', icone: '⚠️', label: 'Estoque baixo', valor: String(estoqueBaixo),
+      nota: estoqueBaixo > 0 ? 'Toque para ver quais' : 'Tudo certo por aqui',
+      acao: estoqueBaixo > 0 ? irParaEstoqueBaixoDoInsight : null
+    });
+    cards.push({ id: 'vendasHoje', icone: '💰', label: 'Vendido hoje', valor: formatarMoeda(vendasHoje), nota: '' });
   }
 
   return cards;
@@ -283,8 +296,8 @@ function fecharPainelChecklist() {
 }
 
 function calcularPassosChecklist() {
-  const podeEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista';
-  const podeVenda   = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'vendedor';
+  const podeEstoque = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'estoquista' || usuarioLogadoPapel === 'gerente';
+  const podeVenda   = usuarioLogadoPapel === 'dono' || usuarioLogadoPapel === 'vendedor'  || usuarioLogadoPapel === 'gerente';
   const passos = [];
 
   if (podeEstoque) {

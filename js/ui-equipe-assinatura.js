@@ -272,7 +272,7 @@ async function confirmarCancelarAssinatura() {
   }
 }
 
-const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
+const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista', gerente: 'Gerente' };
 
 // PLANOS_INFO legado foi removido — o pill de plano na Equipe agora lê
 // direto de assinaturaCache (ver telaAssinaturaHtml / cartaoGestaoEquipeHtml),
@@ -315,6 +315,7 @@ function cartaoGestaoEquipeHtml() {
           <div class="papel-toggle" id="papelToggle">
             <button type="button" class="papel-opt selected" data-papel="vendedor">Vendedor</button>
             <button type="button" class="papel-opt" data-papel="estoquista">Estoquista</button>
+            <button type="button" class="papel-opt" data-papel="gerente">Gerente</button>
           </div>
         </div>
 
@@ -376,7 +377,7 @@ function pedirEdicaoPapelMembro(indice) {
   const linha = document.getElementById(`teamRow${indice}`);
   if (!membro || !linha) return;
 
-  papelEdicaoSelecionado = membro.papel === 'estoquista' ? 'estoquista' : 'vendedor';
+  papelEdicaoSelecionado = ['vendedor', 'estoquista', 'gerente'].includes(membro.papel) ? membro.papel : 'vendedor';
 
   linha.innerHTML = `
     <div class="team-edit">
@@ -384,6 +385,7 @@ function pedirEdicaoPapelMembro(indice) {
       <div class="papel-toggle" id="papelEditToggle${indice}">
         <button type="button" class="papel-opt ${papelEdicaoSelecionado === 'vendedor' ? 'selected' : ''}" data-papel="vendedor">Vendedor</button>
         <button type="button" class="papel-opt ${papelEdicaoSelecionado === 'estoquista' ? 'selected' : ''}" data-papel="estoquista">Estoquista</button>
+        <button type="button" class="papel-opt ${papelEdicaoSelecionado === 'gerente' ? 'selected' : ''}" data-papel="gerente">Gerente</button>
       </div>
       <div class="team-edit-actions">
         <button type="button" class="btn primary btn-salvar-membro" data-indice="${indice}">Salvar</button>

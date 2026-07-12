@@ -31,8 +31,8 @@
  */
 
 const STORES_VALIDOS = ['produtos', 'vendas', 'movimentos', 'clientes', 'metas'];
-const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista'];
-const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista' };
+const PAPEIS_VALIDOS = ['dono', 'vendedor', 'estoquista', 'gerente'];
+const ROTULOS_PAPEL = { dono: 'Dono', vendedor: 'Vendedor', estoquista: 'Estoquista', gerente: 'Gerente' };
 
 // --- Validação de campos que acabam renderizados como atributo HTML no
 // front-end (produto.id, venda.id, produto.imagem). Sem isso, o servidor
@@ -288,9 +288,10 @@ async function verificarPlano(db, empresaId, recurso, extra = {}) {
 // O que cada papel pode fazer em cada store.
 // 'leitura' = só GET. 'total' = GET/POST/PUT/DELETE. ausente = sem acesso nenhum.
 const PERMISSOES = {
-  dono:       { produtos: 'total',  vendas: 'total',  movimentos: 'total', clientes: 'total',  metas: 'total' },
-  vendedor:   { produtos: 'leitura', vendas: 'total',  movimentos: 'total', clientes: 'total',  metas: 'leitura' },
-  estoquista: { produtos: 'total',  vendas: 'leitura',      movimentos: 'total', clientes: 'leitura', metas: 'leitura' },
+  dono:       { produtos: 'total',   vendas: 'total',   movimentos: 'total', clientes: 'total',   metas: 'total' },
+  vendedor:   { produtos: 'leitura', vendas: 'total',   movimentos: 'total', clientes: 'total',   metas: 'leitura' },
+  estoquista: { produtos: 'total',   vendas: 'leitura', movimentos: 'total', clientes: 'leitura', metas: 'leitura' },
+  gerente:    { produtos: 'total',   vendas: 'total',   movimentos: 'total', clientes: 'total',   metas: 'leitura' },
 };
 
 /**

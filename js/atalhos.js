@@ -41,6 +41,7 @@
     return null;
   }
 
+  // capture:true garante que interceptamos Ctrl+F antes do browser abrir a busca nativa.
   document.addEventListener('keydown', function (e) {
     var ctrl = e.ctrlKey || e.metaKey;
     if (!e.key) return; // ignora eventos sem key (ex: disparados por scripts)
@@ -125,7 +126,7 @@
       }
       return;
     }
-  });
+  }, true); // true = capture phase → intercepta Ctrl+F antes do browser
 
   /* ─────────────────────────────────────────────────────────────────
      Dica de atalhos na primeira visita (3,5 s após carregamento)

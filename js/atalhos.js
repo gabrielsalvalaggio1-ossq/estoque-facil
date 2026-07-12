@@ -60,13 +60,11 @@
         return;
       }
 
-      // Se está em outra aba, navega para Estoque primeiro
+      // Se está em outra aba, simula clique no botão da aba Estoque para
+      // acionar toda a lógica de navegação já existente em app.js.
       if (typeof abaAtual !== 'undefined' && abaAtual !== 'estoque') {
-        abaAtual = 'estoque';
-        document.querySelectorAll('[data-tab]').forEach(function (b) {
-          b.classList.toggle('active', b.dataset.tab === 'estoque');
-        });
-        if (typeof renderizarTudo === 'function') renderizarTudo();
+        var btnEstoque = document.querySelector('[data-tab="estoque"]');
+        if (btnEstoque) btnEstoque.click();
         setTimeout(function () {
           if (typeof abrirModalProduto === 'function') abrirModalProduto(null);
         }, 80);
@@ -87,7 +85,7 @@
 
       var campo = primeiroVisivel([
         '#campoBusca',                   // Estoque — id fixo em ui-estoque-venda.js
-        '#buscaVenda',                   // Venda (caso exista)
+        '#campoBuscaVenda',              // Venda — id fixo em ui-estoque-venda.js
         'input[placeholder*="uscar"]',   // fallback genérico (Buscar / buscar)
         'input[type="search"]',
         'main input[type="text"]',       // qualquer input de texto dentro do main
@@ -117,6 +115,8 @@
       // NÃO usa fallbacks genéricos para não disparar confirm/delete por acidente.
       var btnSalvar =
         ultimoModal.querySelector('button[data-acao="salvar"]') ||
+        ultimoModal.querySelector('#btnSalvar') ||
+        ultimoModal.querySelector('button.btn.primary') ||
         ultimoModal.querySelector('button.btn-destaque[type="button"]') ||
         ultimoModal.querySelector('button[type="submit"]');
 

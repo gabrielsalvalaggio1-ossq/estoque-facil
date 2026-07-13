@@ -252,6 +252,7 @@
   .ci-secao {
     flex-direction: row;
     align-items: center;
+    justify-content: space-between;
     flex-wrap: wrap;
     padding: 10px 24px;
   }
@@ -266,6 +267,20 @@
   .ci-combo-sugestao {
     flex: 1;
     min-width: 260px;
+  }
+
+  /* Com uma seção só ativa (o caso mais comum — ex.: só "frequentemente
+     comprados juntos"), a barra inteira ficava esticada de ponta a ponta
+     da coluna de conteúdo, com o rótulo grudado à esquerda e uma faixa
+     enorme de espaço vazio à direita. Limita a largura do cartão a algo
+     mais compacto e alinhado à direita, perto do botão "Cobrar" do
+     cartbar — fica visualmente ligado à ação de vender, em vez de uma
+     barra solta ocupando a tela toda. */
+  .ci-painel {
+    margin-left: auto;
+    max-width: 640px;
+    border: 1px solid var(--line);
+    border-radius: 12px 12px 0 0;
   }
 }
 

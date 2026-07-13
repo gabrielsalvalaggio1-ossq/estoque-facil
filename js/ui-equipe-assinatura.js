@@ -585,7 +585,9 @@ async function salvarFormularioProduto() {
     if (idEmEdicao) {
       await Produtos.editarProduto(idEmEdicao, { nome, preco, estoque, estoqueMinimo, categoria, fornecedor, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
     } else {
-      await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, fornecedor, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
+      const produtoCriado = await Produtos.criarProduto({ nome, preco, estoque, estoqueMinimo, categoria, fornecedor, imagem: imagemPendente, codigoBarras, unidade, precoCusto, dimensoes });
+      produtoRecemCriadoId = produtoCriado.id;
+      mostrarToast('Produto cadastrado com sucesso!', 'sucesso');
     }
     await recarregarDados();
     fecharModal();

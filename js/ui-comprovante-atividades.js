@@ -180,6 +180,8 @@ function abrirComprovante() {
       await recarregarDados();
       wrap.remove();
       renderizarTudo();
+      mostrarToast('Venda registrada com sucesso!', 'sucesso');
+      pulsarValor('statHoje');
     } catch (erro) {
       mostrarToast(erro.message || 'Não foi possível registrar a venda. Verifique sua conexão e tente novamente.', 'erro');
       btn.disabled = false;

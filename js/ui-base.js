@@ -53,6 +53,12 @@ let produtosSelecionadosLote = new Set(); // ids dos produtos marcados para excl
 let usuarioLogadoNomeEmpresa = ''; // usado no campo opcional "nome da empresa" da etiqueta
 let usuarioLogadoNomeDono = ''; // nome de quem criou a empresa (dono)
 
+// Id do produto recém-criado — usado só pra dar um destaque visual (animação
+// CSS) no card correspondente na próxima renderização da lista de Estoque.
+// Zerado logo depois de consumido, pra não "reacender" a animação em toda
+// renderização futura (filtro, busca, edição de outro produto etc.).
+let produtoRecemCriadoId = null;
+
 const ROTULOS_PAGAMENTO = {
   dinheiro: '💵 Dinheiro',
   pix: '🔑 Pix',
@@ -236,6 +242,22 @@ function tamanhoLegivel(bytes) {
 }
 
 // --- Notificações e diálogos do próprio app (substituem alert / confirm nativos) ---
+
+/**
+ * Aplica um pulso breve (escala + cor) num elemento — usado para chamar
+ * atenção pra um número que acabou de mudar (ex.: "Vendas hoje" depois de
+ * uma venda), sem precisar de nenhuma lib de animação.
+ * Reinicia a animação mesmo se chamada de novo antes da anterior terminar
+ * (força reflow removendo e recolocando a classe).
+ */
+function pulsarValor(elementoOuId) {
+  const el = typeof elementoOuId === 'string' ? document.getElementById(elementoOuId) : elementoOuId;
+  if (!el) return;
+  el.classList.remove('stat-valor--atualizado');
+  // eslint-disable-next-line no-unused-expressions
+  void el.offsetWidth; // força reflow pra reiniciar a animação CSS
+  el.classList.add('stat-valor--atualizado');
+}
 
 /**
  * Exibe uma notificação temporária no fundo da tela.

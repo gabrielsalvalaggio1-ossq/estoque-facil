@@ -20,6 +20,7 @@
  *  12. Toast  (melhora timing)
  *  13. Focus-visible global (acessibilidade)
  *  14. Prefers-reduced-motion  (respeita preferência do sistema)
+ *  15. Venda registrada / produto cadastrado (feedback de sucesso)
  */
 
 /* ─────────────────────────────────────────────────────────────
@@ -334,7 +335,76 @@ nav.tabs button {
 }
 
 /* ─────────────────────────────────────────────────────────────
-  13. Focus-visible global (acessibilidade + consistência)
+  15. Venda registrada / produto cadastrado — feedback de sucesso
+   ───────────────────────────────────────────────────────────── */
+
+/* Toast de sucesso: além do slide já existente, ganha um leve "respiro"
+   na entrada e um selo de check que desenha a si mesmo (sem imagem/SVG
+   externo — só stroke-dasharray). Reaproveita .app-toast--sucesso, que
+   já existe em style.css; aqui só adicionamos o ícone e o keyframe. */
+.app-toast--sucesso {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.app-toast--sucesso::before {
+  content: '';
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 11px 11px;
+  transform: scale(0);
+  animation: mev-check-pop 0.4s 0.05s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes mev-check-pop {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+
+/* Estatística "Vendas hoje" pisca suavemente quando o valor muda depois
+   de uma venda — chama atenção pro número novo sem ser chamativo demais. */
+@keyframes mev-stat-pulso {
+  0%   { transform: scale(1);    color: inherit; }
+  35%  { transform: scale(1.12); color: #1B7A4F; }
+  100% { transform: scale(1);    color: inherit; }
+}
+.stat-valor--atualizado {
+  display: inline-block;
+  animation: mev-stat-pulso 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Card do produto recém-cadastrado: entra com destaque (leve escala +
+   contorno na cor de destaque que se apaga sozinho) pra confirmar
+   visualmente qual item acabou de ser criado no meio da lista. */
+@keyframes mev-card-novo {
+  0% {
+    transform: scale(0.96);
+    box-shadow: 0 0 0 2px var(--amber, #e2572b);
+    background-color: rgba(226, 87, 43, 0.09);
+  }
+  60% {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 2px var(--amber, #e2572b);
+    background-color: rgba(226, 87, 43, 0.09);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(226, 87, 43, 0);
+    background-color: transparent;
+  }
+}
+.product-card--novo {
+  animation: mev-card-novo 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ─────────────────────────────────────────────────────────────
+  16. Focus-visible global (acessibilidade + consistência)
    ───────────────────────────────────────────────────────────── */
 
 button:focus-visible,
@@ -345,7 +415,7 @@ select:focus-visible {
 }
 
 /* ─────────────────────────────────────────────────────────────
-  14. prefers-reduced-motion — respeita quem prefere sem animação
+  17. prefers-reduced-motion — respeita quem prefere sem animação
    ───────────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

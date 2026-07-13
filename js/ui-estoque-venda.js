@@ -176,6 +176,7 @@ function atualizarListaProdutos() {
   }
   const mudou = renderizarSeMudou(container, html, 'estoque');
   if (mudou) observarImagensLazy(container);
+  if (produtoRecemCriadoId) produtoRecemCriadoId = null;
 }
 
 /** Agrupa os produtos da aba Estoque em seções por categoria ou fornecedor,
@@ -256,7 +257,7 @@ function cartaoProdutoEstoque(produto) {
     </div>`;
   }
 
-  return `<div class="product-card" onclick="abrirEdicao('${escaparHtml(produto.id)}')">
+  return `<div class="product-card${produto.id === produtoRecemCriadoId ? ' product-card--novo' : ''}" onclick="abrirEdicao('${escaparHtml(produto.id)}')">
     ${miniatura}
     <div class="info">
       <div class="name">${escaparHtml(produto.nome)}</div>

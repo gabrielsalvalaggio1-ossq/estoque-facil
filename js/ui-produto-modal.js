@@ -23,7 +23,7 @@ function abrirModalProduto(produto) {
   wrap.className = 'modal-wrap';
   wrap.id = 'productModalWrap';
   wrap.innerHTML = `
-    <div class="modal" style="view-transition-name:produto-modal">
+    <div class="modal">
       <h2>${produto ? 'Editar produto' : 'Novo produto'}</h2>
 
       <div class="foto-area">
@@ -169,12 +169,22 @@ function abrirModalProduto(produto) {
         <button class="btn primary" id="btnSalvar">Salvar</button>
       </div>
     </div>`;
-  if (typeof comTransicao === 'function') {
-    comTransicao(() => document.body.appendChild(wrap));
-  } else {
+  const montarModal = () => {
     document.body.appendChild(wrap);
+    aplicarFocusTrap(wrap);
+    registrarListenersModal(produto);
+  };
+
+  if (document.startViewTransition) {
+    document.startViewTransition(montarModal);
+  } else {
+    montarModal();
   }
-  aplicarFocusTrap(wrap);
+}
+
+/** Registra todos os listeners do modal de produto. Precisa rodar de forma síncrona logo após o wrap ser inserido no DOM. */
+function registrarListenersModal(produto) {
+  const wrap = document.getElementById('productModalWrap');
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModal(); });
   document.getElementById('btnSalvar').addEventListener('click', salvarFormularioProduto);

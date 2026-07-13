@@ -663,7 +663,9 @@ function renderizarConteudo() {
 
         <div class="card-info">
           <h3>⌨️ Atalhos de teclado</h3>
-          <div style="display:grid;gap:0.5rem;margin-top:0.25rem;">
+
+          <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft,#6b7280);margin:0.75rem 0 0.4rem;">Global</p>
+          <div style="display:grid;gap:0.5rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
               <span>Novo produto</span>
               <span style="display:flex;gap:0.35rem;">
@@ -672,7 +674,7 @@ function renderizarConteudo() {
               </span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-              <span>Buscar / focar campo de pesquisa</span>
+              <span>Focar campo de busca da aba atual</span>
               <kbd style="${kbdStyle}">/</kbd>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
@@ -683,11 +685,58 @@ function renderizarConteudo() {
               </span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
-              <span>Fechar modal / janela</span>
+              <span>Fechar modal</span>
               <kbd style="${kbdStyle}">ESC</kbd>
             </div>
           </div>
-          <p style="margin-top:0.75rem;font-size:0.82rem;color:var(--ink-soft,#9ca3af);">
+
+          <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft,#6b7280);margin:1rem 0 0.4rem;">Aba Venda</p>
+          <div style="display:grid;gap:0.5rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Adicionar produto ao carrinho</span>
+              <kbd style="${kbdStyle}">Enter</kbd>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Navegar entre produtos</span>
+              <span style="display:flex;gap:0.35rem;">
+                <kbd style="${kbdStyle}">↑</kbd>
+                <kbd style="${kbdStyle}">↓</kbd>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Adicionar N unidades (ex: leite*3)</span>
+              <span style="display:flex;gap:0.35rem;">
+                <kbd style="${kbdStyle}">nome</kbd>
+                <kbd style="${kbdStyle}">*N</kbd>
+              </span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Limpar busca</span>
+              <kbd style="${kbdStyle}">ESC</kbd>
+            </div>
+          </div>
+
+          <p style="font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft,#6b7280);margin:1rem 0 0.4rem;">Na cobrança</p>
+          <div style="display:grid;gap:0.5rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Pagar em Dinheiro</span>
+              <kbd style="${kbdStyle}">F1</kbd>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Pagar em Pix</span>
+              <kbd style="${kbdStyle}">F2</kbd>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Pagar em Cartão</span>
+              <kbd style="${kbdStyle}">F3</kbd>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+              <span>Pagar em Fiado</span>
+              <kbd style="${kbdStyle}">F4</kbd>
+            </div>
+          </div>
+
+          <p style="margin-top:0.85rem;font-size:0.82rem;color:var(--ink-soft,#9ca3af);">
             💡 Os atalhos não funcionam quando você está digitando em campos de texto.
           </p>
         </div>

@@ -211,14 +211,14 @@ function calcularHistoricoClientes(vendas) {
 
 function gerarCsvVendas(vendas) {
   const linhas = [
-    ['Data', 'Cliente', 'Vendedor', 'Itens', 'Forma de pagamento', 'Status', 'Total'].join(';')
+    montarLinhaCsv(['Data', 'Cliente', 'Vendedor', 'Itens', 'Forma de pagamento', 'Status', 'Total'])
   ];
   vendas.forEach(v => {
     const data = new Date(v.data).toLocaleString('pt-BR');
-    const cliente = String(v.cliente || '').replace(/;/g, ',');
-    const vendedor = String(v.vendedor || '').replace(/;/g, ',');
-    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ').replace(/;/g, ',');
-    linhas.push([data, cliente, vendedor, itens, v.formaPagamento, v.status === 'cancelada' ? 'Cancelada' : 'Concluída', v.total.toFixed(2).replace('.', ',')].join(';'));
+    const cliente = String(v.cliente || '');
+    const vendedor = String(v.vendedor || '');
+    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ');
+    linhas.push(montarLinhaCsv([data, cliente, vendedor, itens, v.formaPagamento, v.status === 'cancelada' ? 'Cancelada' : 'Concluída', v.total.toFixed(2).replace('.', ',')]));
   });
   return linhas.join('\r\n');
 }
@@ -226,11 +226,11 @@ function gerarCsvVendas(vendas) {
 function gerarCsvClientes(vendas) {
   const historico = calcularHistoricoClientes(vendas);
   const linhas = [
-    ['Cliente', 'Total de compras', 'Total gasto', 'Última compra'].join(';')
+    montarLinhaCsv(['Cliente', 'Total de compras', 'Total gasto', 'Última compra'])
   ];
   historico.forEach(c => {
-    const nome = String(c.cliente).replace(/;/g, ',');
-    linhas.push([nome, c.totalCompras, c.totalGasto.toFixed(2).replace('.', ','), new Date(c.ultimaCompra).toLocaleDateString('pt-BR')].join(';'));
+    const nome = String(c.cliente);
+    linhas.push(montarLinhaCsv([nome, c.totalCompras, c.totalGasto.toFixed(2).replace('.', ','), new Date(c.ultimaCompra).toLocaleDateString('pt-BR')]));
   });
   return linhas.join('\r\n');
 }
@@ -247,16 +247,16 @@ function gerarCsvFiado(vendas) {
   );
 
   const linhas = [
-    ['Data', 'Cliente', 'Itens', 'Total (R$)', 'Status'].join(';')
+    montarLinhaCsv(['Data', 'Cliente', 'Itens', 'Total (R$)', 'Status'])
   ];
 
   fiadoAtivas.forEach(v => {
     const data = new Date(v.data).toLocaleString('pt-BR');
-    const cliente = String(v.cliente || '').replace(/;/g, ',');
-    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ').replace(/;/g, ',');
+    const cliente = String(v.cliente || '');
+    const itens = v.itens.map(i => `${formatarQuantidadeItem(i)} ${i.nome}`).join(', ');
     const total = v.total.toFixed(2).replace('.', ',');
     const status = v.status === 'quitada' ? 'Quitado' : 'Pendente';
-    linhas.push([data, cliente, itens, total, status].join(';'));
+    linhas.push(montarLinhaCsv([data, cliente, itens, total, status]));
   });
 
   return linhas.join('\r\n');

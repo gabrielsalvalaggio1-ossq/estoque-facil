@@ -267,14 +267,38 @@ function imprimirEtiquetas(itens, modeloId, config, modeloCustom) {
   // Não usamos janela.onload: após document.write + document.close em uma
   // janela aberta por window.open, o onload frequentemente já disparou
   // (Chrome/mobile) ou nunca dispara (Safari), deixando o print() sem ser
-  // chamado. setTimeout de 0 ms garante que o browser termine de parsear o
-  // documento antes de acionar o diálogo de impressão.
-  setTimeout(() => {
+  // chamado.
+  //
+  // Além disso, um setTimeout(0) puro não é suficiente: a folha usa fontes
+  // do Google Fonts (Inter/IBM Plex Mono) carregadas via <link>, e mandar
+  // imprimir antes delas chegarem faz o navegador imprimir com a fonte de
+  // fallback do sistema — texto com largura diferente, nome de produto
+  // cortado com "…" quando não devia, código de barras com o texto abaixo
+  // dele desalinhado. Por isso esperamos document.fonts.ready da janela de
+  // impressão antes de chamar print(), com um teto de segurança (800ms) pro
+  // caso da fonte não carregar (sem internet, bloqueio de rede etc.) — assim
+  // a impressão nunca fica travada esperando pra sempre.
+  const dispararImpressao = () => {
     try {
       janela.focus();
       janela.print();
     } catch (e) {
       // Janela pode ter sido fechada manualmente pelo usuário — ignora.
     }
-  }, 0);
+  };
+
+  const fontsDaJanela = janela.document && janela.document.fonts;
+  if (fontsDaJanela && fontsDaJanela.ready && typeof fontsDaJanela.ready.then === 'function') {
+    let jaImprimiu = false;
+    const imprimirUmaVez = () => {
+      if (jaImprimiu) return;
+      jaImprimiu = true;
+      dispararImpressao();
+    };
+    fontsDaJanela.ready.then(imprimirUmaVez).catch(imprimirUmaVez);
+    setTimeout(imprimirUmaVez, 800);
+  } else {
+    // Navegador sem suporte à Font Loading API: mantém o comportamento antigo.
+    setTimeout(dispararImpressao, 0);
+  }
 }

@@ -369,21 +369,21 @@ function calcularMaisVendidos(vendas, limite = 3) {
  */
 function gerarCsvEstoque(produtos) {
   const linhas = [
-    ['Produto', 'Categoria', 'Fornecedor', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas', 'Preço de venda', 'Preço de custo', 'Lucro unitário'].join(';')
+    montarLinhaCsv(['Produto', 'Categoria', 'Fornecedor', 'Unidade', 'Código de barras', 'Quantidade atual', 'Total de entradas', 'Total de saídas', 'Preço de venda', 'Preço de custo', 'Lucro unitário'])
   ];
   produtos.forEach(p => {
-    const nome = String(p.nome || '').replace(/;/g, ',');
-    const categoria = String(p.categoria || CATEGORIA_PADRAO).replace(/;/g, ',');
-    const fornecedor = String(p.fornecedor || '').replace(/;/g, ',');
-    const codigo = String(p.codigoBarras || '').replace(/;/g, ',');
+    const nome = String(p.nome || '');
+    const categoria = String(p.categoria || CATEGORIA_PADRAO);
+    const fornecedor = String(p.fornecedor || '');
+    const codigo = String(p.codigoBarras || '');
     const unidade = p.unidade === 'kg' ? 'kg' : 'un';
     const precoCusto = p.precoCusto !== null && p.precoCusto !== undefined ? String(p.precoCusto).replace('.', ',') : '';
     const lucro = calcularLucroUnitario(p);
     const lucroTexto = lucro !== null ? String(lucro.toFixed(2)).replace('.', ',') : '';
-    linhas.push([
+    linhas.push(montarLinhaCsv([
       nome, categoria, fornecedor, unidade, codigo, p.estoque, p.totalEntradas || 0, p.totalSaidas || 0,
       String(p.preco).replace('.', ','), precoCusto, lucroTexto
-    ].join(';'));
+    ]));
   });
   return linhas.join('\r\n');
 }
@@ -391,7 +391,7 @@ function gerarCsvEstoque(produtos) {
 /** CSV com o histórico completo de movimentações (entradas e saídas). */
 function gerarCsvMovimentos(movimentos) {
   const linhas = [
-    ['Data', 'Produto', 'Tipo', 'Quantidade', 'Motivo'].join(';')
+    montarLinhaCsv(['Data', 'Produto', 'Tipo', 'Quantidade', 'Motivo'])
   ];
   const rotulosMotivo = {
     cadastro: 'Cadastro inicial',
@@ -401,8 +401,8 @@ function gerarCsvMovimentos(movimentos) {
   };
   movimentos.forEach(m => {
     const data = new Date(m.data).toLocaleString('pt-BR');
-    const nome = String(m.nomeProduto || '').replace(/;/g, ',');
-    linhas.push([data, nome, m.tipo === 'entrada' ? 'Entrada' : 'Saída', m.quantidade, rotulosMotivo[m.motivo] || m.motivo].join(';'));
+    const nome = String(m.nomeProduto || '');
+    linhas.push(montarLinhaCsv([data, nome, m.tipo === 'entrada' ? 'Entrada' : 'Saída', m.quantidade, rotulosMotivo[m.motivo] || m.motivo]));
   });
   return linhas.join('\r\n');
 }

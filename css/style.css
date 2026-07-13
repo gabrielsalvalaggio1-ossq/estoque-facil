@@ -3250,3 +3250,38 @@ body.auth-page{
     animation: none !important;
   }
 }
+
+/* ============================================================
+   View Transitions — lista de produtos (tarefa 4)
+   ============================================================ */
+
+/* Keyframes para entrada e saída de itens */
+@keyframes vt-item-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes vt-item-exit {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-8px); }
+}
+
+/* Durante troca da lista de produtos:
+   - Itens com view-transition-name único (produto-{id}) têm FLIP nativo
+     aplicado automaticamente pelo browser para os que permanecem.
+   - O root old/new recebe fade curto para cobrir o container inteiro
+     (novos itens sem name e itens que sumem).
+   - O atributo data-transicao-lista isola essas animações das
+     transições de aba (data-transicao), que usam slide direcional. */
+:root[data-transicao-lista]::view-transition-old(root) {
+  animation: vt-item-exit 160ms ease both;
+}
+:root[data-transicao-lista]::view-transition-new(root) {
+  animation: vt-item-enter 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-transicao-lista]::view-transition-old(root),
+  :root[data-transicao-lista]::view-transition-new(root) {
+    animation: none !important;
+  }
+}

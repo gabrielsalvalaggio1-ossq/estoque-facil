@@ -69,7 +69,18 @@ function renderizarSeMudou(container, html, chave) {
   // mesmo que o HTML gerado seja idêntico ao da última vez.
   if (anterior && anterior.elemento === container && anterior.html === html) return false;
   _cacheRenderLista[chave] = { elemento: container, html };
-  container.innerHTML = html;
+  if (document.startViewTransition && chave === 'estoque') {
+    // Marca o <html> para que o CSS aplique a animação certa nos
+    // pseudo-elementos ::view-transition-*. O FLIP nativo acontece
+    // automaticamente para cards com view-transition-name únicos.
+    document.documentElement.dataset.transicaoLista = '1';
+    const transicao = document.startViewTransition(() => { container.innerHTML = html; });
+    transicao.finished.finally(() => {
+      delete document.documentElement.dataset.transicaoLista;
+    });
+  } else {
+    container.innerHTML = html;
+  }
   return true;
 }
 
@@ -242,7 +253,7 @@ function cartaoProdutoEstoque(produto) {
     const aoClicar = modoSelecaoLote
       ? `alternarSelecaoProdutoLote('${escaparHtml(produto.id)}')`
       : `alternarSelecaoProdutoEtiqueta('${escaparHtml(produto.id)}')`;
-    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" onclick="${aoClicar}">
+    return `<div class="product-card modo-selecao ${marcado ? 'selecionado' : ''}" style="view-transition-name:produto-${escaparHtml(produto.id)}" onclick="${aoClicar}">
       <span class="selecao-check" aria-hidden="true">${marcado ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
       ${miniatura}
       <div class="info">

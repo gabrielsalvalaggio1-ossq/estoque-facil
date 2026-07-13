@@ -95,15 +95,23 @@ function aplicarFocusTrap(wrap) {
   const observer = new MutationObserver(() => {
     if (!document.body.contains(wrap)) {
       observer.disconnect();
-      // Só devolve o foco se o elemento ainda estiver no DOM — chamar
-      // .focus() num elemento órfão faz o foco "sumir" do documento inteiro,
-      // deixando o app sem resposta a teclado/cliques até um reload.
+      // Só devolve o foco se o elemento estiver no DOM E visível.
+      // offsetParent === null significa display:none — chamar .focus() nesse
+      // estado faz o foco sumir do documento inteiro (bug da impressão de
+      // etiquetas: btnImprimirEtiquetasSelecionadas fica oculto após
+      // cancelarSelecaoEtiquetas, mas ainda existe no DOM).
+      const estaVisivel = elementoAnterior && elementoAnterior.offsetParent !== null;
       if (
         elementoAnterior &&
         typeof elementoAnterior.focus === 'function' &&
-        document.body.contains(elementoAnterior)
+        document.body.contains(elementoAnterior) &&
+        estaVisivel
       ) {
         elementoAnterior.focus();
+      } else {
+        // Fallback: devolve foco ao body para o app continuar respondendo
+        // a teclado e cliques normalmente.
+        document.body.focus();
       }
     }
   });

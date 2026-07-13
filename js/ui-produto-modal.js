@@ -169,17 +169,9 @@ function abrirModalProduto(produto) {
         <button class="btn primary" id="btnSalvar">Salvar</button>
       </div>
     </div>`;
-  const montarModal = () => {
-    document.body.appendChild(wrap);
-    aplicarFocusTrap(wrap);
-    registrarListenersModal(produto);
-  };
-
-  if (document.startViewTransition) {
-    document.startViewTransition(montarModal);
-  } else {
-    montarModal();
-  }
+  document.body.appendChild(wrap);
+  aplicarFocusTrap(wrap);
+  registrarListenersModal(produto);
 }
 
 /** Registra todos os listeners do modal de produto. Precisa rodar de forma síncrona logo após o wrap ser inserido no DOM. */
@@ -323,11 +315,11 @@ function avaliarAvisoCusto() {
 function fecharModal() {
   const el = document.getElementById('productModalWrap');
   if (!el) return;
-  if (typeof comTransicao === 'function') {
-    comTransicao(() => el.remove());
-  } else {
-    el.remove();
-  }
+  el.classList.add('modal-wrap--saindo');
+  const remover = () => el.remove();
+  el.addEventListener('animationend', remover, { once: true });
+  // fallback: se a animação não disparar (ex: já removido, reduced-motion sem animationend), remove de qualquer forma
+  setTimeout(remover, 220);
 }
 
 /**

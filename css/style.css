@@ -345,6 +345,25 @@ main{
   background:rgba(18,40,31,0.55);
   display:flex; align-items:center; justify-content:center;
   z-index:50;
+  animation: modal-wrap-fade-in 180ms ease both;
+}
+.modal-wrap.modal-wrap--saindo{
+  animation: modal-wrap-fade-out 160ms ease both;
+}
+.modal-wrap .modal{
+  animation: modal-scale-in 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+.modal-wrap.modal-wrap--saindo .modal{
+  animation: modal-scale-out 160ms ease both;
+}
+@keyframes modal-wrap-fade-in { from { opacity:0; } to { opacity:1; } }
+@keyframes modal-wrap-fade-out { from { opacity:1; } to { opacity:0; } }
+@keyframes modal-scale-in { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+@keyframes modal-scale-out { from { opacity:1; transform:scale(1); } to { opacity:0; transform:scale(0.94); } }
+@media (prefers-reduced-motion: reduce) {
+  .modal-wrap, .modal-wrap.modal-wrap--saindo, .modal-wrap .modal, .modal-wrap.modal-wrap--saindo .modal {
+    animation: none !important;
+  }
 }
 /* Variante usada só no popup de boas-vindas: centralizado na tela,
    em vez de "folha" grudada embaixo como os outros modais. */

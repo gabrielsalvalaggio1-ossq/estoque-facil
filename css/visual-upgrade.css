@@ -652,16 +652,92 @@ header.top::after {
   border-color: var(--ledger) !important;
 }
 
-/* ── Grid principal dos widgets com gap melhor ──────────────────── */
+/* ── Grid principal dos widgets (T-RESIZE — cards com tamanho ajustável) ──
+   Antes era `auto-fit`, então widgets "largos" ficavam sempre esticados
+   à largura total, mesmo com pouco conteúdo. Agora a grade tem um nº fixo
+   de colunas por breakpoint e cada card escolhe quantas colunas ocupa
+   (.cd-widget-tam-sm/md/lg/xl), via o controle que aparece ao passar o
+   mouse (ou sempre visível em telas de toque). ────────────────────────── */
 .cd-widgets {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+  grid-template-columns: repeat(4, 1fr) !important;
   gap: 16px !important;
   align-items: start !important;
 }
 
-.cd-widget-largo {
-  grid-column: 1 / -1 !important;
+@media (max-width: 1300px) {
+  .cd-widgets { grid-template-columns: repeat(3, 1fr) !important; }
+}
+@media (max-width: 900px) {
+  .cd-widgets { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 640px) {
+  .cd-widgets { grid-template-columns: 1fr !important; }
+}
+
+.cd-widget-tam-sm { grid-column: span 1 !important; }
+.cd-widget-tam-md { grid-column: span 2 !important; }
+.cd-widget-tam-lg { grid-column: span 3 !important; }
+.cd-widget-tam-xl,
+.cd-widget-largo { grid-column: 1 / -1 !important; }
+
+/* Numa grade de 2 colunas, "Grande" (3) não cabe — vira largura total. */
+@media (max-width: 900px) {
+  .cd-widget-tam-lg { grid-column: 1 / -1 !important; }
+}
+/* Numa grade de 1 coluna, qualquer span explícito quebraria o layout. */
+@media (max-width: 640px) {
+  .cd-widget-tam-sm, .cd-widget-tam-md, .cd-widget-tam-lg, .cd-widget-tam-xl {
+    grid-column: auto !important;
+  }
+}
+
+/* ── Controle de tamanho do card (segmentado, 4 opções) ───────────────── */
+.cd-widget-controles {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.cd-widget-tamanhos {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 2px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cd-widget-tamanho-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px;
+  border: none; background: transparent; border-radius: 5px;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.cd-widget-tamanho-btn:hover { background: var(--paper-dim); }
+
+.cd-widget-tamanho-btn.ativo { background: var(--ledger); }
+
+.cd-tam-barra {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ink-soft);
+}
+.cd-widget-tamanho-btn.ativo .cd-tam-barra { background: #fff; }
+
+.cd-tam-barra-sm { width: 5px; }
+.cd-tam-barra-md { width: 8px; }
+.cd-tam-barra-lg { width: 11px; }
+.cd-tam-barra-xl { width: 14px; }
+
+/* Em telas de toque não há :hover — controles ficam sempre visíveis. */
+@media (max-width: 640px) {
+  .cd-widget-tamanhos { display: none !important; }
 }
 
 /* ── Upgrade CTA ─────────────────────────────────────────────────── */

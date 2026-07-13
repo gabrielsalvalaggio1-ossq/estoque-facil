@@ -72,14 +72,15 @@ const CentralDados = (() => {
   function carregarPrefsWidgets() {
     try {
       const bruto = localStorage.getItem(chavePrefsWidgets());
-      if (!bruto) return { ocultos: [], ordem: [] };
+      if (!bruto) return { ocultos: [], ordem: [], tamanhos: {} };
       const dados = JSON.parse(bruto);
       return {
         ocultos: Array.isArray(dados.ocultos) ? dados.ocultos : [],
         ordem: Array.isArray(dados.ordem) ? dados.ordem : [],
+        tamanhos: (dados.tamanhos && typeof dados.tamanhos === 'object') ? dados.tamanhos : {},
       };
     } catch (e) {
-      return { ocultos: [], ordem: [] };
+      return { ocultos: [], ordem: [], tamanhos: {} };
     }
   }
 
@@ -107,7 +108,22 @@ const CentralDados = (() => {
   }
 
   function restaurarPadraoWidgets() {
-    salvarPrefsWidgets({ ocultos: [], ordem: [] });
+    salvarPrefsWidgets({ ocultos: [], ordem: [], tamanhos: {} });
+  }
+
+  // Tamanhos possíveis de um widget, do mais estreito ao de largura total.
+  // Cada card ocupa esse nº de colunas na grade (ver .cd-widgets no CSS).
+  const TAMANHOS_WIDGET = [
+    { id: 'sm', rotulo: 'Pequeno' },
+    { id: 'md', rotulo: 'Médio' },
+    { id: 'lg', rotulo: 'Grande' },
+    { id: 'xl', rotulo: 'Largura total' },
+  ];
+
+  function definirTamanhoWidget(id, tamanho) {
+    const prefs = carregarPrefsWidgets();
+    prefs.tamanhos[id] = tamanho;
+    salvarPrefsWidgets(prefs);
   }
 
   /** Aplica a ordem salva; widgets novos (sem ordem salva) vão ao final, na ordem natural. */
@@ -122,23 +138,35 @@ const CentralDados = (() => {
     return ordenados;
   }
 
-  /** Monta um widget: id estável + HTML do conteúdo (que já tem seu próprio card/h3). */
+  /** Monta um widget: id estável + HTML do conteúdo (que já tem seu próprio card/h3).
+   *  `opcoes.largo` é mantido por compatibilidade e só define o tamanho *padrão*
+   *  ('xl') — o usuário pode trocar livremente depois (ver TAMANHOS_WIDGET). */
   function widget(id, html, opcoes = {}) {
-    return { id, html, largo: !!opcoes.largo };
+    return { id, html, tamanhoPadrao: opcoes.largo ? 'xl' : (opcoes.tamanho || 'md') };
   }
 
-  function renderWidget(w) {
+  function renderWidget(w, tamanhoAtual) {
+    const tamanho = tamanhoAtual || w.tamanhoPadrao || 'md';
+    const controlesTamanho = TAMANHOS_WIDGET.map(t => `
+      <button type="button"
+        class="cd-widget-tamanho-btn${t.id === tamanho ? ' ativo' : ''}"
+        data-acao="tamanho-widget" data-widget-id="${escaparHtml(w.id)}" data-tamanho="${t.id}"
+        title="${t.rotulo}" aria-label="${t.rotulo}" aria-pressed="${t.id === tamanho}">
+        <span class="cd-tam-barra cd-tam-barra-${t.id}"></span>
+      </button>`).join('');
+
     return `
-      <div class="cd-widget${w.largo ? ' cd-widget-largo' : ''}" draggable="true" data-widget-id="${escaparHtml(w.id)}">
+      <div class="cd-widget cd-widget-tam-${tamanho}" draggable="true" data-widget-id="${escaparHtml(w.id)}">
         <div class="cd-widget-controles">
           <span class="cd-widget-alca" title="Arrastar para reordenar" aria-hidden="true">⠿</span>
+          <div class="cd-widget-tamanhos" role="group" aria-label="Tamanho do card">${controlesTamanho}</div>
           <button type="button" class="cd-widget-fechar" data-acao="ocultar-widget" data-widget-id="${escaparHtml(w.id)}" title="Ocultar este widget">✕</button>
         </div>
         <div class="cd-widget-corpo">${w.html}</div>
       </div>`;
   }
 
-  /** Aplica preferências (ordem + ocultos) e monta o grid arrastável + a barra de "ocultos". */
+  /** Aplica preferências (ordem + ocultos + tamanhos) e monta o grid arrastável + a barra de "ocultos". */
   function renderPainelWidgets(todosWidgets) {
     const prefs = carregarPrefsWidgets();
     const ordenados = ordenarWidgets(todosWidgets, prefs.ordem);
@@ -157,7 +185,7 @@ const CentralDados = (() => {
     return `
       ${barraOcultos}
       <div class="cd-widgets" id="cdWidgets">
-        ${visiveis.map(renderWidget).join('')}
+        ${visiveis.map(w => renderWidget(w, prefs.tamanhos[w.id])).join('')}
       </div>`;
   }
 
@@ -949,6 +977,13 @@ const CentralDados = (() => {
     document.querySelectorAll('[data-acao="mostrar-widget"]').forEach(botao => {
       botao.addEventListener('click', () => {
         mostrarWidget(botao.dataset.widgetId);
+        aoTrocarPeriodo();
+      });
+    });
+
+    document.querySelectorAll('[data-acao="tamanho-widget"]').forEach(botao => {
+      botao.addEventListener('click', () => {
+        definirTamanhoWidget(botao.dataset.widgetId, botao.dataset.tamanho);
         aoTrocarPeriodo();
       });
     });

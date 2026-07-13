@@ -2319,6 +2319,19 @@ body.auth-page{
 }
 .cd-widget{ position:relative; }
 .cd-widget-largo{ grid-column:1 / -1; }
+.cd-widget-tam-sm{ grid-column:span 1; }
+.cd-widget-tam-md{ grid-column:span 2; }
+.cd-widget-tam-lg{ grid-column:span 3; }
+.cd-widget-tam-xl{ grid-column:1 / -1; }
+.cd-widget-tamanhos{ display:flex; align-items:center; gap:1px; }
+.cd-widget-tamanho-btn{
+  display:flex; align-items:center; justify-content:center;
+  width:20px; height:20px; border:none; background:transparent;
+  border-radius:5px; cursor:pointer;
+}
+.cd-tam-barra{ display:block; height:3px; border-radius:2px; background:var(--ledger); }
+.cd-tam-barra-sm{ width:5px; } .cd-tam-barra-md{ width:8px; }
+.cd-tam-barra-lg{ width:11px; } .cd-tam-barra-xl{ width:14px; }
 .cd-widget-controles{
   position:absolute; top:8px; right:8px; z-index:2;
   display:flex; align-items:center; gap:4px;

@@ -3141,3 +3141,37 @@ body.auth-page{
     animation: none !important;
   }
 }
+
+/* ============================================================
+   View Transitions — modal de produto (hero animation)
+   ============================================================ */
+
+@keyframes vt-modal-enter {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes vt-modal-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.94); }
+}
+
+::view-transition-new(produto-modal) {
+  animation: vt-modal-enter 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+::view-transition-old(produto-modal) {
+  animation: vt-modal-exit 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+/* Os cards de produto ficam estáticos durante a transição do modal
+   (apenas o modal e o card de origem animam, o resto não pisca) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(produto-modal),
+  ::view-transition-new(produto-modal) {
+    animation: none !important;
+  }
+}

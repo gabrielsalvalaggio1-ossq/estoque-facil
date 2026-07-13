@@ -23,7 +23,7 @@ function abrirModalProduto(produto) {
   wrap.className = 'modal-wrap';
   wrap.id = 'productModalWrap';
   wrap.innerHTML = `
-    <div class="modal">
+    <div class="modal" style="view-transition-name:produto-modal">
       <h2>${produto ? 'Editar produto' : 'Novo produto'}</h2>
 
       <div class="foto-area">
@@ -169,7 +169,11 @@ function abrirModalProduto(produto) {
         <button class="btn primary" id="btnSalvar">Salvar</button>
       </div>
     </div>`;
-  document.body.appendChild(wrap);
+  if (typeof comTransicao === 'function') {
+    comTransicao(() => document.body.appendChild(wrap));
+  } else {
+    document.body.appendChild(wrap);
+  }
   aplicarFocusTrap(wrap);
 
   wrap.addEventListener('click', e => { if (e.target === wrap) fecharModal(); });
@@ -308,7 +312,12 @@ function avaliarAvisoCusto() {
 
 function fecharModal() {
   const el = document.getElementById('productModalWrap');
-  if (el) el.remove();
+  if (!el) return;
+  if (typeof comTransicao === 'function') {
+    comTransicao(() => el.remove());
+  } else {
+    el.remove();
+  }
 }
 
 /**
@@ -340,4 +349,3 @@ function mostrarErroFormulario(mensagem) {
   erro.textContent = mensagem;
   erro.style.display = 'block';
 }
-

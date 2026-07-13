@@ -257,7 +257,7 @@ function cartaoProdutoEstoque(produto) {
     </div>`;
   }
 
-  return `<div class="product-card${produto.id === produtoRecemCriadoId ? ' product-card--novo' : ''}" onclick="abrirEdicao('${escaparHtml(produto.id)}')">
+  return `<div class="product-card${produto.id === produtoRecemCriadoId ? ' product-card--novo' : ''}" style="view-transition-name:produto-${escaparHtml(produto.id)}" onclick="abrirEdicao('${escaparHtml(produto.id)}')">
     ${miniatura}
     <div class="info">
       <div class="name">${escaparHtml(produto.nome)}</div>

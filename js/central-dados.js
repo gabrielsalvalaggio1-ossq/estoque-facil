@@ -508,8 +508,35 @@ const CentralDados = (() => {
     return (w && w > 40) ? w : valorPadrao;
   }
 
-  /** Gráfico de linha simples (evolução no tempo). */
-  function desenharLinha(container, pontos, { largura = 300, altura = 140, cor = '#1B3A2F' } = {}) {
+  // ── Tooltip de hover (compartilhado pelos gráficos de linha e barras) ───
+  // O container (.cd-grafico-linha/.cd-grafico-barras) é `position:relative`
+  // no CSS; a tooltip é um <div> absoluto posicionado em cima do ponto/barra
+  // sob o cursor. Um único elemento é reaproveitado por gráfico.
+  function criarTooltipGrafico(container) {
+    let tip = container.querySelector('.cd-grafico-tooltip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'cd-grafico-tooltip';
+      container.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function posicionarTooltip(tip, x, y, texto) {
+    tip.textContent = texto;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    tip.classList.add('cd-grafico-tooltip-visivel');
+  }
+
+  function esconderTooltip(tip) {
+    tip.classList.remove('cd-grafico-tooltip-visivel');
+  }
+
+  /** Gráfico de linha simples (evolução no tempo). Cada ponto pode trazer
+   *  `rotulo` (eixo X, ex.: data) — usado na tooltip ao passar o mouse.
+   *  `formatarValor` personaliza como o valor aparece na tooltip (ex.: moeda). */
+  function desenharLinha(container, pontos, { largura = 300, altura = 140, cor = '#1B3A2F', formatarValor } = {}) {
     largura = larguraResponsiva(container, largura);
     const { canvas, ctx } = canvasComDpr(largura, altura);
     container.appendChild(canvas);
@@ -517,36 +544,61 @@ const CentralDados = (() => {
     const margem = 24;
     const maxVal = Math.max(...pontos.map(p => p.valor), 1);
     const passoX = (largura - margem * 2) / Math.max(pontos.length - 1, 1);
+    const coords = pontos.map((p, i) => ({
+      x: margem + i * passoX,
+      y: altura - margem - (p.valor / maxVal) * (altura - margem * 2),
+      item: p,
+    }));
 
-    ctx.strokeStyle = '#D9D4C2';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(margem, altura - margem);
-    ctx.lineTo(largura - margem, altura - margem);
-    ctx.stroke();
+    function desenhar(indiceAtivo) {
+      ctx.clearRect(0, 0, largura, altura);
 
-    ctx.beginPath();
-    ctx.strokeStyle = cor;
-    ctx.lineWidth = 2.5;
-    pontos.forEach((p, i) => {
-      const x = margem + i * passoX;
-      const y = altura - margem - (p.valor / maxVal) * (altura - margem * 2);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    });
-    ctx.stroke();
-
-    ctx.fillStyle = cor;
-    pontos.forEach((p, i) => {
-      const x = margem + i * passoX;
-      const y = altura - margem - (p.valor / maxVal) * (altura - margem * 2);
+      ctx.strokeStyle = '#D9D4C2';
+      ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.arc(x, y, 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(margem, altura - margem);
+      ctx.lineTo(largura - margem, altura - margem);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.strokeStyle = cor;
+      ctx.lineWidth = 2.5;
+      coords.forEach((c, i) => { if (i === 0) ctx.moveTo(c.x, c.y); else ctx.lineTo(c.x, c.y); });
+      ctx.stroke();
+
+      coords.forEach((c, i) => {
+        const ativo = i === indiceAtivo;
+        ctx.fillStyle = cor;
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, ativo ? 5 : 3, 0, Math.PI * 2);
+        ctx.fill();
+        if (ativo) {
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#fff';
+          ctx.stroke();
+        }
+      });
+    }
+    desenhar(null);
+    if (coords.length < 2) return; // sem vizinhança suficiente pra hover fazer sentido
+
+    const tip = criarTooltipGrafico(container);
+    canvas.addEventListener('mousemove', (e) => {
+      const rectCanvas = canvas.getBoundingClientRect();
+      const mx = e.clientX - rectCanvas.left;
+      const idx = Math.max(0, Math.min(coords.length - 1, Math.round((mx - margem) / passoX)));
+      desenhar(idx);
+      const c = coords[idx];
+      const rotulo = c.item.rotulo != null ? c.item.rotulo : `#${idx + 1}`;
+      const valorTexto = formatarValor ? formatarValor(c.item.valor) : c.item.valor;
+      posicionarTooltip(tip, c.x, c.y, `${rotulo}: ${valorTexto}`);
     });
+    canvas.addEventListener('mouseleave', () => { desenhar(null); esconderTooltip(tip); });
   }
 
-  /** Gráfico de barras verticais. */
-  function desenharBarras(container, itens, { largura = 300, altura = 160, cor = '#1B3A2F' } = {}) {
+  /** Gráfico de barras verticais. Cada item pode trazer `rotulo` (nome
+   *  exibido na tooltip ao passar o mouse) além de `valor`. */
+  function desenharBarras(container, itens, { largura = 300, altura = 160, cor = '#1B3A2F', formatarValor } = {}) {
     largura = larguraResponsiva(container, largura);
     const { canvas, ctx } = canvasComDpr(largura, altura);
     container.appendChild(canvas);
@@ -555,29 +607,53 @@ const CentralDados = (() => {
     const maxVal = Math.max(...itens.map(i => i.valor), 1);
     const larguraBarra = (largura - margem * 2) / itens.length;
 
-    itens.forEach((item, i) => {
+    const barras = itens.map((item, i) => {
       const alturaBarra = (item.valor / maxVal) * (altura - margem * 2);
       const x = margem + i * larguraBarra + larguraBarra * 0.15;
       const y = altura - margem - alturaBarra;
       const w = larguraBarra * 0.7;
-      ctx.fillStyle = cor;
-      ctx.beginPath();
-      const r = Math.min(4, w / 2);
-      ctx.moveTo(x, y + r);
-      ctx.arcTo(x, y, x + r, y, r);
-      ctx.lineTo(x + w - r, y);
-      ctx.arcTo(x + w, y, x + w, y + r, r);
-      ctx.lineTo(x + w, altura - margem);
-      ctx.lineTo(x, altura - margem);
-      ctx.closePath();
-      ctx.fill();
+      return { x, y, w, item };
     });
 
-    ctx.strokeStyle = '#D9D4C2';
-    ctx.beginPath();
-    ctx.moveTo(margem, altura - margem);
-    ctx.lineTo(largura - margem, altura - margem);
-    ctx.stroke();
+    function desenhar(indiceAtivo) {
+      ctx.clearRect(0, 0, largura, altura);
+      barras.forEach((b, i) => {
+        ctx.globalAlpha = (indiceAtivo == null || i === indiceAtivo) ? 1 : 0.5;
+        ctx.fillStyle = cor;
+        ctx.beginPath();
+        const r = Math.min(4, b.w / 2);
+        ctx.moveTo(b.x, b.y + r);
+        ctx.arcTo(b.x, b.y, b.x + r, b.y, r);
+        ctx.lineTo(b.x + b.w - r, b.y);
+        ctx.arcTo(b.x + b.w, b.y, b.x + b.w, b.y + r, r);
+        ctx.lineTo(b.x + b.w, altura - margem);
+        ctx.lineTo(b.x, altura - margem);
+        ctx.closePath();
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.strokeStyle = '#D9D4C2';
+      ctx.beginPath();
+      ctx.moveTo(margem, altura - margem);
+      ctx.lineTo(largura - margem, altura - margem);
+      ctx.stroke();
+    }
+    desenhar(null);
+
+    const tip = criarTooltipGrafico(container);
+    canvas.addEventListener('mousemove', (e) => {
+      const rectCanvas = canvas.getBoundingClientRect();
+      const mx = e.clientX - rectCanvas.left;
+      const idx = Math.floor((mx - margem) / larguraBarra);
+      if (idx < 0 || idx >= barras.length) { desenhar(null); esconderTooltip(tip); return; }
+      desenhar(idx);
+      const b = barras[idx];
+      const rotulo = b.item.rotulo != null ? b.item.rotulo : `#${idx + 1}`;
+      const valorTexto = formatarValor ? formatarValor(b.item.valor) : b.item.valor;
+      posicionarTooltip(tip, b.x + b.w / 2, b.y, `${rotulo}: ${valorTexto}`);
+    });
+    canvas.addEventListener('mouseleave', () => { desenhar(null); esconderTooltip(tip); });
   }
 
   /** Gráfico de pizza/donut — usado para formas de pagamento. */
@@ -830,7 +906,13 @@ const CentralDados = (() => {
 
       widget('padroes-venda', `
         <div class="cd-bloco">
-          <h3>Padrões de venda</h3>
+          <div class="cd-bloco-topo-flex">
+            <h3>Padrões de venda</h3>
+            <div class="cd-subfiltros" role="group" aria-label="Ver padrão por">
+              <button type="button" class="cd-subfiltro-btn${padroesModo === 'horario' ? ' ativo' : ''}" data-acao="padroes-modo" data-modo="horario">Por horário</button>
+              <button type="button" class="cd-subfiltro-btn${padroesModo === 'dia' ? ' ativo' : ''}" data-acao="padroes-modo" data-modo="dia">Por dia da semana</button>
+            </div>
+          </div>
           <p class="cd-destaque">Horário com mais vendas: <strong>${horarios.some(h=>h>0) ? horaTopo + 'h' : '—'}</strong> · Dia da semana mais forte: <strong>${diasSemana[0] && diasSemana[0].total > 0 ? diasSemana[0].nome : '—'}</strong></p>
           <div class="cd-grafico-barras" data-grafico="horarios"></div>
         </div>`, { largo: true }),
@@ -861,6 +943,7 @@ const CentralDados = (() => {
   // ── Estado do módulo ────────────────────────────────────────────────────
 
   let periodoAtual = 'mes';
+  let padroesModo = 'horario'; // 'horario' | 'dia' — alterna o gráfico do card "Padrões de venda"
   let metasCache = [];
 
   async function renderizar(produtos, vendas, assinatura) {
@@ -903,14 +986,14 @@ const CentralDados = (() => {
     const serie = serieDiaria(vendasNoPeriodo(vendas, periodo), periodo);
 
     const elVendas = document.querySelector('[data-grafico="vendas"]');
-    if (elVendas) desenharLinha(elVendas, serie.map(s => ({ valor: s.vendas })), { cor: '#1B3A2F' });
+    if (elVendas) desenharLinha(elVendas, serie.map(s => ({ valor: s.vendas, rotulo: s.rotulo })), { cor: '#1B3A2F', formatarValor: v => `${v} venda${v === 1 ? '' : 's'}` });
 
     const elFat = document.querySelector('[data-grafico="faturamento"]');
-    if (elFat) desenharLinha(elFat, serie.map(s => ({ valor: s.faturamento })), { cor: '#D9A441' });
+    if (elFat) desenharLinha(elFat, serie.map(s => ({ valor: s.faturamento, rotulo: s.rotulo })), { cor: '#D9A441', formatarValor: formatarMoeda });
 
     const maisVendidos = Produtos.calcularMaisVendidos(vendasNoPeriodo(vendas, periodo), 5);
     const elBarras = document.querySelector('[data-grafico="mais-vendidos"]');
-    if (elBarras) desenharBarras(elBarras, maisVendidos.map(p => ({ valor: p.quantidade })), { cor: '#E2572B' });
+    if (elBarras) desenharBarras(elBarras, maisVendidos.map(p => ({ valor: p.quantidade, rotulo: p.nome })), { cor: '#E2572B', formatarValor: v => `${v} un.` });
 
     const formas = serieFormasPagamento(vendasNoPeriodo(vendas, periodo));
     const elPizza = document.querySelector('[data-grafico="formas-pagamento"]');
@@ -923,8 +1006,15 @@ const CentralDados = (() => {
 
     const elHorarios = document.querySelector('[data-grafico="horarios"]');
     if (elHorarios) {
-      const horarios = horariosComMaisVendas(vendasNoPeriodo(vendas, periodo));
-      desenharBarras(elHorarios, horarios.map((v, h) => ({ valor: v })), { largura: 320, altura: 100, cor: '#5B6259' });
+      const vendasPeriodo = vendasNoPeriodo(vendas, periodo);
+      const formatarQtd = v => `${v} venda${v === 1 ? '' : 's'}`;
+      if (padroesModo === 'dia') {
+        const porDia = diasSemanaComMaisVendas(vendasPeriodo); // ordem natural: Domingo..Sábado
+        desenharBarras(elHorarios, porDia.map(d => ({ valor: d.total, rotulo: d.nome })), { altura: 100, cor: '#5B6259', formatarValor: formatarQtd });
+      } else {
+        const horarios = horariosComMaisVendas(vendasPeriodo);
+        desenharBarras(elHorarios, horarios.map((v, h) => ({ valor: v, rotulo: `${h}h` })), { altura: 100, cor: '#5B6259', formatarValor: formatarQtd });
+      }
     }
   }
 
@@ -1015,6 +1105,13 @@ const CentralDados = (() => {
     document.querySelectorAll('.cd-filtro-btn').forEach(botao => {
       botao.addEventListener('click', () => {
         periodoAtual = botao.dataset.periodo;
+        aoTrocarPeriodo();
+      });
+    });
+
+    document.querySelectorAll('[data-acao="padroes-modo"]').forEach(botao => {
+      botao.addEventListener('click', () => {
+        padroesModo = botao.dataset.modo;
         aoTrocarPeriodo();
       });
     });

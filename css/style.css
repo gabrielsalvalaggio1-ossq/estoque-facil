@@ -2332,6 +2332,27 @@ body.auth-page{
 .cd-tam-barra{ display:block; height:3px; border-radius:2px; background:var(--ledger); }
 .cd-tam-barra-sm{ width:5px; } .cd-tam-barra-md{ width:8px; }
 .cd-tam-barra-lg{ width:11px; } .cd-tam-barra-xl{ width:14px; }
+
+/* ── Tooltip de hover nos gráficos (linha/barras) ─────────────────────── */
+.cd-grafico-tooltip{
+  position:absolute; transform:translate(-50%, calc(-100% - 10px));
+  background:var(--ledger); color:var(--paper); font-size:11.5px; font-weight:600;
+  padding:4px 9px; border-radius:6px; white-space:nowrap; pointer-events:none;
+  opacity:0; transition:opacity .1s; z-index:3;
+}
+.cd-grafico-tooltip-visivel{ opacity:1; }
+
+/* ── Alternar "Por horário" / "Por dia da semana" (Padrões de venda) ─── */
+.cd-bloco-topo-flex{
+  display:flex; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:10px; margin-bottom:12px;
+}
+.cd-subfiltros{ display:flex; gap:4px; }
+.cd-subfiltro-btn{
+  border:1px solid var(--paper-dim); background:var(--paper); color:var(--ink);
+  font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; cursor:pointer;
+}
+.cd-subfiltro-btn.ativo{ background:var(--ledger); color:var(--paper); border-color:var(--ledger); }
 .cd-widget-controles{
   position:absolute; top:8px; right:8px; z-index:2;
   display:flex; align-items:center; gap:4px;
@@ -2395,7 +2416,7 @@ body.auth-page{
 }
 .cd-bloco-topo{ display:flex; align-items:center; justify-content:space-between; }
 .cd-bloco-pizza{ display:flex; flex-direction:column; align-items:center; text-align:center; }
-.cd-grafico-linha, .cd-grafico-barras{ width:100%; overflow-x:auto; }
+.cd-grafico-linha, .cd-grafico-barras{ width:100%; overflow-x:auto; position:relative; }
 .cd-grafico-pizza{ display:flex; justify-content:center; }
 .cd-legenda{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:10px; }
 .cd-legenda-item{ font-size:12.5px; color:var(--ink); display:flex; align-items:center; gap:6px; }

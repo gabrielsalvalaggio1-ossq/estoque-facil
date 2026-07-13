@@ -626,6 +626,77 @@ header.top::after {
   background: var(--amber);
 }
 
+/* ── Cabeçalho flex de bloco (título + ações), ex.: Padrões de venda ──── */
+.cd-bloco-topo-flex {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-bottom: 16px !important;
+}
+
+.cd-bloco-topo-flex h3 {
+  margin: 0 !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.cd-subfiltros {
+  display: flex;
+  gap: 4px;
+  background: var(--paper-dim);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.cd-subfiltro-btn {
+  border: none !important;
+  background: transparent !important;
+  color: var(--ink-soft) !important;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.cd-subfiltro-btn:hover { color: var(--ledger) !important; }
+
+.cd-subfiltro-btn.ativo {
+  background: var(--white) !important;
+  color: var(--ledger) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* ── Tooltip de hover nos gráficos ───────────────────────────────────── */
+.cd-grafico-linha, .cd-grafico-barras {
+  position: relative;
+}
+
+.cd-grafico-tooltip {
+  position: absolute;
+  transform: translate(-50%, calc(-100% - 10px));
+  background: var(--ledger) !important;
+  color: #fff !important;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 5px 10px !important;
+  border-radius: 7px !important;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .1s ease;
+  box-shadow: var(--shadow-md);
+  z-index: 3;
+}
+
+.cd-grafico-tooltip-visivel { opacity: 1; }
+
 /* ── Widgets ocultos ─────────────────────────────────────────────── */
 .cd-widgets-ocultos {
   background: rgba(255,255,255,.7) !important;

@@ -7,24 +7,56 @@
 
 // --- Inicialização ---
 
+/**
+ * Ordem canônica das abas — usada para determinar a direção da animação
+ * de troca: avançar (direita→esquerda) ou recuar (esquerda→direita).
+ */
+const ORDEM_ABAS = ['estoque', 'venda', 'historico', 'central', 'atividades', 'conta', 'assinatura', 'contato'];
+
+/**
+ * Executa um callback dentro de document.startViewTransition quando disponível,
+ * definindo a direção da animação antes de trocar o conteúdo.
+ * @param {Function} fn - Callback que atualiza o DOM.
+ * @param {'forward'|'backward'|'none'} direcao - Direção da transição.
+ */
+function comTransicao(fn, direcao = 'none') {
+  if (!document.startViewTransition) {
+    fn();
+    return;
+  }
+  document.documentElement.dataset.transicao = direcao;
+  const transicao = document.startViewTransition(fn);
+  transicao.finished.finally(() => {
+    delete document.documentElement.dataset.transicao;
+  });
+}
+
 document.querySelectorAll('[data-tab]').forEach(botao => {
   botao.addEventListener('click', () => {
     if (modoSelecaoEtiquetas && botao.dataset.tab !== 'estoque') cancelarSelecaoEtiquetas();
+
+    const abaAnterior = abaAtual;
     abaAtual = botao.dataset.tab;
+
+    const idxAnterior = ORDEM_ABAS.indexOf(abaAnterior);
+    const idxAtual    = ORDEM_ABAS.indexOf(abaAtual);
+    const direcao     = idxAtual > idxAnterior ? 'forward' : idxAtual < idxAnterior ? 'backward' : 'none';
 
     // Bloqueio defensivo: se usuário não-Pro tentar acessar Central ou Atividades
     // diretamente (ex: via JS console), exibe tela de upgrade em vez do conteúdo.
     if (abaAtual === 'central' || abaAtual === 'atividades') {
       const ehPlanoPro = usuarioLogadoPlano === 'pro' || usuarioLogadoPlano === 'pro_anual';
       if (!ehPlanoPro) {
-        document.getElementById('main').innerHTML = criarTelaUpgradePro(abaAtual);
-        document.getElementById('main').querySelector('[data-acao="ir-para-assinatura"]')
-          ?.addEventListener('click', () => { abaAtual = 'assinatura'; renderizarTudo(); });
+        comTransicao(() => {
+          document.getElementById('main').innerHTML = criarTelaUpgradePro(abaAtual);
+          document.getElementById('main').querySelector('[data-acao="ir-para-assinatura"]')
+            ?.addEventListener('click', () => { abaAtual = 'assinatura'; renderizarTudo(); });
+        }, direcao);
         return;
       }
     }
 
-    renderizarTudo();
+    comTransicao(() => renderizarTudo(), direcao);
 
     // Aba "Estoque" sem produtos ainda: mostra a tela de boas-vindas em vez
     // do estado vazio padrão (a menos que a pessoa já tenha dispensado).

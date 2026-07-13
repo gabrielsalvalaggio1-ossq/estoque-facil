@@ -3087,3 +3087,57 @@ body.auth-page{
 @media (max-width: 480px){
   .checklist-painel{ width:calc(100vw - 64px); max-width:280px; }
 }
+/* ============================================================
+   View Transitions — troca de abas
+   ============================================================ */
+
+@keyframes vt-slide-from-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes vt-slide-from-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes vt-slide-to-left {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-28px); }
+}
+@keyframes vt-slide-to-right {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(28px); }
+}
+
+/* Avançar: novo entra da direita, velho sai pela esquerda */
+:root[data-transicao="forward"]::view-transition-old(root) {
+  animation: vt-slide-to-left 200ms ease both;
+}
+:root[data-transicao="forward"]::view-transition-new(root) {
+  animation: vt-slide-from-right 200ms ease both;
+}
+
+/* Recuar: novo entra da esquerda, velho sai pela direita */
+:root[data-transicao="backward"]::view-transition-old(root) {
+  animation: vt-slide-to-right 200ms ease both;
+}
+:root[data-transicao="backward"]::view-transition-new(root) {
+  animation: vt-slide-from-left 200ms ease both;
+}
+
+/* Mesma aba ou direção indefinida: crossfade simples */
+:root[data-transicao="none"]::view-transition-old(root) {
+  animation: none;
+  opacity: 1;
+}
+:root[data-transicao="none"]::view-transition-new(root) {
+  animation: none;
+  opacity: 1;
+}
+
+/* Respeitar preferência de movimento reduzido */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+}

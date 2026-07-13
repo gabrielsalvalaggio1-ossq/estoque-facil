@@ -296,13 +296,13 @@
    espaço real ao lado do modal sem espremer as duas coisas). */
 @media (min-width: 1200px) {
   body:has(#receiptWrap) #carrinho-inteligente-painel {
-    left: auto;
-    right: 28px;
+    left: calc(50% + 220px + 32px + 20px); /* logo depois da borda direita do modal (metade de 440px + padding de 32px) + um respiro de 20px */
+    right: auto;
     top: 50%;
     bottom: auto;
     transform: translateY(-50%);
     width: 300px;
-    max-width: 300px;
+    max-width: calc(50vw - 272px - 20px); /* não deixa vazar da tela em janelas mais estreitas dentro da faixa de 1200px+ */
     z-index: 51; /* acima do backdrop do modal (50), só nesse modo lateral */
   }
 

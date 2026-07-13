@@ -498,8 +498,19 @@ const CentralDados = (() => {
 
   const COR_GRAFICO = ['#1B3A2F', '#D9A441', '#E2572B', '#5B6259', '#8A6A22'];
 
+  /** Largura real do container no momento do desenho (ele já está no DOM,
+   *  com a largura final do card aplicada pelo CSS/grid). Cai no valor
+   *  padrão só se o container ainda não tiver largura mensurável (ex.:
+   *  testes fora do navegador). Isso faz os gráficos preencherem o card
+   *  inteiro, inclusive quando o usuário aumenta o tamanho do widget. */
+  function larguraResponsiva(container, valorPadrao) {
+    const w = container && container.clientWidth;
+    return (w && w > 40) ? w : valorPadrao;
+  }
+
   /** Gráfico de linha simples (evolução no tempo). */
   function desenharLinha(container, pontos, { largura = 300, altura = 140, cor = '#1B3A2F' } = {}) {
+    largura = larguraResponsiva(container, largura);
     const { canvas, ctx } = canvasComDpr(largura, altura);
     container.appendChild(canvas);
     if (!pontos.length) { return; }
@@ -536,6 +547,7 @@ const CentralDados = (() => {
 
   /** Gráfico de barras verticais. */
   function desenharBarras(container, itens, { largura = 300, altura = 160, cor = '#1B3A2F' } = {}) {
+    largura = larguraResponsiva(container, largura);
     const { canvas, ctx } = canvasComDpr(largura, altura);
     container.appendChild(canvas);
     if (!itens.length) return;

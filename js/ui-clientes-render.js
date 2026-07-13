@@ -656,7 +656,7 @@ function renderizarConteudo() {
           <p>• Adicionar produtos → botão "Adicionar produto" na aba Estoque</p>
           <p>• Fazer vendas → aba "Venda", adicione itens ao carrinho</p>
           <p>• Exportar dados → botão Exportar na aba Central de Dados</p>
-          <p>• Cadastrar clientes → aba "Clientes"</p>
+          <p>• Cadastrar clientes → Na hora da venda clicar em + adicionar informações para cadastrar "Clientes"</p>
           <p>• Ver histórico de vendas → aba "Histórico"</p>
           <p>• Gerenciar equipe → aba "Conta" → Minha equipe</p>
         </div>

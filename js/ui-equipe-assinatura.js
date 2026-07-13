@@ -590,7 +590,7 @@ async function salvarFormularioProduto() {
       mostrarToast('Produto cadastrado com sucesso!', 'sucesso');
     }
     await recarregarDados();
-    fecharModal();
+    fecharModalImediato();
     renderizarTudo();
   } catch (erro) {
     mostrarErroFormulario(erro.message || 'Não foi possível salvar. Verifique sua conexão e tente novamente.');
@@ -604,7 +604,7 @@ async function excluirProdutoComConfirmacao(id) {
   await Produtos.excluirProduto(id);
   delete carrinho[id];
   await recarregarDados();
-  fecharModal();
+  fecharModalImediato();
   renderizarTudo();
 }
 
@@ -612,4 +612,3 @@ function abrirEdicao(id) {
   const produto = produtosCache.find(p => p.id === id);
   if (produto) abrirModalProduto(produto);
 }
-

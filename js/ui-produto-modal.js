@@ -323,6 +323,20 @@ function fecharModal() {
 }
 
 /**
+ * Fecha o modal sem animação de saída. Usado quando a lista de produtos
+ * vai ser re-renderizada logo em seguida (salvar/excluir/duplicar): se o
+ * modal ainda estivesse no DOM se desfazendo com sua própria animação CSS
+ * no momento em que a lista dispara o startViewTransition, ele acabava
+ * sendo capturado no meio da transição da lista, fora de sincronia — daí o
+ * pisca ao fechar. Removendo instantaneamente antes do re-render, a lista
+ * é a única coisa animando.
+ */
+function fecharModalImediato() {
+  const el = document.getElementById('productModalWrap');
+  if (el) el.remove();
+}
+
+/**
  * T5: cria uma cópia do produto (nome + " (cópia)", estoque zerado, sem
  * código de barras — ver Produtos.duplicarProduto) e recarrega a lista.
  * Fica no modal de edição porque é a ação mais natural quando o lojista já
@@ -336,7 +350,7 @@ async function duplicarProdutoAtual(produto) {
   try {
     await Produtos.duplicarProduto(produto);
     await recarregarDados();
-    fecharModal();
+    fecharModalImediato();
     renderizarTudo();
     mostrarToast('Produto duplicado. Edite a cópia para ajustar o que for diferente.', 'sucesso');
   } catch (e) {

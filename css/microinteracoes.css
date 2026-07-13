@@ -396,7 +396,7 @@ nav.tabs button {
   100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(226, 87, 43, 0);
-    background-color: transparent;
+    background-color: var(--paper, #FBFAF3);
   }
 }
 .product-card--novo {

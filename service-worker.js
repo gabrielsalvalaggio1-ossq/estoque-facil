@@ -9,7 +9,7 @@
 // isso força o novo service worker a reinstalar o cache (senão o browser
 // continuaria usando o cache antigo, sem os arquivos novos, até um
 // unregister manual). Sempre suba esse número ao alterar ARQUIVOS_ESSENCIAIS.
-const CACHE_NAME = 'meu-estoque-v12';
+const CACHE_NAME = 'meu-estoque-v13';
 
 const ARQUIVOS_ESSENCIAIS = [
   './',

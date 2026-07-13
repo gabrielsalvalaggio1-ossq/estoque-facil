@@ -207,17 +207,6 @@ main{
   align-items:center;
   gap:12px;
 }
-.product-card--novo{
-  background: var(--paper);
-  animation: product-card-destaque 1.6s ease both;
-}
-@keyframes product-card-destaque {
-  0%   { box-shadow: 0 0 0 2px var(--ledger) inset; }
-  100% { box-shadow: 0 0 0 2px transparent inset; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .product-card--novo{ animation: none; }
-}
 .product-card .thumb{
   width:44px; height:44px;
   border-radius:10px;

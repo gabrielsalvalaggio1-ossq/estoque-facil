@@ -208,11 +208,12 @@ main{
   gap:12px;
 }
 .product-card--novo{
+  background: var(--paper);
   animation: product-card-destaque 1.6s ease both;
 }
 @keyframes product-card-destaque {
-  0%   { background: color-mix(in srgb, var(--ledger) 14%, var(--paper)); }
-  100% { background: var(--paper); }
+  0%   { box-shadow: 0 0 0 2px var(--ledger) inset; }
+  100% { box-shadow: 0 0 0 2px transparent inset; }
 }
 @media (prefers-reduced-motion: reduce) {
   .product-card--novo{ animation: none; }

@@ -156,12 +156,21 @@ function abrirConfigEtiquetas() {
 
 function fecharModalEtiquetas() {
   const el = document.getElementById('etiquetasModalWrap');
-  if (el) el.remove();
+  if (!el) return;
+  // Desconecta o MutationObserver do focus-trap ANTES de remover o elemento,
+  // evitando corrida com o aplicarFocusTrap() do modal que abre em seguida.
+  if (typeof el._ftDisconnect === 'function') el._ftDisconnect();
+  el.remove();
 }
 
 function fecharPreviewEtiquetas() {
   const el = document.getElementById('etiquetasPreviewWrap');
-  if (el) el.remove();
+  if (!el) return;
+  // Desconecta o MutationObserver do focus-trap ANTES de remover o elemento,
+  // evitando corrida com o aplicarFocusTrap() do modal que abre em seguida
+  // (ex: clicar em "Voltar" que chama fecharPreviewEtiquetas + abrirConfigEtiquetas).
+  if (typeof el._ftDisconnect === 'function') el._ftDisconnect();
+  el.remove();
 }
 
 function _coletarConfigEtiquetas() {

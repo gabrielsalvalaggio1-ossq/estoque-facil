@@ -69,6 +69,8 @@ const ROTULOS_PAGAMENTO = {
  * Uso: chamar logo depois de `document.body.appendChild(wrap)`.
  */
 function aplicarFocusTrap(wrap) {
+  // Captura o elemento com foco AGORA — mas só vai usar se ainda estiver
+  // no DOM e visível quando o modal fechar.
   const elementoAnterior = document.activeElement;
   wrap.setAttribute('role', wrap.getAttribute('role') || 'dialog');
   wrap.setAttribute('aria-modal', 'true');
@@ -91,34 +93,38 @@ function aplicarFocusTrap(wrap) {
   };
   wrap.addEventListener('keydown', aoPressionarTab);
 
-  // Quando o modal for removido do DOM (fechado), devolve o foco e limpa o listener.
+  function devolverFoco() {
+    // Só devolve o foco se o elemento estiver no DOM E visível
+    // (offsetParent === null = display:none — .focus() nesse estado
+    // faz o foco sumir do documento, travando o app).
+    const estaNoDOM   = elementoAnterior && document.body.contains(elementoAnterior);
+    const estaVisivel = estaNoDOM && elementoAnterior.offsetParent !== null;
+    if (estaVisivel && typeof elementoAnterior.focus === 'function') {
+      elementoAnterior.focus();
+    } else {
+      // Fallback seguro: body sempre existe e sempre está visível.
+      document.body.focus();
+    }
+  }
+
+  // Guarda a função de limpeza no próprio wrap para que fechar*() possa
+  // desconectar o observer ANTES de remover o elemento do DOM, eliminando
+  // a corrida entre o observer do modal que fecha e o aplicarFocusTrap()
+  // do modal que abre em seguida (bug "Voltar" no fluxo de etiquetas).
   const observer = new MutationObserver(() => {
     if (!document.body.contains(wrap)) {
       observer.disconnect();
-      // Só devolve o foco se o elemento estiver no DOM E visível.
-      // offsetParent === null significa display:none — chamar .focus() nesse
-      // estado faz o foco sumir do documento inteiro (bug da impressão de
-      // etiquetas: btnImprimirEtiquetasSelecionadas fica oculto após
-      // cancelarSelecaoEtiquetas, mas ainda existe no DOM).
-      const estaVisivel = elementoAnterior && elementoAnterior.offsetParent !== null;
-      if (
-        elementoAnterior &&
-        typeof elementoAnterior.focus === 'function' &&
-        document.body.contains(elementoAnterior) &&
-        estaVisivel
-      ) {
-        elementoAnterior.focus();
-      } else {
-        // Fallback: devolve foco ao body para o app continuar respondendo
-        // a teclado e cliques normalmente.
-        document.body.focus();
-      }
+      devolverFoco();
     }
   });
-  // subtree:true é necessário para detectar remoções de netos (ex: o wrap
-  // do preview sendo removido dentro de imprimirEtiquetas, que chama
-  // fecharPreviewEtiquetas antes de cancelarSelecaoEtiquetas).
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Expõe desconexão manual no wrap: chame wrap._ftDisconnect() antes de
+  // remover o wrap quando houver outro modal abrindo na sequência.
+  wrap._ftDisconnect = () => {
+    observer.disconnect();
+    wrap.removeEventListener('keydown', aoPressionarTab);
+  };
 }
 
 const ICONE_PRODUTO_PLACEHOLDER = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>`;

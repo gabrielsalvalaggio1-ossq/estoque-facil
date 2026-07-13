@@ -3127,6 +3127,21 @@ body.auth-page{
   to   { opacity: 0; transform: translateX(28px); }
 }
 
+/* Reset do comportamento padrão do browser para View Transitions:
+   por padrão, cada par ::view-transition-old/new usa mix-blend-mode:
+   plus-lighter e crossfade próprios, o que causa um "clareamento"/flash
+   (fundo deixa de parecer branco) e pisca em qualquer elemento com
+   view-transition-name — inclusive os cards de produto, que têm nome
+   fixo e permanente. Zeramos aqui; cada seção abaixo (produto-modal,
+   cd-card-*, root) declara sua própria animação e sobrescreve isso.
+   ::view-transition-group(*) fica de fora do reset de propósito: é ele
+   quem faz o FLIP nativo (mover/redimensionar) dos cards da lista. */
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: 0s;
+  mix-blend-mode: normal;
+}
+
 /* Avançar: novo entra da direita, velho sai pela esquerda */
 :root[data-transicao="forward"]::view-transition-old(root) {
   animation: vt-slide-to-left 200ms ease both;

@@ -12,7 +12,9 @@
   transform: translateX(-50%);
   width: 100%;
   max-width: 420px;
-  z-index: 89; /* abaixo do cartbar (z-index: 90) e modais */
+  z-index: 40; /* abaixo de qualquer .modal-wrap (z-index:50, ver style.css) —
+                   senão o painel fica por cima do comprovante/checkout ao
+                   confirmar a venda, tampando parte do modal. */
   pointer-events: none; /* o painel em si não bloqueia cliques */
 }
 
@@ -216,5 +218,97 @@
 @supports (padding-bottom: env(safe-area-inset-bottom)) {
   #carrinho-inteligente-painel {
     bottom: calc(62px + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── Desktop (sidebar) ────────────────────────────────────────────────────
+   Acima de 1000px o layout ganha uma sidebar fixa de 230px (ver .sidebar em
+   style.css) e o #cartbar deixa de ocupar a largura toda da tela: ele vira
+   `position:sticky` só dentro de #app (a coluna de conteúdo, ao lado da
+   sidebar). O painel, porém, continuava centralizado na viewport inteira
+   com no máximo 420px de largura — nesse layout mais largo isso faz ele
+   "flutuar" como uma caixinha solta no meio da tela, sem relação visual
+   nenhuma com a barra do carrinho (que fica bem mais larga e deslocada pra
+   direita, depois da sidebar). Aqui alinhamos o painel exatamente à mesma
+   coluna do #cartbar: começa depois da sidebar e ocupa o resto da largura,
+   igual ao #cartbar faz com left:0/right:0 dentro de #app. */
+@media (min-width: 1000px) {
+  #carrinho-inteligente-painel {
+    left: 230px; /* largura da .sidebar em style.css */
+    right: 0;
+    width: auto;
+    max-width: none;
+    transform: none;
+  }
+
+  .ci-painel {
+    /* Numa faixa larga, os cartões de aviso/combo/relacionados esticados
+       em coluna única (herdado do mobile) ficam com muito espaço vazio
+       de cada lado. Reorganiza em linha, com quebra, aproveitando a
+       largura extra em vez de empilhar tudo verticalmente. */
+    max-height: none;
+  }
+
+  .ci-secao {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 24px;
+  }
+
+  .ci-rel-titulo,
+  .ci-aviso-titulo,
+  .ci-combo-label {
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+
+  .ci-combo-sugestao {
+    flex: 1;
+    min-width: 260px;
+  }
+}
+
+/* ── Painel ao lado do checkout (desktop largo) ───────────────────────────
+   Quando o comprovante/checkout (#receiptWrap) abre, ele é um modal
+   centralizado na tela toda — e como o painel fica atrás dele (z-index
+   menor, ver acima), ele simplesmente some da vista até a pessoa confirmar
+   ou voltar. Numa tela larga sobra bastante espaço nas laterais do modal
+   (que tem no máximo 440px + padding), então em vez de esconder o painel
+   inteiro, ele vira um cartão flutuante à direita do modal — assim dá pra
+   conferir a margem da venda e os avisos de estoque crítico sem fechar o
+   checkout. Só habilitado a partir de 1200px (abaixo disso não sobra
+   espaço real ao lado do modal sem espremer as duas coisas). */
+@media (min-width: 1200px) {
+  body:has(#receiptWrap) #carrinho-inteligente-painel {
+    left: auto;
+    right: 28px;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    width: 300px;
+    max-width: 300px;
+    z-index: 51; /* acima do backdrop do modal (50), só nesse modo lateral */
+  }
+
+  body:has(#receiptWrap) .ci-painel {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    max-height: 70vh;
+    box-shadow:
+      0 24px 60px -16px rgba(18, 40, 31, .35),
+      0 0 0 1px rgba(27, 58, 47, .06);
+    /* Só consulta, não ação: o total do comprovante já foi calculado e
+       fica congelado na tela — deixar os botões de combo ativos aqui
+       adicionaria item ao carrinho sem refletir no checkout já aberto. */
+    pointer-events: none;
+  }
+
+  /* Volta pro empilhamento vertical (a coluna estreita de 300px não tem
+     espaço pra linha, diferente do resto do desktop). */
+  body:has(#receiptWrap) .ci-secao {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 16px;
   }
 }

@@ -11,7 +11,7 @@
  * Ordem canônica das abas — usada para determinar a direção da animação
  * de troca: avançar (direita→esquerda) ou recuar (esquerda→direita).
  */
-const ORDEM_ABAS = ['estoque', 'venda', 'historico', 'central', 'atividades', 'conta', 'assinatura', 'contato'];
+const ORDEM_ABAS = ['estoque', 'venda', 'historico', 'fiados', 'central', 'atividades', 'conta', 'assinatura', 'contato'];
 
 /**
  * Executa um callback dentro de document.startViewTransition quando disponível,
@@ -175,10 +175,10 @@ function aplicarRestricoesDePapel(papel) {
 
   const abasPorPapel = {
     // Central e Atividades: exclusivo para donos no plano Pro
-    dono:       ['estoque', 'venda', 'historico', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
+    dono:       ['estoque', 'venda', 'historico', 'fiados', ...(ehPlanoPro ? ['central', 'atividades'] : []), 'conta', 'assinatura', 'contato'],
     vendedor:   ['venda', 'conta', 'contato'],
     estoquista: ['estoque', 'conta', 'contato'],
-    gerente:    ['estoque', 'venda', 'historico', 'conta', 'contato'],
+    gerente:    ['estoque', 'venda', 'historico', 'fiados', 'conta', 'contato'],
   };
 
   const permitidas = papel === null ? [] : (abasPorPapel[papel] || abasPorPapel.dono);

@@ -848,6 +848,349 @@ function descreverAcaoRegistro(store, dados, acao) {
 // para as novas funções de checkout/webhook.
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ── Gestão de Fiados ──────────────────────────────────────────────────────
+
+/**
+ * Normaliza um nome para comparação: minúsculas, sem acentos, sem espaços extras.
+ * Usado para detectar duplicatas como "Demetrio" / "demetrio" / "Deemetrio".
+ */
+function normalizarNome(nome) {
+  return (nome || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove diacríticos
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Distância de Levenshtein simplificada (máx 3 caracteres de diferença
+ * para considerar nomes parecidos). Usada para detectar "Deemetrio" ≈ "Demetrio".
+ */
+function distanciaLevenshtein(a, b) {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+  for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+/**
+ * Retorna true se dois nomes normalizados são provavelmente a mesma pessoa:
+ * - iguais após normalização, OU
+ * - diferença de Levenshtein <= 2 (para nomes com até 6 chars) ou <= 3 (maiores)
+ */
+function nomesProvavelmenteIguais(nomeA, nomeB) {
+  const a = normalizarNome(nomeA);
+  const b = normalizarNome(nomeB);
+  if (a === b) return true;
+  const maxDist = Math.max(a.length, b.length) <= 6 ? 2 : 3;
+  return distanciaLevenshtein(a, b) <= maxDist;
+}
+
+async function tratarRotaFiado(db, membro, email, partes, request, url) {
+  const empresaId = membro.empresaId;
+  const subRota = partes[1]; // undefined | 'duplicatas' | 'unificar' | 'nao-unificar'
+
+  // ── GET /api/fiado — resumo geral + lista de clientes ─────────────────
+  if (!subRota && request.method === 'GET') {
+    // Busca todas as vendas fiado em aberto (não canceladas, não quitadas)
+    const { results: vendasRows } = await db
+      .prepare(`
+        SELECT id, dados FROM registros
+        WHERE empresa_id = ?
+          AND store = 'vendas'
+          AND json_extract(dados, '$.formaPagamento') = 'fiado'
+          AND (json_extract(dados, '$.status') IS NULL OR json_extract(dados, '$.status') != 'cancelada')
+          AND (json_extract(dados, '$.fiadoQuitado') IS NULL OR json_extract(dados, '$.fiadoQuitado') = 0)
+        ORDER BY json_extract(dados, '$.data') DESC
+      `)
+      .bind(empresaId)
+      .all();
+
+    const vendas = vendasRows.map(r => {
+      try { return JSON.parse(r.dados); } catch { return null; }
+    }).filter(Boolean);
+
+    // Carrega unificações existentes para resolver nomes canônicos
+    const { results: unificacoes } = await db
+      .prepare('SELECT nome_canonical, nomes_aliases FROM fiado_unificacoes WHERE empresa_id = ?')
+      .bind(empresaId)
+      .all();
+
+    // Mapa: nomeAlias (normalizado) → nomeCanônico
+    const aliasParaCanonical = {};
+    for (const u of unificacoes) {
+      const canonical = u.nome_canonical;
+      let aliases = [];
+      try { aliases = JSON.parse(u.nomes_aliases); } catch { aliases = []; }
+      for (const alias of aliases) {
+        aliasParaCanonical[normalizarNome(alias)] = canonical;
+      }
+    }
+
+    // Agrupa vendas por cliente (usando nome canônico quando disponível)
+    const porCliente = {};
+    for (const v of vendas) {
+      const nomeOriginal = (v.cliente || '').trim();
+      if (!nomeOriginal) continue;
+
+      const nomeNorm = normalizarNome(nomeOriginal);
+      const nomeChave = aliasParaCanonical[nomeNorm] || nomeOriginal;
+
+      if (!porCliente[nomeChave]) {
+        porCliente[nomeChave] = {
+          nome: nomeChave,
+          clienteId: v.clienteId || null,
+          totalDevido: 0,
+          qtdVendas: 0,
+          ultimaVenda: null,
+          vendas: [],
+        };
+      }
+      porCliente[nomeChave].totalDevido += v.total || 0;
+      porCliente[nomeChave].qtdVendas += 1;
+      const dataVenda = v.data || v.criadoEm;
+      if (dataVenda && (!porCliente[nomeChave].ultimaVenda || dataVenda > porCliente[nomeChave].ultimaVenda)) {
+        porCliente[nomeChave].ultimaVenda = dataVenda;
+      }
+      // Não retorna o array completo de vendas no resumo — só contagem e total
+    }
+
+    const clientes = Object.values(porCliente).sort((a, b) => b.totalDevido - a.totalDevido);
+    const totalGeral = clientes.reduce((s, c) => s + c.totalDevido, 0);
+
+    return json({
+      totalGeral,
+      qtdVendas: vendas.length,
+      qtdClientes: clientes.length,
+      clientes,
+    });
+  }
+
+  // ── GET /api/fiado/cliente/:nome — histórico detalhado de um cliente ───
+  if (subRota === 'cliente' && partes[2] && request.method === 'GET') {
+    const nomeCliente = decodeURIComponent(partes[2]);
+    const nomeNorm = normalizarNome(nomeCliente);
+
+    // Carrega aliases para este cliente
+    const { results: unificacoes } = await db
+      .prepare('SELECT nome_canonical, nomes_aliases FROM fiado_unificacoes WHERE empresa_id = ?')
+      .bind(empresaId)
+      .all();
+
+    // Nomes que devem ser considerados como este cliente
+    const nomesConsiderados = new Set([nomeNorm]);
+    for (const u of unificacoes) {
+      let aliases = [];
+      try { aliases = JSON.parse(u.nomes_aliases); } catch { aliases = []; }
+      const aliasNorms = aliases.map(normalizarNome);
+      const canonicalNorm = normalizarNome(u.nome_canonical);
+      // Se o nome buscado é o canonical ou algum alias, inclui todos
+      if (canonicalNorm === nomeNorm || aliasNorms.includes(nomeNorm)) {
+        nomesConsiderados.add(canonicalNorm);
+        aliasNorms.forEach(n => nomesConsiderados.add(n));
+      }
+    }
+
+    const { results: vendasRows } = await db
+      .prepare(`
+        SELECT dados FROM registros
+        WHERE empresa_id = ?
+          AND store = 'vendas'
+          AND json_extract(dados, '$.formaPagamento') = 'fiado'
+          AND (json_extract(dados, '$.status') IS NULL OR json_extract(dados, '$.status') != 'cancelada')
+          AND (json_extract(dados, '$.fiadoQuitado') IS NULL OR json_extract(dados, '$.fiadoQuitado') = 0)
+        ORDER BY json_extract(dados, '$.data') DESC
+      `)
+      .bind(empresaId)
+      .all();
+
+    const vendas = vendasRows
+      .map(r => { try { return JSON.parse(r.dados); } catch { return null; } })
+      .filter(Boolean)
+      .filter(v => {
+        const n = normalizarNome(v.cliente || '');
+        return nomesConsiderados.has(n);
+      })
+      .map(v => ({
+        id: v.id,
+        data: v.data || v.criadoEm,
+        total: v.total || 0,
+        itens: (v.itens || []).map(item => ({
+          nome: item.nome || item.id || '?',
+          quantidade: item.quantidade || 1,
+          precoUnitario: item.precoUnitario || item.preco || 0,
+          unidade: item.unidade || null,
+        })),
+        cliente: v.cliente,
+        vendedor: v.vendedor || null,
+      }));
+
+    const totalDevido = vendas.reduce((s, v) => s + v.total, 0);
+    return json({ nome: nomeCliente, totalDevido, qtdVendas: vendas.length, vendas });
+  }
+
+  // ── GET /api/fiado/duplicatas — sugestões de nomes parecidos ──────────
+  if (subRota === 'duplicatas' && request.method === 'GET') {
+    // Busca nomes distintos de clientes com fiado em aberto
+    const { results: vendasRows } = await db
+      .prepare(`
+        SELECT DISTINCT json_extract(dados, '$.cliente') AS cliente,
+               SUM(CAST(json_extract(dados, '$.total') AS REAL)) AS total
+        FROM registros
+        WHERE empresa_id = ?
+          AND store = 'vendas'
+          AND json_extract(dados, '$.formaPagamento') = 'fiado'
+          AND (json_extract(dados, '$.status') IS NULL OR json_extract(dados, '$.status') != 'cancelada')
+          AND (json_extract(dados, '$.fiadoQuitado') IS NULL OR json_extract(dados, '$.fiadoQuitado') = 0)
+          AND json_extract(dados, '$.cliente') IS NOT NULL
+          AND json_extract(dados, '$.cliente') != ''
+        GROUP BY json_extract(dados, '$.cliente')
+      `)
+      .bind(empresaId)
+      .all();
+
+    // Pares que o usuário já decidiu não unificar
+    const { results: naoUnificarRows } = await db
+      .prepare('SELECT nome_a, nome_b FROM fiado_nao_unificar WHERE empresa_id = ?')
+      .bind(empresaId)
+      .all();
+
+    const paresIgnorados = new Set(
+      naoUnificarRows.map(r => {
+        const a = normalizarNome(r.nome_a);
+        const b = normalizarNome(r.nome_b);
+        return a < b ? `${a}|||${b}` : `${b}|||${a}`;
+      })
+    );
+
+    // Unificações já feitas — não re-sugerir nomes já unificados
+    const { results: unificacoes } = await db
+      .prepare('SELECT nome_canonical, nomes_aliases FROM fiado_unificacoes WHERE empresa_id = ?')
+      .bind(empresaId)
+      .all();
+
+    const jaUnificados = new Set();
+    for (const u of unificacoes) {
+      jaUnificados.add(normalizarNome(u.nome_canonical));
+      let aliases = [];
+      try { aliases = JSON.parse(u.nomes_aliases); } catch { aliases = []; }
+      aliases.forEach(a => jaUnificados.add(normalizarNome(a)));
+    }
+
+    const nomes = vendasRows.map(r => ({
+      nome: r.cliente,
+      total: r.total || 0,
+    }));
+
+    // Encontra grupos de nomes provavelmente iguais
+    const grupos = [];
+    const usados = new Set();
+
+    for (let i = 0; i < nomes.length; i++) {
+      if (usados.has(i)) continue;
+      const grupo = [nomes[i]];
+      const normI = normalizarNome(nomes[i].nome);
+
+      for (let j = i + 1; j < nomes.length; j++) {
+        if (usados.has(j)) continue;
+        const normJ = normalizarNome(nomes[j].nome);
+
+        // Já estão unificados juntos? Pula.
+        if (jaUnificados.has(normI) && jaUnificados.has(normJ)) continue;
+
+        if (nomesProvavelmenteIguais(nomes[i].nome, nomes[j].nome)) {
+          const chave = normI < normJ ? `${normI}|||${normJ}` : `${normJ}|||${normI}`;
+          if (!paresIgnorados.has(chave)) {
+            grupo.push(nomes[j]);
+            usados.add(j);
+          }
+        }
+      }
+
+      if (grupo.length > 1) {
+        usados.add(i);
+        grupos.push({
+          nomes: grupo,
+          totalCombinado: grupo.reduce((s, n) => s + n.total, 0),
+        });
+      }
+    }
+
+    return json({ grupos });
+  }
+
+  // ── POST /api/fiado/unificar — unifica nomes como mesma pessoa ─────────
+  if (subRota === 'unificar' && request.method === 'POST') {
+    let corpo;
+    try { corpo = await request.json(); } catch { return json({ error: 'Corpo inválido.' }, 400); }
+
+    const { nomeCanonical, aliases } = corpo;
+    if (!nomeCanonical || !Array.isArray(aliases) || aliases.length === 0) {
+      return json({ error: 'Informe nomeCanonical e aliases (array).' }, 400);
+    }
+
+    const id = `funo-${crypto.randomUUID()}`;
+    await db
+      .prepare(`
+        INSERT INTO fiado_unificacoes (id, empresa_id, nome_canonical, nomes_aliases, criado_por, criado_em)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+      `)
+      .bind(id, empresaId, nomeCanonical, JSON.stringify(aliases), email)
+      .run();
+
+    await registrarAtividade(db, {
+      empresaId, email, papel: membro.papel,
+      acao: 'unificou_fiado', store: 'vendas', registroId: id,
+      descricao: `Unificou clientes do fiado: ${[nomeCanonical, ...aliases].join(', ')}`,
+    });
+
+    return json({ ok: true, id });
+  }
+
+  // ── POST /api/fiado/nao-unificar — marca par como pessoas diferentes ───
+  if (subRota === 'nao-unificar' && request.method === 'POST') {
+    let corpo;
+    try { corpo = await request.json(); } catch { return json({ error: 'Corpo inválido.' }, 400); }
+
+    const { nomeA, nomeB } = corpo;
+    if (!nomeA || !nomeB) {
+      return json({ error: 'Informe nomeA e nomeB.' }, 400);
+    }
+
+    const id = `fnu-${crypto.randomUUID()}`;
+    await db
+      .prepare(`
+        INSERT INTO fiado_nao_unificar (id, empresa_id, nome_a, nome_b, criado_em)
+        VALUES (?, ?, ?, ?, datetime('now'))
+      `)
+      .bind(id, empresaId, nomeA, nomeB)
+      .run();
+
+    return json({ ok: true });
+  }
+
+  return json({ error: 'Rota de fiado não reconhecida.' }, 404);
+}
+
+// ── Fim Gestão de Fiados ──────────────────────────────────────────────────
+
 export async function onRequest(context) {
   const { request, env } = context;
 
@@ -1409,6 +1752,19 @@ export async function onRequest(context) {
     });
 
     return json(produtoAtualizado);
+  }
+
+  // ── Gestão de Fiados ──────────────────────────────────────────────────────
+  // GET  /api/fiado            → resumo geral + lista de clientes com fiado
+  // GET  /api/fiado/duplicatas → sugestões de nomes provavelmente iguais
+  // POST /api/fiado/unificar   → unifica nomes (confirmar que são a mesma pessoa)
+  // POST /api/fiado/nao-unificar → marca par como pessoas diferentes
+  if (primeiro === 'fiado') {
+    try {
+      return await tratarRotaFiado(db, membro, email, partes, request, url);
+    } catch (erro) {
+      return json({ error: erro.message || 'Erro interno na gestão de fiados.' }, 500);
+    }
   }
 
   const store = primeiro;

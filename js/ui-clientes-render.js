@@ -545,6 +545,10 @@ function renderizarConteudo() {
     atualizarListaVendas();
   }
 
+  else if (abaAtual === 'fiados') {
+    renderizarTelaFiados();
+  }
+
   else if (abaAtual === 'central') {
     carregarCentralDados();
   }

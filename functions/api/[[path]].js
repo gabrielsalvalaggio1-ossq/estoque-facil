@@ -892,13 +892,22 @@ function distanciaLevenshtein(a, b) {
 
 /**
  * Retorna true se dois nomes normalizados são provavelmente a mesma pessoa:
- * - iguais após normalização, OU
- * - diferença de Levenshtein <= 2 (para nomes com até 6 chars) ou <= 3 (maiores)
+ * 1. Iguais após normalização ("demetrio" == "Demétrio")
+ * 2. Um é prefixo do outro com mínimo 3 chars ("Leo" ≈ "Leonardo")
+ * 3. Levenshtein ≤ 2 para nomes curtos, ≤ 3 para longos (typos: "Deemetrio")
  */
 function nomesProvavelmenteIguais(nomeA, nomeB) {
   const a = normalizarNome(nomeA);
   const b = normalizarNome(nomeB);
+  if (!a || !b) return false;
   if (a === b) return true;
+
+  // Prefixo: "Leo" é prefixo de "Leonardo" (e vice-versa), mínimo 3 chars
+  const menor = a.length <= b.length ? a : b;
+  const maior = a.length <= b.length ? b : a;
+  if (menor.length >= 3 && maior.startsWith(menor)) return true;
+
+  // Levenshtein para typos ("Deemetrio" ≈ "Demetrio")
   const maxDist = Math.max(a.length, b.length) <= 6 ? 2 : 3;
   return distanciaLevenshtein(a, b) <= maxDist;
 }

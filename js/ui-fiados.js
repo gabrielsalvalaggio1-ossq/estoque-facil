@@ -63,16 +63,6 @@ function renderizarFiados(dados) {
 
   const { totalGeral, qtdVendas, qtdClientes, clientes } = dados;
 
-  // Verifica duplicatas em segundo plano
-  verificarDuplicatasFiado().then(grupos => {
-    const alertaEl = document.getElementById('fiadosAlertaDuplicatas');
-    if (alertaEl && grupos && grupos.length > 0) {
-      alertaEl.style.display = 'flex';
-      alertaEl.querySelector('.fiados-alerta-subtitulo').textContent =
-        `${grupos.length} grupo${grupos.length > 1 ? 's' : ''} de nomes parecidos encontrado${grupos.length > 1 ? 's' : ''}`;
-    }
-  }).catch(() => {});
-
   const resumoHtml = `
     <div class="fiados-resumo">
       <div class="fiados-stat stat-destaque">
@@ -90,17 +80,11 @@ function renderizarFiados(dados) {
     </div>
   `;
 
-  const alertaDuplicatasHtml = `
-    <div class="fiados-alerta-duplicatas" id="fiadosAlertaDuplicatas" style="display:none;"
-         onclick="abrirModalDuplicatasFiado()">
-      <span class="fiados-alerta-icon">⚠️</span>
-      <div class="fiados-alerta-texto">
-        <p class="fiados-alerta-titulo">Possíveis nomes duplicados</p>
-        <p class="fiados-alerta-subtitulo">Verificando…</p>
-      </div>
-      <span class="fiados-alerta-chevron">›</span>
-    </div>
-  `;
+  const btnAgregacaoHtml = clientes.length >= 2 ? `
+    <button class="fiados-btn-agregar" onclick="abrirModalDuplicatasFiado()">
+      🔍 Sugerir agregações de clientes
+    </button>
+  ` : '';
 
   if (clientes.length === 0) {
     container.innerHTML = `
@@ -136,7 +120,7 @@ function renderizarFiados(dados) {
 
   container.innerHTML = `
     ${resumoHtml}
-    ${alertaDuplicatasHtml}
+    ${btnAgregacaoHtml}
     <p class="fiados-secao-titulo">Clientes com fiado em aberto</p>
     ${listaHtml}
   `;

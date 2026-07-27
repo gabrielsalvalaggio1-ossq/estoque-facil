@@ -907,6 +907,114 @@ async function tratarRotaFiado(db, membro, email, partes, request, url) {
   const empresaId = membro.empresaId;
   const subRota = partes[1]; // undefined | 'duplicatas' | 'unificar' | 'nao-unificar'
 
+  // ── POST /api/fiado/quitar — quita uma ou todas as vendas de um cliente ──
+  // Body: { vendaId: "id" }          → quita uma venda específica
+  // Body: { nomeCliente: "Fulano" }  → quita todas as vendas do cliente
+  if (subRota === 'quitar' && request.method === 'POST') {
+    let corpo;
+    try { corpo = await request.json(); } catch { return json({ error: 'Corpo inválido.' }, 400); }
+
+    const { vendaId, nomeCliente } = corpo;
+    if (!vendaId && !nomeCliente) {
+      return json({ error: 'Informe vendaId ou nomeCliente.' }, 400);
+    }
+
+    const agora = new Date().toISOString();
+
+    if (vendaId) {
+      // Quita uma venda específica
+      const linha = await db
+        .prepare('SELECT dados FROM registros WHERE empresa_id = ? AND store = ? AND id = ?')
+        .bind(empresaId, 'vendas', vendaId)
+        .first();
+      if (!linha) return json({ error: 'Venda não encontrada.' }, 404);
+
+      let venda;
+      try { venda = JSON.parse(linha.dados); } catch { return json({ error: 'Venda corrompida.' }, 500); }
+
+      if (venda.formaPagamento !== 'fiado') return json({ error: 'Venda não é fiado.' }, 400);
+      if (venda.status === 'cancelada') return json({ error: 'Venda cancelada não pode ser quitada.' }, 400);
+      if (venda.status === 'quitada' || venda.fiadoQuitado) return json({ ok: true, jaQuitada: true });
+
+      const atualizada = { ...venda, status: 'quitada', fiadoQuitado: true, quitadaEm: agora, quitadoPor: email };
+      await db
+        .prepare('UPDATE registros SET dados = ? WHERE empresa_id = ? AND store = ? AND id = ?')
+        .bind(JSON.stringify(atualizada), empresaId, 'vendas', vendaId)
+        .run();
+
+      await registrarAtividade(db, {
+        empresaId, email, papel: membro.papel,
+        acao: 'atualizou', store: 'vendas', registroId: vendaId,
+        descricao: `Marcou venda fiado como quitada para ${venda.cliente || '?'} (R$ ${Number(venda.total || 0).toFixed(2)})`,
+      });
+
+      return json({ ok: true, quitadas: 1 });
+    }
+
+    // Quita todas as vendas do cliente (por nome, considerando aliases)
+    const nomeNorm = normalizarNome(nomeCliente);
+
+    // Carrega aliases para este cliente
+    const { results: unificacoes } = await db
+      .prepare('SELECT nome_canonical, nomes_aliases FROM fiado_unificacoes WHERE empresa_id = ?')
+      .bind(empresaId)
+      .all();
+
+    const nomesConsiderados = new Set([nomeNorm]);
+    for (const u of unificacoes) {
+      let aliases = [];
+      try { aliases = JSON.parse(u.nomes_aliases); } catch { aliases = []; }
+      const aliasNorms = aliases.map(normalizarNome);
+      const canonicalNorm = normalizarNome(u.nome_canonical);
+      if (canonicalNorm === nomeNorm || aliasNorms.includes(nomeNorm)) {
+        nomesConsiderados.add(canonicalNorm);
+        aliasNorms.forEach(n => nomesConsiderados.add(n));
+      }
+    }
+
+    const { results: vendasRows } = await db
+      .prepare(`
+        SELECT id, dados FROM registros
+        WHERE empresa_id = ?
+          AND store = 'vendas'
+          AND json_extract(dados, '$.formaPagamento') = 'fiado'
+          AND (json_extract(dados, '$.status') IS NULL OR json_extract(dados, '$.status') != 'cancelada')
+          AND (json_extract(dados, '$.fiadoQuitado') IS NULL OR json_extract(dados, '$.fiadoQuitado') = 0)
+      `)
+      .bind(empresaId)
+      .all();
+
+    const paraQuitar = vendasRows.filter(r => {
+      try {
+        const v = JSON.parse(r.dados);
+        return nomesConsiderados.has(normalizarNome(v.cliente || ''));
+      } catch { return false; }
+    });
+
+    if (paraQuitar.length === 0) return json({ ok: true, quitadas: 0 });
+
+    // Atualiza cada venda
+    const stmt = db.prepare('UPDATE registros SET dados = ? WHERE empresa_id = ? AND store = ? AND id = ?');
+    for (const linha of paraQuitar) {
+      let v;
+      try { v = JSON.parse(linha.dados); } catch { continue; }
+      const atualizada = { ...v, status: 'quitada', fiadoQuitado: true, quitadaEm: agora, quitadoPor: email };
+      await stmt.bind(JSON.stringify(atualizada), empresaId, 'vendas', linha.id).run();
+    }
+
+    const totalQuitado = paraQuitar.reduce((s, r) => {
+      try { return s + (JSON.parse(r.dados).total || 0); } catch { return s; }
+    }, 0);
+
+    await registrarAtividade(db, {
+      empresaId, email, papel: membro.papel,
+      acao: 'atualizou', store: 'vendas', registroId: `lote-${Date.now()}`,
+      descricao: `Quitou todas as vendas fiado de ${nomeCliente} (${paraQuitar.length} venda${paraQuitar.length !== 1 ? 's' : ''}, R$ ${totalQuitado.toFixed(2)})`,
+    });
+
+    return json({ ok: true, quitadas: paraQuitar.length, totalQuitado });
+  }
+
   // ── GET /api/fiado — resumo geral + lista de clientes ─────────────────
   if (!subRota && request.method === 'GET') {
     // Busca todas as vendas fiado em aberto (não canceladas, não quitadas)

@@ -214,6 +214,9 @@ function renderizarModalDetalhesFiado(modal, dados, nome) {
           `;
         }).join('');
 
+        const vendaIdSafe = escaparHtml(v.id || '');
+        const nomeSafe = escaparHtml(encodeURIComponent(nome));
+
         return `
           <div class="fiados-venda-row" id="fiadoVenda_${idx}">
             <div class="fiados-venda-header" onclick="toggleItensVendaFiado(${idx})">
@@ -224,6 +227,12 @@ function renderizarModalDetalhesFiado(modal, dados, nome) {
             </div>
             <div class="fiados-venda-itens" id="fiadoItens_${idx}">
               ${itensHtml || '<p style="font-size:12px;color:var(--ink-soft);padding:4px 0;">Sem itens detalhados.</p>'}
+              <div class="fiados-venda-quitar-row">
+                <button class="btn ghost fiados-btn-quitar-venda"
+                  onclick="quitar1VendaFiado('${vendaIdSafe}','${nomeSafe}',${idx})">
+                  ✅ Quitar esta venda
+                </button>
+              </div>
             </div>
           </div>
         `;
@@ -233,6 +242,12 @@ function renderizarModalDetalhesFiado(modal, dados, nome) {
   modal.innerHTML = `
     <h2>💳 ${escaparHtml(nome)}</h2>
     ${statsHtml}
+    <div class="fiados-quitar-total-wrap">
+      <button class="btn primary fiados-btn-quitar-total"
+        onclick="quitarTodasVendasFiado('${escaparHtml(encodeURIComponent(nome))}')">
+        ✅ Quitar tudo — ${formatarMoeda(totalDevido)}
+      </button>
+    </div>
     ${historicoHtml}
     <div class="modal-actions" style="margin-top:14px;">
       <button class="btn ghost" onclick="fecharModalFiadoDetalhe()">Fechar</button>
@@ -240,6 +255,87 @@ function renderizarModalDetalhesFiado(modal, dados, nome) {
   `;
 }
 
+
+// ---------------------------------------------------------------------------
+// Quitação de fiado
+// ---------------------------------------------------------------------------
+
+async function quitar1VendaFiado(vendaId, nomeEncoded, idx) {
+  const nome = decodeURIComponent(nomeEncoded);
+  const ok = confirm(`Confirmar quitação desta venda de ${nome}?`);
+  if (!ok) return;
+  const btn = document.querySelector(`#fiadoItens_${idx} .fiados-btn-quitar-venda`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Quitando…'; }
+  try {
+    const resp = await fetch('/api/fiado/quitar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vendaId }),
+    });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || 'Erro ao quitar.'); }
+    const row = document.getElementById(`fiadoVenda_${idx}`);
+    if (row) {
+      row.style.opacity = '0.45'; row.style.pointerEvents = 'none';
+      const totalEl = row.querySelector('.fiados-venda-total');
+      if (totalEl) { totalEl.style.textDecoration = 'line-through'; totalEl.style.color = 'var(--ink-soft)'; }
+      if (btn) btn.remove();
+    }
+    await _atualizarResumoModalFiado(nome);
+    carregarFiados();
+  } catch (erro) {
+    alert(erro.message);
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Quitar esta venda'; }
+  }
+}
+
+async function quitarTodasVendasFiado(nomeEncoded) {
+  const nome = decodeURIComponent(nomeEncoded);
+  const ok = confirm(`Quitar TODAS as vendas fiado de ${nome}?
+
+Essa ação marca todo o débito como pago.`);
+  if (!ok) return;
+  const btnTotal = document.querySelector('.fiados-btn-quitar-total');
+  if (btnTotal) { btnTotal.disabled = true; btnTotal.textContent = 'Quitando…'; }
+  try {
+    const resp = await fetch('/api/fiado/quitar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nomeCliente: nome }),
+    });
+    if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.error || 'Erro ao quitar.'); }
+    const resultado = await resp.json();
+    fecharModalFiadoDetalhe();
+    await carregarFiados();
+    _mostrarToastFiado(`✅ ${resultado.quitadas} venda${resultado.quitadas !== 1 ? 's' : ''} quitada${resultado.quitadas !== 1 ? 's' : ''} — ${formatarMoeda(resultado.totalQuitado || 0)}`);
+  } catch (erro) {
+    alert(erro.message);
+    if (btnTotal) { btnTotal.disabled = false; }
+  }
+}
+
+async function _atualizarResumoModalFiado(nome) {
+  try {
+    const resp = await fetch(`/api/fiado/cliente/${encodeURIComponent(nome)}`);
+    if (!resp.ok) return;
+    const dados = await resp.json();
+    const statTotal = document.querySelector('.fiados-modal-stat.destaque .fiados-modal-stat-val');
+    const statQtd = document.querySelector('.fiados-modal-stat:not(.destaque) .fiados-modal-stat-val');
+    if (statTotal) statTotal.textContent = formatarMoeda(dados.totalDevido);
+    if (statQtd) statQtd.textContent = dados.qtdVendas;
+    const btnTotal = document.querySelector('.fiados-btn-quitar-total');
+    if (btnTotal) {
+      if (dados.totalDevido <= 0) { btnTotal.remove(); }
+      else { btnTotal.textContent = `✅ Quitar tudo — ${formatarMoeda(dados.totalDevido)}`; }
+    }
+  } catch { }
+}
+
+function _mostrarToastFiado(msg) {
+  const toast = document.createElement('div');
+  toast.className = 'fiados-toast';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('fiados-toast--visivel'));
+  setTimeout(() => { toast.classList.remove('fiados-toast--visivel'); setTimeout(() => toast.remove(), 300); }, 3000);
+}
 function toggleItensVendaFiado(idx) {
   const itensEl = document.getElementById(`fiadoItens_${idx}`);
   const chevronEl = document.getElementById(`fiadoChevron_${idx}`);

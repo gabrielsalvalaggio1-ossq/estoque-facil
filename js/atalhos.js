@@ -129,6 +129,27 @@
   });
 
   /* ─────────────────────────────────────────────────────────────────
+     Botão 👁️ : Ocultar / mostrar valores monetários sensíveis
+     Persiste em localStorage ('mev_valores_ocultos').
+     ───────────────────────────────────────────────────────────────── */
+  document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'btnOcultarValores') {
+      var oculto = document.documentElement.hasAttribute('data-valores-ocultos');
+      if (oculto) {
+        document.documentElement.removeAttribute('data-valores-ocultos');
+        e.target.textContent = '👁️';
+        e.target.setAttribute('aria-pressed', 'false');
+        localStorage.removeItem('mev_valores_ocultos');
+      } else {
+        document.documentElement.setAttribute('data-valores-ocultos', '');
+        e.target.textContent = '🙈';
+        e.target.setAttribute('aria-pressed', 'true');
+        localStorage.setItem('mev_valores_ocultos', '1');
+      }
+    }
+  });
+
+  /* ─────────────────────────────────────────────────────────────────
      Dica de atalhos na primeira visita (3,5 s após carregamento)
      ───────────────────────────────────────────────────────────────── */
   window.addEventListener('load', function () {

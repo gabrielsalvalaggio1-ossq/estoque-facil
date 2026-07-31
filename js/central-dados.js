@@ -809,7 +809,7 @@ const CentralDados = (() => {
         </div>`),
 
       widget('lista-ultimas-vendas', listaSimples('Últimas vendas', ultimasVendas.map(v => `
-        <li><span>${escaparHtml(v.cliente || 'Cliente não informado')}</span><span>${formatarMoeda(v.total)}</span></li>`))),
+        <li><span>${escaparHtml(v.cliente || 'Cliente não informado')}</span><span class="cd-val-mon">${formatarMoeda(v.total)}</span></li>`))),
 
       widget('lista-mais-vendidos', listaSimples('Produtos mais vendidos', maisVendidos.map(p => `
         <li><span>${escaparHtml(p.nome)}</span><span>${p.quantidade} un.</span></li>`))),
@@ -896,7 +896,7 @@ const CentralDados = (() => {
 
     widgets.push(
       widget('lista-mais-lucrativos', listaSimples('Produtos mais lucrativos', maisLucrativos.map(p => `
-        <li><span>${escaparHtml(p.nome)}</span><span>${formatarMoeda(p.lucro)}</span></li>`))),
+        <li><span>${escaparHtml(p.nome)}</span><span class="cd-val-mon">${formatarMoeda(p.lucro)}</span></li>`))),
 
       widget('lista-giro', listaSimples('Maior giro de estoque', giro.slice(0, 6).map(p => `
         <li><span>${escaparHtml(p.nome)}</span><span>${p.giro.toFixed(2)}x</span></li>`))),
@@ -918,13 +918,13 @@ const CentralDados = (() => {
         </div>`, { largo: true }),
 
       widget('lista-estoque-categoria', listaSimples('Estoque por categoria', estoqueInt.porCategoria.slice(0, 6).map(c => `
-        <li><span>${escaparHtml(c.categoria)}</span><span>${formatarMoeda(c.valor)}</span></li>`))),
+        <li><span>${escaparHtml(c.categoria)}</span><span class="cd-val-mon">${formatarMoeda(c.valor)}</span></li>`))),
 
       widget('lista-proximo-minimo', listaSimples('Próximos do estoque mínimo', estoqueInt.proximosDoMinimo.slice(0, 6).map(p => `
         <li><span>${escaparHtml(p.nome)}</span><span>${p.estoque} un.</span></li>`))),
 
       widget('lista-melhores-clientes', listaSimples('Melhores clientes', clientesInt.ranking.slice(0, 6).map(c => `
-        <li><span>${escaparHtml(c.cliente)}</span><span>${formatarMoeda(c.totalGasto)}</span></li>`))),
+        <li><span>${escaparHtml(c.cliente)}</span><span class="cd-val-mon">${formatarMoeda(c.totalGasto)}</span></li>`))),
 
       widget('indicadores-estoque-financeiro', `
         <div class="cd-grid-cartoes">

@@ -3319,3 +3319,37 @@ body.auth-page{
     animation: none !important;
   }
 }
+
+/* ─── Ocultar valores monetários (botão 👁️) ───────────────────────────── */
+[data-valores-ocultos] #statHoje,
+[data-valores-ocultos] #statMes,
+[data-valores-ocultos] .cd-cartao-valor,
+[data-valores-ocultos] [data-grafico="faturamento"],
+[data-valores-ocultos] .cd-val-mon,
+[data-valores-ocultos] .cd-meta-info span:last-child,
+[data-valores-ocultos] .cd-meta-previsao,
+[data-valores-ocultos] .di-kpi-val,
+[data-valores-ocultos] .di-ranking-rec {
+  filter: blur(8px);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.2s ease;
+}
+
+/* Botão de toggle de valores */
+#btnOcultarValores {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 6px;
+  opacity: 0.7;
+  transition: opacity 0.15s, background 0.15s;
+  vertical-align: middle;
+}
+#btnOcultarValores:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.12);
+}

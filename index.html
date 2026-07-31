@@ -275,7 +275,7 @@ nav.tabs button.export-link{
 
     <header class="top">
       <p class="eyebrow" id="dateLabel">—</p>
-      <h1>Meu Estoque e Vendas</h1>
+      <h1>Meu Estoque e Vendas <button id="btnOcultarValores" title="Ocultar/mostrar valores monetários" aria-label="Ocultar valores" aria-pressed="false">👁️</button></h1>
       <p class="sub">Controle o que você tem e vende em segundos.</p>
 
       <div class="stats">
@@ -395,6 +395,16 @@ nav.tabs button.export-link{
 <script src="js/app.js"></script>
 <script src="js/venda-rapida.js"></script>
 <script src="js/atalhos.js"></script>
+<script>
+  /* Restaura estado de ocultar valores ao carregar a página */
+  (function () {
+    if (localStorage.getItem('mev_valores_ocultos') === '1') {
+      document.documentElement.setAttribute('data-valores-ocultos', '');
+      var btn = document.getElementById('btnOcultarValores');
+      if (btn) { btn.textContent = '🙈'; btn.setAttribute('aria-pressed', 'true'); }
+    }
+  })();
+</script>
 <script src="js/carrinho-inteligente.js"></script>
 
 <script src="js/init.js"></script>

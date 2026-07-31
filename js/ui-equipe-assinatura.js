@@ -23,7 +23,7 @@ let assinaturaCache = null;
 
 const ESTADO_ASSINATURA_UI = {
   ACTIVE:   { rotulo: 'Ativo',              classe: 'ativo' },
-  TRIAL:    { rotulo: 'Ativo',              classe: 'ativo' },
+  TRIAL:    { rotulo: 'Trial gratuito',     classe: 'trial' },
   PAST_DUE: { rotulo: 'Pagamento pendente', classe: 'pendente' },
   CANCELED: { rotulo: 'Cancelado',          classe: 'cancelado' },
   EXPIRED:  { rotulo: 'Cancelado',          classe: 'cancelado' },
@@ -43,6 +43,13 @@ const PLANOS_CATALOGO_ANUAL = [
   { id: 'essencial_anual', nome: 'Essencial', precoTexto: 'R$ 16,58/mês · R$ 199/ano' },
   { id: 'pro_anual',       nome: 'Pro',       precoTexto: 'R$ 33,25/mês · R$ 399/ano' },
 ];
+
+function diasRestantesTrial(dataExpiracao) {
+  if (!dataExpiracao) return null;
+  const diff = new Date(dataExpiracao) - new Date();
+  if (diff <= 0) return 0;
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
 
 function formatarDataCurta(iso) {
   if (!iso) return '—';
@@ -65,14 +72,20 @@ async function carregarTelaAssinatura() {
 
 function telaAssinaturaHtml(a) {
   const ehPlanoGratuito = a.planoId === 'free';
-  // O plano FREE nunca deve exibir "cancelada": não há cobrança, então não
-  // existe cancelamento de verdade nesse plano — só existe "upgrade" ou
-  // "continuar no free". Isso protege a UI mesmo se algum dado antigo/
-  // inconsistente ainda tiver um status diferente de ACTIVE gravado.
-  const estado = ehPlanoGratuito
-    ? { rotulo: 'Plano Gratuito', classe: 'gratis' }
-    : (ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' });
-  const emCanceladoOuExpirado = !ehPlanoGratuito && (a.status === 'CANCELED' || a.status === 'EXPIRED');
+  const emTrial = ehPlanoGratuito && a.status === 'TRIAL';
+  const trialExpirado = ehPlanoGratuito && a.status === 'EXPIRED';
+  const diasTrial = emTrial ? diasRestantesTrial(a.dataExpiracao) : null;
+  // O plano FREE fora de trial nunca deve exibir "cancelada": não há cobrança.
+  // Isso protege a UI mesmo se algum dado antigo/inconsistente ainda tiver
+  // um status diferente de ACTIVE gravado.
+  const estado = emTrial
+    ? { rotulo: `Trial gratuito · ${diasTrial} dia${diasTrial !== 1 ? 's' : ''} restante${diasTrial !== 1 ? 's' : ''}`, classe: 'trial' }
+    : trialExpirado
+      ? { rotulo: 'Trial encerrado', classe: 'cancelado' }
+      : ehPlanoGratuito
+        ? { rotulo: 'Plano Gratuito', classe: 'gratis' }
+        : (ESTADO_ASSINATURA_UI[a.status] || { rotulo: a.status, classe: 'gratis' });
+  const emCanceladoOuExpirado = trialExpirado || (!ehPlanoGratuito && (a.status === 'CANCELED' || a.status === 'EXPIRED'));
 
   let preco;
   if (a.planoId === 'free' || !a.precoCentavos) {
@@ -84,13 +97,17 @@ function telaAssinaturaHtml(a) {
     preco = formatarMoeda(a.precoCentavos / 100) + '/mês';
   }
 
-  const proximaCobranca = a.planoId === 'free'
-    ? 'Não se aplica (plano grátis)'
-    : emCanceladoOuExpirado
-      ? 'Assinatura cancelada — sem próxima cobrança'
-      : formatarDataCurta(a.dataExpiracao);
+  const proximaCobranca = emTrial
+    ? `Trial encerra em ${formatarDataCurta(a.dataExpiracao)}`
+    : trialExpirado
+      ? 'Trial encerrado — escolha um plano para continuar'
+      : a.planoId === 'free'
+        ? 'Não se aplica (plano grátis)'
+        : emCanceladoOuExpirado
+          ? 'Assinatura cancelada — sem próxima cobrança'
+          : formatarDataCurta(a.dataExpiracao);
 
-  const formaPagamento = a.planoId === 'free'
+  const formaPagamento = (ehPlanoGratuito && !trialExpirado)
     ? 'Nenhuma — plano grátis não exige pagamento'
     : 'Ativado manualmente — sem cobrança automática por enquanto';
 
@@ -117,11 +134,19 @@ function telaAssinaturaHtml(a) {
       </div>
     </div>
 
+    ${emTrial && diasTrial !== null && diasTrial <= 7 ? `
+      <div class="aviso-assinatura aviso-pendente">
+        ⏳ Seu trial gratuito encerra em <strong>${diasTrial} dia${diasTrial !== 1 ? 's' : ''}</strong>. Escolha um plano para continuar usando o sistema sem interrupção.
+      </div>` : ''}
+    ${trialExpirado ? `
+      <div class="aviso-assinatura aviso-cancelado">
+        Seu período de 2 meses gratuitos encerrou. Escolha um plano abaixo para continuar usando o sistema.
+      </div>` : ''}
     ${(!ehPlanoGratuito && a.status === 'PAST_DUE') ? `
       <div class="aviso-assinatura aviso-pendente">
         ⚠️ Não conseguimos confirmar seu último pagamento. Regularize para não perder acesso à escrita de dados.
       </div>` : ''}
-    ${emCanceladoOuExpirado ? `
+    ${(!trialExpirado && emCanceladoOuExpirado) ? `
       <div class="aviso-assinatura aviso-cancelado">
         Sua assinatura está cancelada. Escolha um plano abaixo para reativar o sistema.
       </div>` : ''}

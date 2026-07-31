@@ -358,7 +358,12 @@ async function statusAssinatura(db, empresaId) {
     `)
     .bind(empresaId)
     .first();
-  return linha || { status: 'ACTIVE', planoId: 'free', dataExpiracao: null };
+  if (!linha) return { status: 'ACTIVE', planoId: 'free', dataExpiracao: null };
+  if (linha.status === 'TRIAL' && linha.dataExpiracao) {
+    const expirou = new Date(linha.dataExpiracao) < new Date();
+    if (expirou) return { ...linha, status: 'EXPIRED' };
+  }
+  return linha;
 }
 
 function gateEscritaPorAssinatura(method, status) {
@@ -409,15 +414,15 @@ async function criarEmpresa(db, email, request) {
   const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
   await db
     .prepare(`
-      INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio)
-      VALUES (?, ?, ?, 'free', 'ACTIVE', datetime('now'))
+      INSERT INTO assinaturas (id, empresa_id, usuario_id, plano_id, status, data_inicio, data_expiracao)
+      VALUES (?, ?, ?, 'free', 'TRIAL', datetime('now'), datetime('now', '+60 days'))
     `)
     .bind('sub-' + empresaId, empresaId, usuarioDono ? usuarioDono.id : null)
     .run();
 
   await db
-    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ? WHERE email = ?')
-    .bind('free', 'ACTIVE', email)
+    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ?, data_expiracao = datetime(\'now\', \'+60 days\') WHERE email = ?')
+    .bind('free', 'TRIAL', email)
     .run();
 
   await registrarAtividade(db, {

@@ -1429,10 +1429,12 @@ export async function onRequest(context) {
         return json({ error: `Plano "${planoId}" inválido.` }, 400);
       }
 
-      // Sem gateway de pagamento por enquanto: qualquer plano (grátis ou pago)
-      // é ativado diretamente aqui, sem cobrança real. Quando um gateway for
-      // reintroduzido, é aqui que entra a exigência de pagamento confirmado
-      // antes de ativar planos pagos.
+      // Segurança: mudar_plano só é permitido para downgrade para o plano free.
+      // Upgrades para planos pagos devem passar pelo checkout (/api/checkout-mp-assinar
+      // ou /api/assinatura via webhook confirmado pelo Mercado Pago).
+      if (planoId !== 'free') {
+        return json({ error: 'Para assinar um plano pago, utilize o checkout.' }, 403);
+      }
       const usuarioDono = await db.prepare('SELECT id FROM usuarios WHERE email = ?').bind(email).first();
       const novoStatus = 'ACTIVE';
 

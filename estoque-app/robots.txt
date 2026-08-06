@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://estoque-facil.pages.dev/sitemap.xml

@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Meu Estoque e Vendas</title>
+
+<meta name="description" content="Controle de estoque e vendas simples para pequenos comerciantes.">
+<meta name="theme-color" content="#1B3A2F">
+
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- T14: CSS crítico (acima da dobra) inline, para primeiro paint sem
+     esperar nenhum stylesheet externo. É um subconjunto de css/style.css —
+     se algo aqui mudar, atualize os dois lugares. -->
+<style>
+:root{
+  --ledger: #1B3A2F;
+  --ledger-dark: #12281F;
+  --paper: #FBFAF3;
+  --paper-dim: #EFEBDD;
+  --ink: #1F2420;
+  --ink-soft: #5B6259;
+  --amber: #D9A441;
+  --amber-deep: #8A6A22;
+  --coral: #E2572B;
+  --coral-deep: #8F2E14;
+  --line: #D9D4C2;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--ledger-dark);
+  font-family:'Inter',sans-serif;
+  color:var(--ink);
+  min-height:100vh;
+}
+#shell{
+  display:flex;
+  min-height:100vh;
+  max-width:1400px;
+  margin:0 auto;
+}
+.sidebar{ display:none; }
+#app{
+  width:100%;
+  max-width:420px;
+  min-height:100vh;
+  margin:0 auto;
+  background:var(--paper);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+}
+header.top{
+  background:var(--ledger);
+  color:var(--paper);
+  padding:22px 20px 18px;
+}
+header.top .eyebrow{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin:0 0 4px;
+}
+header.top h1{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:26px;
+  margin:0;
+  line-height:1.15;
+}
+header.top .sub{
+  font-size:13px;
+  color:#C7D3CB;
+  margin-top:6px;
+}
+header.top .topsellers{
+  font-size:12px;
+  color:#C7D3CB;
+  margin:10px 0 0;
+}
+header.top .topsellers strong{ color:var(--amber); font-weight:600; }
+.stats{
+  display:flex;
+  gap:10px;
+  padding:14px 16px 0;
+}
+.stat{
+  flex:1;
+  background:var(--paper);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:10px 12px;
+}
+.stat .lbl{
+  font-size:10.5px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;
+}
+.stat .val{
+  font-family:'Fraunces',serif;
+  font-size:19px;
+  font-weight:600;
+  margin-top:2px;
+  color:var(--coral-deep);
+}
+.stat.warn{ cursor:pointer; }
+nav.tabs{
+  display:flex;
+  align-items:flex-end;
+  margin:16px 16px 0;
+  border-bottom:1px solid var(--line);
+}
+.tabs-scroll{
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+}
+.tabs-scroll::-webkit-scrollbar{ display:none; }
+nav.tabs button{
+  flex:0 0 auto;
+  background:none;
+  border:none;
+  padding:10px 14px 12px;
+  font-family:'Inter',sans-serif;
+  font-weight:500;
+  font-size:13.5px;
+  color:var(--ink-soft);
+  border-bottom:2px solid transparent;
+  cursor:pointer;
+  white-space:nowrap;
+}
+nav.tabs button.active{
+  color:var(--ledger);
+  border-bottom:2px solid var(--coral);
+}
+nav.tabs button.export-link{
+  flex:0 0 auto;
+  margin-left:8px;
+  padding:10px 4px 12px 14px;
+  border-left:1px solid var(--line);
+  font-size:12px;
+  color:var(--ink-soft);
+  font-family:'IBM Plex Mono',monospace;
+}
+.toolbar{
+  display:flex;
+  gap:8px;
+  padding:0 16px 12px;
+}
+.btn-destaque{
+  flex:1;
+  background:var(--coral);
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:14px 16px;
+  font-weight:700;
+  font-size:15px;
+  font-family:'Inter',sans-serif;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  cursor:pointer;
+  box-shadow:0 4px 14px rgba(143,46,20,0.28);
+}
+.btn-destaque:active{ transform:scale(0.98); }
+.btn-scan-toolbar{
+  width:52px; flex-shrink:0;
+  background:var(--paper);
+  color:var(--ledger);
+  border:1px solid var(--line);
+  border-radius:12px;
+  cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+}
+.btn-scan-toolbar:active{ transform:scale(0.94); }
+.cartbar{
+  position:sticky;
+  bottom:0;
+  left:0; right:0;
+  background:var(--ledger);
+  color:var(--paper);
+  padding:14px 16px;
+  display:none;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+</style>
+
+<!-- T14: o resto do CSS carrega sem bloquear o parser. O truque
+     media="print" + onload faz o navegador buscar o arquivo em paralelo,
+     com prioridade baixa, e só aplicá-lo como "all" (tela) depois de
+     baixado — na prática, equivalente a um <link rel="preload"> que vira
+     stylesheet sozinho, com fallback via <noscript> pra quando JS está
+     desligado. -->
+<link rel="stylesheet" href="css/style.css" data-clarity-unmask="true" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/microinteracoes.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/venda-rapida.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/estoque-inteligencia.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/carrinho-inteligente.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/clientes-t9.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/fiados.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/dashboard-insights.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/estados.css" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="css/visual-upgrade.css" media="print" onload="this.media='all'">
+<noscript>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/microinteracoes.css">
+  <link rel="stylesheet" href="css/venda-rapida.css">
+  <link rel="stylesheet" href="css/estoque-inteligencia.css">
+  <link rel="stylesheet" href="css/carrinho-inteligente.css">
+  <link rel="stylesheet" href="css/clientes-t9.css">
+  <link rel="stylesheet" href="css/dashboard-insights.css">
+  <link rel="stylesheet" href="css/estados.css">
+  <link rel="stylesheet" href="css/visual-upgrade.css">
+</noscript>
+<script src="js/analytics.js"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Q5PJ2HE6NX"></script>
+<script src="js/gtag.js"></script>
+
+</head>
+
+<body>
+
+
+<div id="shell" style="display:flex;">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+
+    <div class="brand">
+      <span class="brand-mark">M</span>
+      <span class="brand-name">Meu Estoque e Vendas</span>
+    </div>
+
+    <button type="button" class="side-item tabs active" data-tab="estoque">📦 Estoque</button>
+    <button type="button" class="side-item tabs" data-tab="venda">🛒 Venda</button>
+    <button type="button" class="side-item tabs" data-tab="historico">📊 Histórico</button>
+    <button type="button" class="side-item tabs" data-tab="fiados">💳 Fiados</button>
+    <button type="button" class="side-item tabs" data-tab="central">📈 Central de Dados</button>
+    <button type="button" class="side-item tabs" data-tab="atividades">📜 Atividades</button>
+    <button type="button" class="side-item tabs" data-tab="conta">👤 Conta</button>
+    <button type="button" class="side-item tabs" data-tab="assinatura">💳 Assinatura</button>
+    <button type="button" class="side-item tabs" data-tab="contato">📞 Contato</button>
+
+    <button type="button" class="side-item" id="btnImportarSidebar" data-acao="importar-produtos">📥 Importar Produtos</button>
+    <button type="button" class="side-item" id="btnExportarSidebar">⬇ Exportar</button>
+
+    <p id="sidebarEmail"
+       style="margin:14px 12px 4px;font-size:11.5px;color:#C7D3CB;opacity:0.8;word-break:break-all;line-height:1.4;">
+    </p>
+
+    <button class="side-item" id="btnLogoutSidebar">🚪 Sair</button>
+
+  </nav>
+
+  <!-- APP -->
+  <div id="app">
+
+    <header class="top">
+      <p class="eyebrow" id="dateLabel">—</p>
+      <h1>Meu Estoque e Vendas <button id="btnOcultarValores" title="Ocultar/mostrar valores monetários" aria-label="Ocultar valores" aria-pressed="false">👁️</button></h1>
+      <p class="sub">Controle o que você tem e vende em segundos.</p>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="lbl">Vendido hoje</div>
+          <div class="val" id="statHoje">R$ 0</div>
+        </div>
+
+        <div class="stat">
+          <div class="lbl">Vendido no mês</div>
+          <div class="val" id="statMes">R$ 0</div>
+        </div>
+
+        <div class="stat warn" id="statLowWrap">
+          <div class="lbl">Estoque baixo</div>
+          <div class="val" id="statLow">0</div>
+        </div>
+      </div>
+
+      <p class="topsellers" id="topSellers"></p>
+    </header>
+
+    <!-- TABS -->
+    <nav class="tabs">
+      <div class="tabs-scroll">
+        <button type="button" class="active" data-tab="estoque">Estoque</button>
+        <button type="button" data-tab="venda">Venda</button>
+        <button type="button" data-tab="historico">Histórico</button>
+        <button type="button" data-tab="fiados">Fiados</button>
+        <button type="button" data-tab="central">Central de Dados</button>
+        <button type="button" data-tab="atividades">Atividades</button>
+        <button type="button" data-tab="conta">Conta</button>
+        <button type="button" data-tab="assinatura">Assinatura</button>
+        <button type="button" data-tab="contato">Contato</button>
+      </div>
+
+      <button type="button" class="export-link" id="btnImportar" data-acao="importar-produtos">Importar</button>
+      <button type="button" class="export-link" id="btnExportar">Exportar</button>
+    </nav>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar" id="toolbarEstoque">
+      <button type="button" class="btn-destaque" id="btnAddProduct">Adicionar produto</button>
+      <button type="button" class="btn-scan-toolbar" id="btnEscanearVender">📷</button>
+      <button type="button" class="btn-selecionar-etiquetas" id="btnSelecionarEtiquetas" title="Selecionar produtos para imprimir etiquetas">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 11h18"/></svg>
+        Etiquetas
+      </button>
+      <button type="button" class="btn-selecionar-etiquetas" id="btnSelecionarLote" title="Selecionar produtos para excluir ou mudar categoria em lote">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Selecionar
+      </button>
+    </div>
+
+    <div class="toolbar" id="toolbarVenda" style="display:none;"></div>
+
+    <main id="main"></main>
+
+    <div class="cartbar" id="cartbar">
+      <div>
+        <div class="left" id="cartCount">0 itens no carrinho</div>
+        <div class="total" id="cartTotal">R$ 0,00</div>
+      </div>
+      <button id="btnCobrar">Cobrar</button>
+    </div>
+
+    <!-- Barra flutuante do modo de seleção de etiquetas (só aparece quando ativo) -->
+    <div class="selecao-etiquetas-bar" id="selecaoEtiquetasBar" style="display:none;">
+      <div class="left">
+        <span id="selecaoEtiquetasCount">0 selecionados</span>
+      </div>
+      <div class="acoes">
+        <button type="button" class="btn ghost" id="btnCancelarSelecaoEtiquetas">Cancelar</button>
+        <button type="button" class="btn primary" id="btnImprimirEtiquetasSelecionadas" disabled>Imprimir Etiquetas</button>
+      </div>
+    </div>
+
+    <!-- T5: Barra flutuante do modo de seleção em lote (excluir/mudar categoria) -->
+    <div class="selecao-etiquetas-bar" id="selecaoLoteBar" style="display:none;">
+      <div class="left">
+        <span id="selecaoLoteCount">0 selecionados</span>
+      </div>
+      <div class="acoes">
+        <button type="button" class="btn ghost" id="btnCancelarSelecaoLote">Cancelar</button>
+        <button type="button" class="btn ghost" id="btnSelecionarTodosLote">Selecionar tudo</button>
+        <button type="button" class="btn ghost" id="btnMudarCategoriaLote" disabled>Mudar categoria</button>
+        <button type="button" class="btn danger" id="btnExcluirSelecionadosLote" disabled>Excluir</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- JS DO APP -->
+<script src="js/db.js"></script>
+<script src="js/csv-utils.js"></script>
+<script src="js/produtos.js"></script>
+<script src="js/vendas.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="js/importacao.js"></script>
+<script src="js/central-dados.js"></script>
+<script src="js/dashboard-insights.js"></script>
+<script src="js/etiquetas.js"></script>
+<script src="js/ui-base.js"></script>
+<script src="js/estoque-inteligencia.js"></script>
+<script src="js/ui-estoque-venda.js"></script>
+<script src="js/ui-clientes-render.js"></script>
+<script src="js/ui-fiados.js"></script>
+<script src="js/ui-produto-modal.js"></script>
+<script src="js/ui-equipe-assinatura.js"></script>
+<script src="js/checkout-modal.js"></script>
+<script src="js/ui-comprovante-atividades.js"></script>
+<script src="js/ui-onboarding-importacao.js"></script>
+<script src="js/ui-etiquetas.js"></script>
+<script src="js/selecao-lote.js"></script>
+<script src="js/estados.js"></script>
+<script src="js/app.js"></script>
+<script src="js/venda-rapida.js"></script>
+<script src="js/atalhos.js"></script>
+<script>
+  /* Restaura estado de ocultar valores ao carregar a página */
+  (function () {
+    if (localStorage.getItem('mev_valores_ocultos') === '1') {
+      document.documentElement.setAttribute('data-valores-ocultos', '');
+      var btn = document.getElementById('btnOcultarValores');
+      if (btn) { btn.textContent = '🙈'; btn.setAttribute('aria-pressed', 'true'); }
+    }
+  })();
+</script>
+<script src="js/carrinho-inteligente.js"></script>
+
+<script src="js/init.js"></script>
+
+</body>
+</html>

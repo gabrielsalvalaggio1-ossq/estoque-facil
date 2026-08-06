@@ -1,0 +1,514 @@
+/* =====================================================================
+   fiados.css — Estilos da tela Gestão de Fiados
+   ===================================================================== */
+
+/* --- Resumo no topo -------------------------------------------------- */
+.fiados-resumo {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fiados-stat {
+  background: var(--paper-dim, #f9fafb);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.fiados-stat.stat-destaque {
+  background: #F3DED6;
+  border-color: #E2572B44;
+}
+
+.fiados-stat-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft, #6b7280);
+  line-height: 1.2;
+}
+
+.fiados-stat-val {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ledger, #1c1917);
+  line-height: 1.1;
+}
+
+.fiados-stat.stat-destaque .fiados-stat-val {
+  color: var(--coral-deep, #b34425);
+}
+
+/* --- Alerta de duplicatas -------------------------------------------- */
+.fiados-alerta-duplicatas {
+  background: #FFFBEB;
+  border: 1px solid #FCD34D;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.fiados-alerta-duplicatas:hover {
+  background: #FEF3C7;
+}
+
+.fiados-alerta-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.fiados-alerta-texto {
+  flex: 1;
+}
+
+.fiados-alerta-titulo {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #92400E;
+  margin: 0 0 2px;
+}
+
+.fiados-alerta-subtitulo {
+  font-size: 12px;
+  color: #B45309;
+  margin: 0;
+}
+
+.fiados-alerta-chevron {
+  color: #B45309;
+  font-size: 16px;
+}
+
+/* --- Lista de clientes ----------------------------------------------- */
+.fiados-secao-titulo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink-soft, #6b7280);
+  margin: 0 0 8px;
+}
+
+.fiados-cliente-card {
+  background: var(--paper, #ffffff);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: border-color 140ms, background 140ms;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.fiados-cliente-card:hover {
+  border-color: var(--ledger, #1c1917);
+  background: var(--paper-dim, #f9fafb);
+}
+
+.fiados-cliente-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #F3DED6;
+  color: var(--coral-deep, #b34425);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fiados-cliente-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fiados-cliente-nome {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ledger, #1c1917);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.fiados-cliente-meta {
+  font-size: 12px;
+  color: var(--ink-soft, #6b7280);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fiados-cliente-total {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--coral-deep, #b34425);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* --- Modal detalhes do cliente --------------------------------------- */
+.fiados-modal-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.fiados-modal-stat {
+  background: var(--paper-dim, #f9fafb);
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fiados-modal-stat-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--ink-soft, #6b7280);
+}
+
+.fiados-modal-stat-val {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ledger, #1c1917);
+}
+
+.fiados-modal-stat.destaque {
+  background: #F3DED6;
+  border-color: #E2572B44;
+}
+
+.fiados-modal-stat.destaque .fiados-modal-stat-val {
+  color: var(--coral-deep, #b34425);
+}
+
+/* --- Histórico de vendas no modal ----------------------------------- */
+.fiados-historico-titulo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  color: var(--ink-soft, #6b7280);
+  margin: 0 0 8px;
+}
+
+.fiados-venda-row {
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+
+.fiados-venda-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--paper-dim, #f9fafb);
+  cursor: pointer;
+  gap: 8px;
+}
+
+.fiados-venda-header:hover {
+  background: #f3f4f6;
+}
+
+.fiados-venda-data {
+  font-size: 12.5px;
+  color: var(--ink-soft, #6b7280);
+  flex-shrink: 0;
+}
+
+.fiados-venda-total {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--coral-deep, #b34425);
+  flex-shrink: 0;
+}
+
+.fiados-venda-chevron {
+  font-size: 12px;
+  color: var(--ink-soft, #6b7280);
+  transition: transform 200ms;
+}
+
+.fiados-venda-chevron.aberto {
+  transform: rotate(180deg);
+}
+
+.fiados-venda-itens {
+  padding: 0 12px 10px;
+  background: var(--paper, #ffffff);
+  display: none;
+}
+
+.fiados-venda-itens.aberto {
+  display: block;
+}
+
+.fiados-venda-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--line, #e5e7eb);
+  gap: 8px;
+}
+
+.fiados-venda-item:last-child {
+  border-bottom: none;
+}
+
+.fiados-venda-item-nome {
+  color: var(--ledger, #1c1917);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fiados-venda-item-qtd {
+  color: var(--ink-soft, #6b7280);
+  flex-shrink: 0;
+  font-size: 11.5px;
+}
+
+.fiados-venda-item-preco {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  color: var(--ledger, #1c1917);
+  flex-shrink: 0;
+}
+
+/* --- Modal de duplicatas -------------------------------------------- */
+.fiados-dup-grupo {
+  border: 1px solid #FCD34D;
+  border-radius: 12px;
+  background: #FFFBEB;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.fiados-dup-titulo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #92400E;
+  padding: 10px 14px 4px;
+}
+
+.fiados-dup-lista {
+  padding: 0 14px;
+  margin: 0;
+}
+
+.fiados-dup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 13.5px;
+  border-bottom: 1px solid #FCD34D55;
+  gap: 8px;
+}
+
+.fiados-dup-item:last-child {
+  border-bottom: none;
+}
+
+.fiados-dup-nome {
+  color: #92400E;
+  font-weight: 500;
+}
+
+.fiados-dup-valor {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 13px;
+  color: #B45309;
+  flex-shrink: 0;
+}
+
+.fiados-dup-total-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 14px;
+  border-top: 1px solid #FCD34D;
+  font-size: 12px;
+  color: #92400E;
+  font-weight: 600;
+  background: #FEF3C7;
+}
+
+.fiados-dup-acoes {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.fiados-dup-acoes .btn {
+  flex: 1;
+  min-width: 90px;
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
+
+/* --- Estado de carregando ------------------------------------------- */
+.fiados-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 12px;
+  color: var(--ink-soft, #6b7280);
+}
+
+.fiados-loading-icon {
+  font-size: 32px;
+  animation: fiados-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes fiados-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* --- Vazio ---------------------------------------------------------- */
+.fiados-vazio {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--ink-soft, #6b7280);
+}
+
+.fiados-vazio-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.fiados-vazio-titulo {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ledger, #1c1917);
+  margin-bottom: 6px;
+}
+
+.fiados-vazio-dica {
+  font-size: 13px;
+}
+
+/* --- Botão quitar tudo ------------------------------------------------ */
+.fiados-quitar-total-wrap {
+  margin-bottom: 14px;
+}
+
+.fiados-btn-quitar-total {
+  width: 100%;
+  font-size: 14px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* --- Botão quitar venda individual ------------------------------------ */
+.fiados-venda-quitar-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 0 2px;
+  border-top: 1px dashed var(--line, #e5e7eb);
+  margin-top: 6px;
+}
+
+.fiados-btn-quitar-venda {
+  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  color: var(--coral-deep, #b34425);
+  border-color: var(--coral-deep, #b34425);
+}
+
+.fiados-btn-quitar-venda:hover {
+  background: #F3DED6;
+}
+
+/* --- Toast de confirmação --------------------------------------------- */
+.fiados-toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--ledger, #1c1917);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 24px;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 220ms, transform 220ms;
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22);
+}
+
+.fiados-toast--visivel {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* --- Botão sugerir agregações ----------------------------------------- */
+.fiados-btn-agregar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  background: var(--paper, #ffffff);
+  border: 1.5px dashed var(--line, #e5e7eb);
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-soft, #6b7280);
+  cursor: pointer;
+  transition: border-color 140ms, color 140ms, background 140ms;
+  text-align: left;
+}
+
+.fiados-btn-agregar:hover {
+  border-color: var(--ledger, #1c1917);
+  color: var(--ledger, #1c1917);
+  background: var(--paper-dim, #f9fafb);
+}

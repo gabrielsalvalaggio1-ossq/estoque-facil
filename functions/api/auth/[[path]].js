@@ -182,7 +182,7 @@ async function garantirEmpresaEMembro(db, email, nomeSugestao) {
     .run();
 
   await db
-    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ? WHERE email = ?')
+    .prepare('UPDATE usuarios SET plano_atual = ?, status_assinatura = ?, data_inicio_assinatura = datetime(\'now\'), data_expiracao = datetime(\'now\', \'+60 days\') WHERE email = ?')
     .bind('free', 'ACTIVE', email)
     .run();
 
